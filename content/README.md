@@ -45,8 +45,8 @@ Ek olarak kullanılabilir: `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep
 ## Notlar
 
 - Politika, prosedür ve formların başlığında **Doküman No, Yayın Tarihi, Revizyon Tarihi, Revizyon No**
-  alanları var. Doküman Yönetimi modülü bunları sürümlerden otomatik doldurabilir; bunun için şablonlara
-  `{{dokuman.yayin_tarihi}}`, `{{dokuman.revizyon_no}}` gibi yer tutucular eklenmesi gerekir.
+  alanları var. Karar (Erdal, 2026-10-06): yayın tarihi ve revizyon no sistem tarafından **otomatik
+  doldurulmaz**; şablondaki haliyle kalır.
 - TBL-010 (5 örnek satır, 16 sütun): Departman, Faaliyet, Veri Kategorisi, Kişisel Veri, Özel Nitelikli
   Kişisel Veri, İşleme Amacı, Fiziksel/Dijital, Bulunduğu Yer, Veri Konusu Kişi Grubu, Hukuki Sebep,
   İlgili Mevzuat, Saklama Süresi, Alıcı Grupları, Yurt Dışı Aktarım, İdari Tedbirler, Teknik Tedbirler.
