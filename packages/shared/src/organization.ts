@@ -1,10 +1,13 @@
 /**
- * Kuruluş profil alanları. Bu alanlar doküman şablonlarındaki yer tutuculara
- * (ör. {{kurum.unvan}}) otomatik yerleştirilir.
+ * Doküman şablonlarındaki yer tutucular ve karşılık gelen kuruluş profil alanları.
+ * Adlar, sağlanan KVKK dokümanlarında kullanılanlarla aynıdır (ör. {{kurum.unvan}}).
+ * Şablonlarda `{{ kurum.unvan }}` gibi boşluklu yazım da geçerlidir.
  */
 export const ORGANIZATION_PLACEHOLDERS = {
   'kurum.unvan': 'name',
-  'kurum.adres': 'address',
+  'kurum.adresi': 'address',
+  'kurum.vergi_no': 'taxNumber',
+  'kurum.web_sitesi_adresi': 'website',
   'kurum.eposta': 'email',
   'kurum.telefon': 'phone',
   'kurum.kep': 'kepAddress',

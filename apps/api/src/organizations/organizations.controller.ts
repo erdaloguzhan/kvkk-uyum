@@ -19,6 +19,9 @@ const profileFields = {
   phone: optionalText(40),
   kepAddress: z.email().max(254).nullish(),
   authorizedPerson: optionalText(200),
+  // Vergi kimlik no (10 hane) veya şahıs şirketleri için TC kimlik no (11 hane).
+  taxNumber: z.string().trim().regex(/^\d{10,11}$/, 'Vergi numarası 10 veya 11 haneli olmalı').nullish(),
+  website: optionalText(300),
 };
 const createBody = z.object(profileFields);
 const updateBody = z.object(profileFields).partial().refine((v) => Object.keys(v).length > 0, {

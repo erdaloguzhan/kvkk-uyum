@@ -13,6 +13,8 @@ export interface OrganizationProfile {
   phone?: string | null;
   kepAddress?: string | null;
   authorizedPerson?: string | null;
+  taxNumber?: string | null;
+  website?: string | null;
 }
 
 /** Kurulum sihirbazının tamamlanması için dolu olması gereken alanlar. */
@@ -23,6 +25,7 @@ const REQUIRED_FOR_SETUP: (keyof OrganizationProfile)[] = [
   'phone',
   'kepAddress',
   'authorizedPerson',
+  'taxNumber',
 ];
 
 @Injectable()

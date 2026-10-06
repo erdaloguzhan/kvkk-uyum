@@ -50,8 +50,14 @@ describe('Kuruluşlar, üyeler ve roller', () => {
       .set(as(admin.accessToken))
       .expect(400);
     expect(incomplete.body.missing).toEqual(
-      expect.arrayContaining(['address', 'email', 'phone', 'kepAddress', 'authorizedPerson']),
+      expect.arrayContaining(['address', 'email', 'phone', 'kepAddress', 'authorizedPerson', 'taxNumber']),
     );
+
+    await request(server)
+      .patch('/api/v1/organizations/current')
+      .set(as(admin.accessToken))
+      .send({ taxNumber: '12345' })
+      .expect(400);
 
     await request(server)
       .patch('/api/v1/organizations/current')
@@ -62,6 +68,8 @@ describe('Kuruluşlar, üyeler ve roller', () => {
         phone: '+90 312 000 00 00',
         kepAddress: 'ornek@hs01.kep.tr',
         authorizedPerson: 'Ayşe Yılmaz',
+        taxNumber: '1234567890',
+        website: 'www.ornek.com.tr',
       })
       .expect(200);
     const done = await request(server)
