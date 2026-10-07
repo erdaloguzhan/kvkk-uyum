@@ -34,8 +34,8 @@ Ek olarak kullanılabilir: `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep
 | FRM-020 | KVK Veri İhlal Kayıt ve Bildirim Formu | Form | Kullanımda (yer tutucu yok; alanlar elle doldurulur) |
 | AYM-010 | Genel Aydınlatma Metni | Aydınlatma metni | Kullanımda |
 | AYM-020 | Çalışan Aydınlatma Metni | Aydınlatma metni | Kullanımda |
-| AYM-030 | Çalışan Adayı Aydınlatma Metni | Aydınlatma metni | **Kullanılmayacak** |
-| AYM-040 | Kameralı Bölge Aydınlatma Metni | Aydınlatma metni | **Kullanılmayacak** |
+| AYM-030 | Çalışan Adayı Aydınlatma Metni | Aydınlatma metni | Opsiyonel (kuruluş ihtiyacına göre kullanılır) |
+| AYM-040 | Kameralı Bölge Aydınlatma Metni | Aydınlatma metni | Opsiyonel (kuruluş ihtiyacına göre kullanılır) |
 | AYM-041 | Kameralı Bölge Aydınlatma Metni (Tabela) | Aydınlatma metni | Kullanımda |
 | AYM-050 | Çerez Aydınlatma Metni | Aydınlatma metni | Kullanımda |
 | SZL-010 | Çalışan Kişisel Verileri Koruma Gizlilik Protokolü | Sözleşme | Kullanımda |
