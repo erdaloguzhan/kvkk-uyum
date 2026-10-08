@@ -84,9 +84,9 @@ export const INVENTORY_REQUIRED_FIELDS: InventoryField[] = [
 ];
 
 /**
- * Adım adım girişte önerilen seçenekler: TBL-010'daki örnek satırlarda geçen değerler, aynen.
- * Liste eksiksiz değildir (ör. tedbir numaraları atlamalı); kuruluşun kendi girdiği değerler de önerilir.
- * Tedbirler TBL-010'daki numaralarıyla birlikte saklanır.
+ * Adım adım girişte önerilen seçenekler, aynen ve bu sırayla gösterilir. İdari ve teknik tedbirler Erdal'ın
+ * verdiği listelerdir; diğerleri TBL-010'daki örnek satırlarda geçen değerlerdir.
+ * Kuruluşun kendi girdiği diğer değerler listenin sonuna eklenerek önerilir.
  */
 export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | InventoryListField, string[]>> = {
   department: ['İdari', 'Muhasebe'],
@@ -104,27 +104,38 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
   relatedLegislation: ['4857 sayılı İş Kanunu', '5237 sayılı Türk Ceza kanunu'],
   retentionPeriod: ['15 yıl'],
   recipients: ['SGK Ve Diğer Yetkili Kurum ve Kuruluşlar', 'Mali Müşavir', 'Bankalar'],
+  // Erdal'ın verdiği idari tedbir listesi (2026-10-08), verdiği sırayla.
   administrativeMeasures: [
-    '7. Çalışanlar için veri güvenliği konusunda belli aralıklarla eğitim ve farkındalık çalışmaları yapılmaktadır.',
-    '10. Erişim, bilgi güvenliği, kullanım, saklama ve imha konularında kurumsal politikalar hazırlanmış ve uygulamaya başlanmıştır.',
-    '17. Kağıt yoluyla aktarılan kişisel veriler için ekstra güvenlik tedbirleri alınmakta ve ilgili evrak gizlilik dereceli belge formatında gönderilmektedir.',
-    '18. Kişisel veri güvenliği politika ve prosedürleri belirlenmiştir.',
-    '19. Kişisel veri güvenliği sorunları hızlı bir şekilde raporlanmaktadır.',
-    '20. Kişisel veri güvenliğinin takibi yapılmaktadır.',
-    '21. Kişisel veri içeren fiziksel ortamlara giriş çıkışlarla ilgili gerekli güvenlik önlemleri alınmaktadır.',
-    '22. Kişisel veri içeren fiziksel ortamların dış risklere (yangın, sel vb.) karşı güvenliği sağlanmaktadır.',
-    '23. Kişisel veri içeren ortamların güvenliği sağlanmaktadır.',
-    '24. Kişisel veriler mümkün olduğunca azaltılmaktadır.',
-    '29. Mevcut risk ve tehditler belirlenmiştir.',
+    'Kişisel Veri İşleme Envanteri Hazırlanması',
+    'Kurumsal Politikalar (Erişim, Bilgi Güvenliği, Kullanım, Saklama ve İmha vb.)',
+    'Sözleşmeler (Veri Sorumlusu - Veri Sorumlusu, Veri Sorumlusu - Veri İşleyen Arasında)',
+    'Gizlilik Taahhütnameleri',
+    'Kurum İçi Periyodik ve/veya Rastgele Denetimler',
+    'Risk Analizleri',
+    'İş Sözleşmesi, Disiplin Yönetmeliği (Kanuna Uygun Hükümler İlave Edilmesi)',
+    'Kurumsal İletişim (Kriz Yönetimi, Kurul ve İlgili Kişiyi Bilgilendirme Süreçleri, İtibar Yönetimi vb.)',
+    'Eğitim ve Farkındalık Faaliyetleri (Bilgi Güvenliği ve Kanun)',
+    'Veri Sorumluları Sicil Bilgi Sistemine (VERBİS) Bildirim',
   ],
+  // Erdal'ın verdiği teknik tedbir listesi (2026-10-08), verdiği sırayla.
   technicalMeasures: [
-    '1. Ağ güvenliği ve uygulama güvenliği sağlanmaktadır.',
-    '4. Bilgi teknolojileri sistemleri tedarik, geliştirme ve bakımı kapsamındaki güvenlik önlemleri alınmaktadır.',
-    '10. Erişim, bilgi güvenliği, kullanım, saklama ve imha konularında kurumsal politikalar hazırlanmış ve uygulamaya başlanmıştır.',
-    '14. Güncel anti-virüs sistemleri kullanılmaktadır.',
-    '15. Güvenlik duvarları kullanılmaktadır.',
-    '25. Kişisel veriler yedeklenmekte ve yedeklenen kişisel verilerin güvenliği de sağlanmaktadır.',
-    '30. Özel nitelikli kişisel veri güvenliğine yönelik protokol ve prosedürler belirlenmiş ve uygulanmaktadır.',
+    'Yetki Matrisi',
+    'Yetki Kontrol',
+    'Erişim Logları',
+    'Kullanıcı Hesap Yönetimi',
+    'Ağ Güvenliği',
+    'Uygulama Güvenliği',
+    'Şifreleme',
+    'Sızma Testi',
+    'Saldırı Tespit ve Önleme Sistemleri',
+    'Log Kayıtları',
+    'Veri Maskeleme',
+    'Veri Kaybı Önleme Yazılımları',
+    'Yedekleme',
+    'Güvenlik Duvarları',
+    'Güncel Anti-Virüs Sistemleri',
+    'Silme, Yok Etme veya Anonim Hale Getirme',
+    'Anahtar Yönetimi',
   ],
 };
 
