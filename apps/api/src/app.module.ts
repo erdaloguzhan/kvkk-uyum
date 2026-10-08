@@ -10,6 +10,7 @@ import { AppConfig, CONFIG, ConfigModule } from './config';
 import { DbModule } from './db/db.module';
 import { DocumentsModule } from './documents/documents.module';
 import { HealthController } from './health.controller';
+import { InventoryModule } from './inventory/inventory.module';
 import { MembersModule } from './members/members.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RolesModule } from './roles/roles.module';
@@ -34,6 +35,7 @@ import { RolesModule } from './roles/roles.module';
     MembersModule,
     RolesModule,
     DocumentsModule,
+    InventoryModule,
   ],
   controllers: [HealthController],
   providers: [
