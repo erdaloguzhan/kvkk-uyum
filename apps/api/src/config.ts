@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import path from 'node:path';
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -7,6 +8,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   CAPTCHA_SECRET: z.string().optional(),
   TRIAL_DAYS: z.coerce.number().int().positive().default(30),
+  CONTENT_DIR: z.string().optional(),
 });
 
 export interface AppConfig {
@@ -15,6 +17,8 @@ export interface AppConfig {
   port: number;
   captchaSecret?: string;
   trialDays: number;
+  /** Doküman şablonlarının bulunduğu klasör (depodaki content/). */
+  contentDir: string;
 }
 
 export const CONFIG = Symbol('CONFIG');
@@ -27,6 +31,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     port: e.PORT,
     captchaSecret: e.CAPTCHA_SECRET || undefined,
     trialDays: e.TRIAL_DAYS,
+    contentDir: e.CONTENT_DIR || path.resolve(__dirname, '../../../content'),
   };
 }
 

@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
 import {
+  AnyPgColumn,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -12,6 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 const id = () => uuid('id').primaryKey().defaultRandom();
+const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const users = pgTable(
@@ -145,4 +148,57 @@ export const auditLogs = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('audit_logs_org_created_idx').on(t.organizationId, t.createdAt)],
+);
+
+/** Kuruluşa ait doküman (politika, prosedür, form, aydınlatma metni, sözleşme). */
+export const documents = pgTable(
+  'documents',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    /** Şablondan oluşturulduysa şablon kodu (ör. POL-010). */
+    templateCode: text('template_code'),
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    category: text('category', { enum: ['policy', 'procedure', 'form', 'notice', 'contract'] }).notNull(),
+    publishedVersionId: uuid('published_version_id').references((): AnyPgColumn => documentVersions.id, {
+      onDelete: 'set null',
+    }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('documents_org_code_unique').on(t.organizationId, t.code)],
+);
+
+/**
+ * Dokümanın sürümleri. Her sürüm dosyanın kendisini taşır ve değiştirilmez;
+ * değişiklik her zaman yeni sürüm olarak eklenir.
+ */
+export const documentVersions = pgTable(
+  'document_versions',
+  {
+    id: id(),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    versionNo: integer('version_no').notNull(),
+    status: text('status', { enum: ['draft', 'published', 'superseded'] }).notNull().default('draft'),
+    /** template: şablondan kuruluş profiliyle üretildi; upload: kullanıcı düzenleyip yükledi. */
+    source: text('source', { enum: ['template', 'upload'] }).notNull(),
+    fileName: text('file_name').notNull(),
+    content: bytea('content').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    sha256: text('sha256').notNull(),
+    /** Henüz desteklenmediği için boş bırakılan yer tutucular (ör. kurum.logo). */
+    unfilledPlaceholders: text('unfilled_placeholders').array().notNull().default(sql`'{}'::text[]`),
+    note: text('note'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    publishedBy: uuid('published_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [uniqueIndex('document_versions_doc_version_unique').on(t.documentId, t.versionNo)],
 );
