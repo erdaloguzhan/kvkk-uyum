@@ -38,6 +38,8 @@ export const organizations = pgTable('organizations', {
   phone: text('phone'),
   kepAddress: text('kep_address'),
   authorizedPerson: text('authorized_person'),
+  taxNumber: text('tax_number'),
+  website: text('website'),
   licenseStatus: text('license_status', { enum: ['trial', 'active', 'expired'] })
     .notNull()
     .default('trial'),

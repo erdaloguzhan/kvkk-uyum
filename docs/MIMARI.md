@@ -80,7 +80,7 @@ audit_logs       id, organization_id, user_id, action, entity_type, entity_id,
 
 Erdal'ın sağlayacağı Word/PDF dosyaları `content/` klasörüne konur. DMS aşamasında bu dosyalar şablona çevrilir ve içlerindeki firma bilgisi alanları yer tutucularla değiştirilir:
 
-`{{kurum.unvan}}`, `{{kurum.adres}}`, `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep}}`, `{{kurum.yetkili}}`
+`{{kurum.unvan}}`, `{{kurum.adresi}}`, `{{kurum.vergi_no}}`, `{{kurum.web_sitesi_adresi}}`, `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep}}`, `{{kurum.yetkili}}`
 
 Hukuki metin uydurulmaz; sistem yalnızca sağlanan içeriği kullanır.
 
