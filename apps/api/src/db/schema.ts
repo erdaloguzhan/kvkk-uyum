@@ -15,6 +15,7 @@ import {
 
 const id = () => uuid('id').primaryKey().defaultRandom();
 const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
+const textList = (name: string) => text(name).array().notNull().default(sql`'{}'::text[]`);
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const users = pgTable(
@@ -201,4 +202,39 @@ export const documentVersions = pgTable(
     publishedBy: uuid('published_by').references(() => users.id, { onDelete: 'set null' }),
   },
   (t) => [uniqueIndex('document_versions_doc_version_unique').on(t.documentId, t.versionNo)],
+);
+
+/**
+ * Kişisel veri envanteri satırı (TBL-010'un bir satırı): bir departmanın bir faaliyetinde
+ * işlenen bir veri kategorisi. Sütunlar @kvkk/shared INVENTORY_COLUMNS ile aynı sıradadır.
+ */
+export const inventoryEntries = pgTable(
+  'inventory_entries',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    department: text('department').notNull(),
+    activity: text('activity').notNull(),
+    dataCategory: text('data_category').notNull(),
+    personalData: text('personal_data'),
+    specialCategoryData: text('special_category_data'),
+    purposes: textList('purposes'),
+    storageMedium: text('storage_medium', { enum: ['physical', 'digital', 'both'] }),
+    storageLocation: text('storage_location'),
+    dataSubjectGroups: textList('data_subject_groups'),
+    legalBases: textList('legal_bases'),
+    relatedLegislation: text('related_legislation'),
+    retentionPeriod: text('retention_period'),
+    recipients: textList('recipients'),
+    foreignTransfers: text('foreign_transfers'),
+    administrativeMeasures: textList('administrative_measures'),
+    technicalMeasures: textList('technical_measures'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('inventory_entries_org_department_idx').on(t.organizationId, t.department)],
 );

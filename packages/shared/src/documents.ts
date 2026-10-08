@@ -1,7 +1,7 @@
 /**
  * Erdal'ın sağladığı KVKK doküman şablonlarının kataloğu (content/ klasörü).
  * Doküman Yönetimi modülü bu şablonları kuruluş profiliyle doldurup kuruluşa özel doküman oluşturur.
- * TBL-010 (Excel) burada yok; Kişisel Veri Envanteri modülünün veri yapısına esas alınır.
+ * TBL-010 (Excel) burada yok; Kişisel Veri Envanteri modülünün veri yapısına esas alınır (inventory.ts).
  */
 export const DOCUMENT_CATEGORIES = {
   policy: 'Politika',
