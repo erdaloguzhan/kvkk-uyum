@@ -7,7 +7,8 @@ KVKK uyum yönetimi için web, iOS ve Android uygulaması. Mimari ve modül sır
 | Bileşen | Durum |
 |---|---|
 | `apps/api` — Temel modül: giriş (şifre + e-posta kodu), CAPTCHA, hız sınırı, hesap kilidi, şifre sıfırlama/davet, kuruluşlar, üyeler, roller/yetkiler, sistem logu | Hazır, testli |
-| `packages/shared` — Yetki anahtarları, varsayılan roller, doküman yer tutucuları | Hazır |
+| `apps/api` — Doküman Yönetimi: şablonları kuruluş bilgileriyle doldurma, sürümleme, Word ile düzenleyip yükleme, yayınlama | Hazır, testli |
+| `packages/shared` — Yetki anahtarları, varsayılan roller, doküman yer tutucuları, şablon kataloğu | Hazır |
 | `apps/web` (Next.js), `apps/mobile` (Expo) | Sırada |
 
 ## Çalıştırma
@@ -48,3 +49,6 @@ Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister.
 | `POST/PATCH/DELETE /members` | `users.manage` |
 | `POST/PATCH/DELETE /roles` | `roles.manage` |
 | `GET /audit-logs` | `audit.read` |
+| `GET /document-templates`, `GET /documents`, `GET /documents/:id`, `GET /documents/:id/versions/:versionId/file` | `documents.read` (taslakları yalnızca `documents.write` sahipleri görür) |
+| `POST /documents` (şablondan), `POST /documents/setup` (opsiyonel olmayan tüm şablonlar), `POST /documents/:id/regenerate`, `POST /documents/:id/versions` (`.docx` yükleme) | `documents.write` |
+| `POST /documents/:id/versions/:versionId/publish` | `documents.approve` |

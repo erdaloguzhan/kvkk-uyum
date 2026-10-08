@@ -8,6 +8,7 @@ import { AuthGuard } from './common/auth.guard';
 import { OrgGuard } from './common/org.guard';
 import { AppConfig, CONFIG, ConfigModule } from './config';
 import { DbModule } from './db/db.module';
+import { DocumentsModule } from './documents/documents.module';
 import { HealthController } from './health.controller';
 import { MembersModule } from './members/members.module';
 import { OrganizationsModule } from './organizations/organizations.module';
@@ -32,6 +33,7 @@ import { RolesModule } from './roles/roles.module';
     OrganizationsModule,
     MembersModule,
     RolesModule,
+    DocumentsModule,
   ],
   controllers: [HealthController],
   providers: [

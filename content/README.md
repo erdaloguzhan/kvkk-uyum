@@ -6,6 +6,8 @@ tarafından üretilmez; yalnızca buradaki içerik kullanılır.
 
 - Tüm şablonlar `.docx` biçimindedir. Orijinali `.doc` olanlar LibreOffice ile `.docx`'e çevrildi;
   orijinaller `_orijinal/` klasöründe duruyor.
+- Şablon kataloğu (kod, başlık, tür, opsiyonel mi) `packages/shared/src/documents.ts` içindedir; yeni şablon
+  eklenince oraya da eklenmelidir.
 - 16 şablonun tamamı örnek firma bilgileriyle doldurulup test edildi; doldurulmadan kalan yer tutucu yok.
 
 ## Yer tutucular
@@ -16,7 +18,7 @@ tarafından üretilmez; yalnızca buradaki içerik kullanılır.
 | `{{kurum.adresi}}` | Adres | AYM-010/020/030/040/050, SZL-010, SZL-020 |
 | `{{kurum.vergi_no}}` | Vergi numarası | AYM-010/020/030/040/050, SZL-020 |
 | `{{kurum.web_sitesi_adresi}}` | Web sitesi | AYM-010/020/030/040/041/050 |
-| `{{kurum.logo}}` | Firma logosu (görsel) | AYM-041 — henüz desteklenmiyor, logo yükleme ile eklenecek |
+| `{{kurum.logo}}` | Firma logosu (görsel) | AYM-041 — henüz desteklenmiyor; doküman oluşur, logo alanı boş kalır ve sürümde not edilir |
 
 Ek olarak kullanılabilir: `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep}}`, `{{kurum.yetkili}}`.
 `{{ kurum.unvan }}` gibi boşluklu yazım da geçerlidir.
