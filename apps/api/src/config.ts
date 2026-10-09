@@ -9,6 +9,7 @@ const envSchema = z.object({
   CAPTCHA_SECRET: z.string().optional(),
   TRIAL_DAYS: z.coerce.number().int().positive().default(30),
   CONTENT_DIR: z.string().optional(),
+  ALARM_INTERVAL_MINUTES: z.coerce.number().int().min(0).default(60),
 });
 
 export interface AppConfig {
@@ -19,6 +20,8 @@ export interface AppConfig {
   trialDays: number;
   /** Doküman şablonlarının bulunduğu klasör (depodaki content/). */
   contentDir: string;
+  /** Hatırlatma ve gecikme alarmlarının kaç dakikada bir taranacağı (0: kapalı). */
+  alarmIntervalMinutes: number;
 }
 
 export const CONFIG = Symbol('CONFIG');
@@ -32,6 +35,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     captchaSecret: e.CAPTCHA_SECRET || undefined,
     trialDays: e.TRIAL_DAYS,
     contentDir: e.CONTENT_DIR || path.resolve(__dirname, '../../../content'),
+    alarmIntervalMinutes: e.ALARM_INTERVAL_MINUTES,
   };
 }
 

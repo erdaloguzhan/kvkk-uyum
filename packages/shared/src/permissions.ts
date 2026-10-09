@@ -14,6 +14,8 @@ export const PERMISSIONS = {
   DOCUMENTS_APPROVE: 'documents.approve',
   INVENTORY_READ: 'inventory.read',
   INVENTORY_WRITE: 'inventory.write',
+  TASKS_READ: 'tasks.read',
+  TASKS_MANAGE: 'tasks.manage',
   INCIDENTS_MANAGE: 'incidents.manage',
   CONTRACTS_MANAGE: 'contracts.manage',
   DESTRUCTION_MANAGE: 'destruction.manage',
