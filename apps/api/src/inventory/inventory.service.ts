@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  DATA_CATEGORIES,
   INVENTORY_COLUMNS,
   INVENTORY_REQUIRED_FIELDS,
   INVENTORY_TEMPLATE_FILE,
@@ -83,6 +84,8 @@ export class InventoryService {
       columns: INVENTORY_COLUMNS,
       requiredFields: INVENTORY_REQUIRED_FIELDS,
       storageMedia: STORAGE_MEDIA,
+      // Veri kategorisi seçilirken örnekleri göstermek ve özel nitelikli olanları ayırt etmek için.
+      dataCategories: DATA_CATEGORIES,
       suggestions,
     };
   }
