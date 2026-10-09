@@ -1,5 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import ExcelJS from 'exceljs';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import request from 'supertest';
 import { createApp, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
 
@@ -262,5 +264,127 @@ describe('Kişisel Veri Envanteri', () => {
     await request(server).get('/api/v1/inventory/export').set(a.as(viewer.accessToken)).expect(200);
     await request(server).post('/api/v1/inventory').set(a.as(viewer.accessToken)).send(ENTRY).expect(403);
     await request(server).delete(`/api/v1/inventory/${entry.body.id}`).set(a.as(viewer.accessToken)).expect(403);
+  });
+
+  describe('Excel içe aktarma', () => {
+    const TEMPLATE = path.resolve(__dirname, '../../../content/tablolar/TBL-010 Kişisel Veri Envanteri Tablosu.xlsx');
+
+    function upload(headers: Record<string, string>, file: Buffer, query = '') {
+      return request(server)
+        .post(`/api/v1/inventory/import${query}`)
+        .set(headers)
+        .attach('file', file, 'envanter.xlsx');
+    }
+
+    async function workbook(rows: (string | null)[][], merges: string[] = []) {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Envanter');
+      rows.forEach((r) => ws.addRow(r));
+      merges.forEach((m) => ws.mergeCells(m));
+      return Buffer.from(await wb.xlsx.writeBuffer());
+    }
+
+    it('TBL-010 şablonundaki örnek satırları okur', async () => {
+      const { admin, as } = await setupOrg();
+      const res = await upload(as(admin.accessToken), readFileSync(TEMPLATE), '?dryRun=true').expect(200);
+      expect(res.body).toMatchObject({ dryRun: true, count: 5 });
+      const first = res.body.rows[0];
+      expect(first).toMatchObject({
+        row: 3,
+        department: 'Muhasebe',
+        dataCategory: 'Kimlik',
+        storageMedium: 'both',
+        dataSubjectGroups: ['Çalışanlar', 'Stajyerler'],
+        recipients: ['SGK Ve Diğer Yetkili Kurum ve Kuruluşlar', 'Mali Müşavir', 'Bankalar'],
+        retentionPeriod: '15 yıl',
+      });
+      expect(first.purposes).toEqual([
+        'Çalışanlar İçin İş Akdi ve Mevzuat Kaynaklı Yükümlülüklerin Yerine Getirilmesi',
+        'Çalışanlar İçin Yan Haklar ve Menfaatleri Süreçlerinin Yürütülmesi',
+      ]);
+      expect(first.technicalMeasures).toHaveLength(7);
+      expect(res.body.rows[1]).toMatchObject({ dataCategory: 'Sağlık', specialCategoryData: expect.stringContaining('Sağlık raporu') });
+      expect(res.body.rows[1].personalData).toBeUndefined();
+
+      // Kontrol modunda hiçbir şey kaydedilmez.
+      const list = await request(server).get('/api/v1/inventory').set(as(admin.accessToken)).expect(200);
+      expect(list.body.items).toEqual([]);
+    });
+
+    it('dışa aktarılan dosyayı geri alır; ekleme ve değiştirme modları', async () => {
+      const { admin, as } = await setupOrg();
+      await request(server).post('/api/v1/inventory').set(as(admin.accessToken)).send(ENTRY).expect(201);
+      const exported = await request(server)
+        .get('/api/v1/inventory/export')
+        .set(as(admin.accessToken))
+        .buffer(true)
+        .parse(binary)
+        .expect(200);
+
+      const appended = await upload(as(admin.accessToken), exported.body).expect(200);
+      expect(appended.body).toMatchObject({ mode: 'append', count: 1, removed: 0 });
+      let list = await request(server).get('/api/v1/inventory').set(as(admin.accessToken)).expect(200);
+      expect(list.body.items).toHaveLength(2);
+      const { id, createdAt, updatedAt, createdBy, updatedBy, organizationId, ...a } = list.body.items[0];
+      const { id: _i, createdAt: _c, updatedAt: _u, createdBy: _cb, updatedBy: _ub, organizationId: _o, ...b } =
+        list.body.items[1];
+      expect(b).toEqual(a);
+
+      const replaced = await upload(as(admin.accessToken), exported.body, '?mode=replace').expect(200);
+      expect(replaced.body).toMatchObject({ mode: 'replace', count: 1, removed: 2 });
+      list = await request(server).get('/api/v1/inventory').set(as(admin.accessToken)).expect(200);
+      expect(list.body.items).toHaveLength(1);
+
+      const logs = await request(server).get('/api/v1/audit-logs').set(as(admin.accessToken)).expect(200);
+      const imported = logs.body.items.filter((l: any) => l.action === 'inventory.imported');
+      expect(imported.map((l: any) => l.metadata.mode).sort()).toEqual(['append', 'replace']);
+    });
+
+    it('hatalı satırları numarasıyla bildirir ve hiçbir satırı kaydetmez', async () => {
+      const { admin, as } = await setupOrg();
+      // Sütun sırası farklı, başlık üstünde bir başlık satırı daha var, departman hücreleri birleştirilmiş.
+      const header = ['Kişisel Veri Envanteri', null, null, null, null];
+      const labels = ['Faaliyet', 'Departman', 'Veri Kategorisi', 'Fiziksel/Dijital', 'Veri Konusu Kişi Grubu'];
+      const file = await workbook(
+        [
+          header,
+          labels,
+          ['Bordro', 'Muhasebe', 'Özlük', 'Dijital', 'Çalışan, Stajyer'],
+          ['Ziyaretçi kaydı', null, 'Fiziksel Mekân Güvenliği', 'Bulut', 'Ziyaretçi'],
+          [null, 'İdari', 'Kimlik', 'Fiziksel', null],
+          [null, null, null, null, null],
+        ],
+        ['B3:B4'],
+      );
+      const res = await upload(as(admin.accessToken), file).expect(400);
+      expect(res.body.errors).toEqual([
+        expect.objectContaining({ row: 4, column: 'Fiziksel/Dijital' }),
+        { row: 5, field: 'activity', column: 'Faaliyet', message: 'Bu sütun boş bırakılamaz' },
+      ]);
+      const list = await request(server).get('/api/v1/inventory').set(as(admin.accessToken)).expect(200);
+      expect(list.body.items).toEqual([]);
+
+      const fixed = await workbook(
+        [labels, ['Bordro', 'Muhasebe', 'Özlük', 'Dijital', 'Çalışan, Stajyer'], ['Ziyaretçi kaydı', null, 'Fiziksel Mekân Güvenliği', 'Fiziksel', 'Ziyaretçi']],
+        ['B2:B3'],
+      );
+      const ok = await upload(as(admin.accessToken), fixed, '?dryRun=true').expect(200);
+      expect(ok.body.rows.map((r: any) => [r.department, r.storageMedium, r.dataSubjectGroups])).toEqual([
+        ['Muhasebe', 'digital', ['Çalışan', 'Stajyer']],
+        ['Muhasebe', 'physical', ['Ziyaretçi']],
+      ]);
+    });
+
+    it('geçersiz dosyaları ve yetkisiz kullanıcıyı reddeder', async () => {
+      const { admin, as } = await setupOrg();
+      await upload(as(admin.accessToken), Buffer.from('düz metin')).expect(400);
+      const noHeaders = await workbook([['a', 'b'], ['c', 'd']]);
+      const res = await upload(as(admin.accessToken), noHeaders).expect(400);
+      expect(res.body.message).toContain('TBL-010 başlıkları bulunamadı');
+      await request(server).post('/api/v1/inventory/import').set(as(admin.accessToken)).expect(400);
+
+      const viewer = await addViewer(admin, as);
+      await upload(as(viewer.accessToken), readFileSync(TEMPLATE)).expect(403);
+    });
   });
 });

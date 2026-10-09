@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   DATA_CATEGORIES,
   INVENTORY_COLUMNS,
@@ -15,6 +15,7 @@ import { AuditService } from '../audit/audit.service';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { inventoryEntries } from '../db/schema';
+import { ImportFileError, parseInventoryXlsx } from './inventory-import';
 
 type EntryRow = typeof inventoryEntries.$inferSelect;
 type EntryFields = Omit<EntryRow, 'id' | 'organizationId' | 'createdBy' | 'updatedBy' | 'createdAt' | 'updatedAt'>;
@@ -194,6 +195,52 @@ export class InventoryService {
       entityId: id,
       metadata: { department: entry.department, activity: entry.activity, dataCategory: entry.dataCategory },
     });
+  }
+
+  /**
+   * TBL-010 biçimindeki Excel'i içe aktarır. Hatalı satır varsa hiçbir satır kaydedilmez ve hatalar
+   * satır numarasıyla döner. `dryRun` yalnızca kontrol eder; `replace` mevcut envanteri silip yerine yazar.
+   */
+  async importXlsx(
+    orgId: string,
+    userId: string,
+    file: Buffer,
+    options: { dryRun: boolean; mode: 'append' | 'replace' },
+  ) {
+    let parsed: Awaited<ReturnType<typeof parseInventoryXlsx>>;
+    try {
+      parsed = await parseInventoryXlsx(file);
+    } catch (err) {
+      if (err instanceof ImportFileError) throw new BadRequestException(err.message);
+      throw err;
+    }
+    const { rows, errors } = parsed;
+    if (rows.length === 0 && errors.length === 0) throw new BadRequestException('Dosyada envanter satırı yok');
+    if (errors.length > 0) {
+      throw new BadRequestException({ message: 'Dosyada hatalı satırlar var; hiçbir satır kaydedilmedi', errors });
+    }
+    const preview = rows.map((r) => ({ row: r.row, ...r.data }));
+    if (options.dryRun) return { dryRun: true, mode: options.mode, count: rows.length, rows: preview };
+
+    const removed = await this.db.transaction(async (tx) => {
+      let deleted = 0;
+      if (options.mode === 'replace') {
+        deleted = (
+          await tx.delete(inventoryEntries).where(eq(inventoryEntries.organizationId, orgId)).returning({ id: inventoryEntries.id })
+        ).length;
+      }
+      await tx
+        .insert(inventoryEntries)
+        .values(rows.map((r) => ({ ...r.data, organizationId: orgId, createdBy: userId, updatedBy: userId })));
+      return deleted;
+    });
+    await this.audit.record({
+      action: 'inventory.imported',
+      organizationId: orgId,
+      userId,
+      metadata: { mode: options.mode, imported: rows.length, removed },
+    });
+    return { dryRun: false, mode: options.mode, count: rows.length, removed };
   }
 
   /** Envanteri TBL-010 şablonunun üzerine yazarak Excel dosyası üretir (başlıklar ve biçim şablondaki gibi kalır). */
