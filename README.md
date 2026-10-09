@@ -11,11 +11,16 @@ KVKK uyum yönetimi için web, iOS ve Android uygulaması. Mimari ve modül sır
 | `apps/api` — Kişisel Veri Envanteri: TBL-010'un 16 sütunuyla envanter satırları, öneri listeleri, eksik alan takibi, özet, TBL-010 biçiminde Excel çıktısı ve Excel'den içe aktarma | Hazır, testli |
 | `apps/api` — İş akışı ve alarmlar: görev atama, son tarih, tekrarlayan görevler, hatırlatma/gecikme alarmları (uygulama içi + e-posta), doküman yayın onayı | Hazır, testli |
 | `packages/shared` — Yetki anahtarları, varsayılan roller, doküman yer tutucuları, şablon kataloğu, envanter sütunları, görev türleri | Hazır |
-| `apps/web` (Next.js), `apps/mobile` (Expo) | Sırada |
+| `apps/web` — Web arayüzü (Next.js): giriş (şifre + e-posta kodu), kayıt, şifre sıfırlama/davet, kuruluş oluşturma ve profil, özet, dokümanlar (oluşturma, indirme, Word yükleme, yayınlama, onay), veri envanteri (adım adım giriş, Excel içe/dışa aktarma), görevler, bildirimler; mobil tarayıcıya uyumlu | İlk sürüm |
+| `apps/mobile` (Expo) | Sırada |
 
 ## Çalıştırma
 
-Gerekenler: Node 22, pnpm 10, PostgreSQL 16 (veya `docker compose up -d`).
+**En kolay yol (programlama bilgisi gerekmez):** [docs/YEREL-KURULUM.md](docs/YEREL-KURULUM.md). Docker Desktop kuruluysa depo klasöründe `docker compose up --build` her şeyi başlatır: web arayüzü http://localhost:3000, gelen e-postalar (giriş kodları) http://localhost:8025.
+
+### Geliştirme
+
+Gerekenler: Node 22, pnpm 10, PostgreSQL 16 (veya `docker compose up -d postgres`).
 
 ```bash
 pnpm install
@@ -27,7 +32,16 @@ pnpm build && pnpm db:migrate
 pnpm start                      # http://localhost:3000/api/v1/health
 ```
 
-Geliştirmede e-postalar (giriş kodu, davet) gönderilmez, API loguna yazılır.
+`SMTP_URL` boşsa e-postalar (giriş kodu, davet) gönderilmez, API loguna yazılır.
+
+Web arayüzü (API çalışırken, ayrı bir terminalde):
+
+```bash
+cd apps/web
+API_URL=http://localhost:3000 pnpm dev   # http://localhost:3001
+```
+
+Web sunucusu tarayıcı ile API arasında aracıdır: tarayıcı yalnızca web sunucusuna (`/api/v1/...`) istek atar, web sunucusu bunu `API_URL`'deki API'ye iletir. Oturum belirteçleri tarayıcıda JavaScript'in okuyamadığı (httpOnly, SameSite=Strict) çerezlerde tutulur; bu yüzden API'de CORS açmak gerekmez.
 
 Testler gerçek PostgreSQL üzerinde çalışır (varsayılan `postgres://postgres@localhost:5433/kvkk_test`, `TEST_DATABASE_URL` ile değiştirilebilir; şema her çalıştırmada sıfırlanır):
 
