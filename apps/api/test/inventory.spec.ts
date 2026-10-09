@@ -19,8 +19,8 @@ const ENTRY = {
   relatedLegislation: '4857 sayılı İş Kanunu',
   retentionPeriod: '15 yıl',
   recipients: ['SGK Ve Diğer Yetkili Kurum ve Kuruluşlar', 'Mali Müşavir'],
-  administrativeMeasures: ['18. Kişisel veri güvenliği politika ve prosedürleri belirlenmiştir.'],
-  technicalMeasures: ['15. Güvenlik duvarları kullanılmaktadır.', '14. Güncel anti-virüs sistemleri kullanılmaktadır.'],
+  administrativeMeasures: ['Gizlilik Taahhütnameleri'],
+  technicalMeasures: ['Güvenlik Duvarları', 'Güncel Anti-Virüs Sistemleri'],
 };
 
 function binary(res: any, cb: (err: Error | null, body: Buffer) => void) {
@@ -91,18 +91,28 @@ describe('Kişisel Veri Envanteri', () => {
       'Teknik Tedbirler',
     ]);
     expect(res.body.suggestions.dataCategory).toContain('Sağlık');
-    // Tedbirler numara sırasıyla önerilir.
-    expect(res.body.suggestions.technicalMeasures[0]).toMatch(/^1\. /);
-    expect(res.body.suggestions.technicalMeasures[1]).toMatch(/^4\. /);
+    // Hazır seçenekler verildiği sırayla önerilir.
+    expect(res.body.suggestions.technicalMeasures).toHaveLength(17);
+    expect(res.body.suggestions.technicalMeasures[0]).toBe('Yetki Matrisi');
+    expect(res.body.suggestions.technicalMeasures[16]).toBe('Anahtar Yönetimi');
+    expect(res.body.suggestions.administrativeMeasures).toHaveLength(10);
+    expect(res.body.suggestions.administrativeMeasures[0]).toBe('Kişisel Veri İşleme Envanteri Hazırlanması');
 
     // Kuruluşun kendi girdiği değer de önerilere eklenir.
     await request(server)
       .post('/api/v1/inventory')
       .set(as(admin.accessToken))
-      .send({ department: 'Satış', activity: 'Müşteri kayıtları', dataCategory: 'Müşteri İşlem' })
+      .send({
+        department: 'Satış',
+        activity: 'Müşteri kayıtları',
+        dataCategory: 'Müşteri İşlem',
+        technicalMeasures: ['Ağ Güvenliği', 'Biyometrik giriş kontrolü'],
+      })
       .expect(201);
     const again = await request(server).get('/api/v1/inventory/options').set(as(admin.accessToken)).expect(200);
     expect(again.body.suggestions.department).toEqual(['İdari', 'Muhasebe', 'Satış']);
+    expect(again.body.suggestions.technicalMeasures).toHaveLength(18);
+    expect(again.body.suggestions.technicalMeasures[17]).toBe('Biyometrik giriş kontrolü');
   });
 
   it('satırı oluşturur, eksik alanları gösterir, günceller ve loglar', async () => {

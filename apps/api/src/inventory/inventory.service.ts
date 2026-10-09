@@ -68,12 +68,15 @@ export class InventoryService {
     const rows = await this.db.select().from(inventoryEntries).where(eq(inventoryEntries.organizationId, orgId));
     const suggestions = Object.fromEntries(
       SUGGESTION_FIELDS.map((field) => {
-        const values = new Set(INVENTORY_TEMPLATE_OPTIONS[field] ?? []);
+        const template = INVENTORY_TEMPLATE_OPTIONS[field] ?? [];
+        const own = new Set<string>();
         for (const row of rows) {
           const v = row[field];
-          (Array.isArray(v) ? v : v ? [v] : []).forEach((x) => values.add(x));
+          (Array.isArray(v) ? v : v ? [v] : []).forEach((x) => own.add(x));
         }
-        return [field, [...values].sort(byTurkish)];
+        // Hazır seçenekler verildiği sırayla, kuruluşun eklediği diğer değerler alfabetik olarak arkasından.
+        const extra = [...own].filter((x) => !template.includes(x)).sort(byTurkish);
+        return [field, [...template, ...extra]];
       }),
     );
     return {
