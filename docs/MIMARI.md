@@ -38,6 +38,7 @@ kvkk/
    *İlk aşama kuruldu (2026-10-08):* şablondan kuruluşa özel doküman üretme, sürümleme, Word ile düzenleyip yükleme, yayınlama. Dosyalar şimdilik PostgreSQL'de (`document_versions.content`) tutuluyor; S3'e taşıma, onay akışı (5. modülle), arama ve doküman ACL'i sonraki adımlar.
 4. **Kişisel Veri Envanteri** — VERBİS'teki gibi adım adım seçimli giriş; veri kategorisi, işleme amacı, hukuki sebep, saklama süresi, aktarım, tedbirler; raporlama.
 5. **İş akışı, alarm ve onay motoru** — envanter/doküman gözden geçirme, imha periyotları, hatırlatmalar.
+   *İlk aşama kuruldu (2026-10-09):* görevler (`tasks`: tür, atanan kişi, son tarih, hatırlatma günleri, tekrarlama, bağlı doküman/envanter satırı), bildirimler (`notifications`, uygulama içi + e‑posta, tekil anahtarla tekrar engeli), doküman sürümü yayın onayı (`approval_requests`; onaylayana görev açılır, onaylanınca sürüm yayınlanır). Alarm taraması şimdilik API içinde zamanlayıcıyla çalışır; pg-boss'a geçiş, SMS/push bildirimleri ve çok adımlı onay zincirleri sonraki adımlar.
 6. **Süreç modülleri** — Olay (ihlal) yönetimi, Veri imha yönetimi, Sözleşme yönetimi, Başvuru (ilgili kişi talepleri).
 7. **Dashboard ve raporlar** (kişiselleştirilebilir).
 8. **Entegrasyonlar** — İleti Yönetim Sistemi (İYS), VERBİS (resmi API olup olmadığı netleşmeli).
@@ -65,7 +66,7 @@ audit_logs       id, organization_id, user_id, action, entity_type, entity_id,
 - **Yetki:** Yetkiler `modül.eylem` biçiminde anahtarlardır (`users.manage`, `audit.read`, `inventory.write` …) ve `packages/shared` içinde tek listede tanımlıdır. Roller bu anahtarların kümesidir. Menü/fonksiyon yetkisi bu anahtarlarla; içerik bazlı yetki DMS aşamasında doküman ACL'i ile eklenecek. Grup bazlı yetki için `groups` + `group_members` tabloları DMS aşamasında eklenecek.
 - **Varsayılan roller:** Kuruluş Yöneticisi (tüm yetkiler), KVKK Sorumlusu, Görüntüleyici. Kuruluşlar kendi rollerini oluşturabilir.
 
-İleriki modüller için öngörülen ana tablolar (henüz kurulmadı): `documents`, `document_versions`, `document_templates`, `inventory_records` (+ kategori/amaç/hukuki sebep sözlükleri), `workflows`, `tasks`, `incidents`, `destruction_records`, `contracts`, `data_subject_requests`, `subscriptions`.
+İleriki modüller için öngörülen ana tablolar (henüz kurulmadı): `documents`, `document_versions`, `document_templates`, `inventory_records` (+ kategori/amaç/hukuki sebep sözlükleri), `incidents`, `destruction_records`, `contracts`, `data_subject_requests`, `subscriptions`.
 
 ## 4. Güvenlik
 

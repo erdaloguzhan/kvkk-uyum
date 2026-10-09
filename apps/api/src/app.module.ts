@@ -14,6 +14,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { MembersModule } from './members/members.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RolesModule } from './roles/roles.module';
+import { WorkflowModule } from './workflow/workflow.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { RolesModule } from './roles/roles.module';
     RolesModule,
     DocumentsModule,
     InventoryModule,
+    WorkflowModule,
   ],
   controllers: [HealthController],
   providers: [

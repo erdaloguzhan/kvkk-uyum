@@ -3,12 +3,14 @@ import {
   AnyPgColumn,
   boolean,
   customType,
+  date,
   index,
   integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -237,4 +239,120 @@ export const inventoryEntries = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('inventory_entries_org_department_idx').on(t.organizationId, t.department)],
+);
+
+/**
+ * İş akışı görevi: bir kişiye atanmış, son tarihi olan iş (doküman gözden geçirme, periyodik imha vb.).
+ * Tekrarlayan görev tamamlandığında bir sonraki dönemin görevi `previousTaskId` ile bağlanarak açılır.
+ */
+export const tasks = pgTable(
+  'tasks',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    type: text('type', {
+      enum: ['general', 'document_review', 'inventory_review', 'data_destruction', 'approval'],
+    }).notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+    assigneeId: uuid('assignee_id')
+      .notNull()
+      .references(() => users.id),
+    /** Son tarih (gün; kuruluşun saat dilimine göre). */
+    dueDate: date('due_date', { mode: 'string' }).notNull(),
+    /** Son tarihten kaç gün önce hatırlatma gönderileceği. */
+    reminderDays: integer('reminder_days').array().notNull().default(sql`'{}'::integer[]`),
+    /** Tekrarlama aralığı (ay); boşsa tek seferlik. */
+    recurrenceMonths: integer('recurrence_months'),
+    status: text('status', { enum: ['open', 'done', 'cancelled'] }).notNull().default('open'),
+    /** Bağlı kayıt (ör. gözden geçirilecek doküman). */
+    entityType: text('entity_type', { enum: ['document', 'inventory_entry'] }),
+    entityId: uuid('entity_id'),
+    previousTaskId: uuid('previous_task_id').references((): AnyPgColumn => tasks.id, { onDelete: 'set null' }),
+    completionNote: text('completion_note'),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    completedBy: uuid('completed_by').references(() => users.id, { onDelete: 'set null' }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('tasks_org_status_due_idx').on(t.organizationId, t.status, t.dueDate),
+    index('tasks_assignee_status_idx').on(t.assigneeId, t.status),
+  ],
+);
+
+/** Doküman sürümünün yayınlanması için onay talebi. Onaylayana `approval` türünde görev açılır. */
+export const approvalRequests = pgTable(
+  'approval_requests',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    versionId: uuid('version_id')
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: 'cascade' }),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    approverId: uuid('approver_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status', { enum: ['pending', 'approved', 'rejected', 'cancelled'] }).notNull().default('pending'),
+    note: text('note'),
+    decisionNote: text('decision_note'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // Bir sürüm için aynı anda tek bekleyen onay talebi olabilir.
+    uniqueIndex('approval_requests_pending_version_unique')
+      .on(t.versionId)
+      .where(sql`${t.status} = 'pending'`),
+    index('approval_requests_org_status_idx').on(t.organizationId, t.status),
+  ],
+);
+
+/**
+ * Kullanıcıya gösterilen bildirimler (alarmlar). Aynı alarm iki kez üretilmesin diye
+ * zamanlanmış alarmlar `dedupeKey` taşır; birden çok sunucu aynı anda çalışsa da tek kayıt oluşur.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: text('kind', {
+      enum: [
+        'task_assigned',
+        'task_reminder',
+        'task_due_today',
+        'task_overdue',
+        'approval_requested',
+        'approval_decided',
+      ],
+    }).notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
+    approvalRequestId: uuid('approval_request_id').references(() => approvalRequests.id, { onDelete: 'cascade' }),
+    dedupeKey: text('dedupe_key'),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique('notifications_dedupe_key_unique').on(t.dedupeKey),
+    index('notifications_user_org_created_idx').on(t.userId, t.organizationId, t.createdAt),
+  ],
 );
