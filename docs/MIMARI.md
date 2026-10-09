@@ -22,7 +22,7 @@ Depo yapısı (pnpm monorepo):
 ```
 kvkk/
   apps/api        NestJS API (bu aşamada kuruldu)
-  apps/web        Next.js web arayüzü (sonraki adım)
+  apps/web        Next.js web arayüzü (ilk sürüm kuruldu)
   apps/mobile     Expo mobil uygulama (sonraki adım)
   packages/shared Yetki anahtarları, ortak tipler
   content/        Erdal'ın sağlayacağı KVKK doküman içerikleri (Word/PDF)
@@ -39,6 +39,7 @@ kvkk/
 4. **Kişisel Veri Envanteri** — VERBİS'teki gibi adım adım seçimli giriş; veri kategorisi, işleme amacı, hukuki sebep, saklama süresi, aktarım, tedbirler; raporlama.
 5. **İş akışı, alarm ve onay motoru** — envanter/doküman gözden geçirme, imha periyotları, hatırlatmalar.
    *İlk aşama kuruldu (2026-10-09):* görevler (`tasks`: tür, atanan kişi, son tarih, hatırlatma günleri, tekrarlama, bağlı doküman/envanter satırı), bildirimler (`notifications`, uygulama içi + e‑posta, tekil anahtarla tekrar engeli), doküman sürümü yayın onayı (`approval_requests`; onaylayana görev açılır, onaylanınca sürüm yayınlanır). Alarm taraması şimdilik API içinde zamanlayıcıyla çalışır; pg-boss'a geçiş, SMS/push bildirimleri ve çok adımlı onay zincirleri sonraki adımlar.
+   *Web arayüzü ilk sürümü (2026-10-09):* `apps/web` (Next.js 16, App Router). Tarayıcı API'ye doğrudan bağlanmaz; Next.js sunucusu `/api/v1/*` isteklerini API'ye iletir ve oturum belirteçlerini httpOnly çerezlerde tutar (erişim belirteci süresi dolunca `/api/session/refresh` ile yenilenir). Seçili kuruluş tarayıcıda saklanır ve her isteğe `X-Organization-Id` olarak eklenir. Menü ve düğmeler kullanıcının rol yetkilerine göre gösterilir. Ekranlar: giriş/kayıt/şifre, kuruluş oluşturma ve profil, özet (başlangıç adımları), dokümanlar, veri envanteri (TBL-010 sütun gruplarına göre adım adım giriş, Excel içe/dışa aktarma), görevler ve onaylar, bildirimler. Sonraki adımlar: üye/rol yönetimi ekranları, CAPTCHA (Turnstile) bileşeni, logo yükleme, sistem logu ekranı.
 6. **Süreç modülleri** — Olay (ihlal) yönetimi, Veri imha yönetimi, Sözleşme yönetimi, Başvuru (ilgili kişi talepleri).
 7. **Dashboard ve raporlar** (kişiselleştirilebilir).
 8. **Entegrasyonlar** — İleti Yönetim Sistemi (İYS), VERBİS (resmi API olup olmadığı netleşmeli).

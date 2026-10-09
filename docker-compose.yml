@@ -1,4 +1,7 @@
-# Yerel geliştirme için PostgreSQL
+# Sistemin tamamını bilgisayarınızda çalıştırır: veritabanı, API, web arayüzü ve test e-posta kutusu.
+#   docker compose up --build
+# Web arayüzü: http://localhost:3000   ·   Gönderilen e-postalar (giriş kodları): http://localhost:8025
+# Yalnızca veritabanı (API'yi kendiniz çalıştırıyorsanız): docker compose up -d postgres
 services:
   postgres:
     image: postgres:16
@@ -10,5 +13,45 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kvkk -d kvkk"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # E-postaları gerçekten göndermek yerine yakalayıp tarayıcıda gösterir (yalnızca yerel deneme için).
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "8025:8025"
+
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      DATABASE_URL: postgres://kvkk:kvkk@postgres:5432/kvkk
+      # Yalnızca yerel deneme için; gerçek kurulumda uzun ve rastgele bir değer kullanılmalı.
+      JWT_SECRET: yerel-deneme-icin-gizli-anahtar-degistirin-0123456789
+      SMTP_URL: smtp://mailpit:1025
+      MAIL_FROM: KVK Yönetim Sistemi <no-reply@kvkk.local>
+      ALARM_INTERVAL_MINUTES: "60"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      API_URL: http://api:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
 volumes:
   pgdata:

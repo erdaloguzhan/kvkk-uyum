@@ -10,6 +10,8 @@ const envSchema = z.object({
   TRIAL_DAYS: z.coerce.number().int().positive().default(30),
   CONTENT_DIR: z.string().optional(),
   ALARM_INTERVAL_MINUTES: z.coerce.number().int().min(0).default(60),
+  SMTP_URL: z.string().optional(),
+  MAIL_FROM: z.string().default('KVK Yönetim Sistemi <no-reply@localhost>'),
 });
 
 export interface AppConfig {
@@ -22,6 +24,9 @@ export interface AppConfig {
   contentDir: string;
   /** Hatırlatma ve gecikme alarmlarının kaç dakikada bir taranacağı (0: kapalı). */
   alarmIntervalMinutes: number;
+  /** SMTP bağlantısı (ör. smtp://kullanici:sifre@sunucu:587). Boşsa e-postalar yalnızca loglanır. */
+  smtpUrl?: string;
+  mailFrom: string;
 }
 
 export const CONFIG = Symbol('CONFIG');
@@ -36,6 +41,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     trialDays: e.TRIAL_DAYS,
     contentDir: e.CONTENT_DIR || path.resolve(__dirname, '../../../content'),
     alarmIntervalMinutes: e.ALARM_INTERVAL_MINUTES,
+    smtpUrl: e.SMTP_URL || undefined,
+    mailFrom: e.MAIL_FROM,
   };
 }
 
