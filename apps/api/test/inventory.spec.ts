@@ -9,16 +9,16 @@ const ENTRY = {
   activity: 'Çalışan Özlük Dosyaları',
   dataCategory: 'Kimlik',
   personalData: 'ad soyad, doğum tarihi, tc kimlik',
-  purposes: ['Çalışanlar İçin İş Akdi ve Mevzuat Kaynaklı Yükümlülüklerin Yerine Getirilmesi'],
+  purposes: ['Çalışanlar İçin İş Akdi Ve Mevzuattan Kaynaklı Yükümlülüklerin Yerine Getirilmesi'],
   storageMedium: 'both',
   storageLocation: 'Kilitli dolap, Muhasebe bilgisayarında',
-  dataSubjectGroups: ['Çalışanlar', 'Stajyerler'],
+  dataSubjectGroups: ['Çalışan', 'Stajyer'],
   legalBases: [
-    'Bir sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili olması kaydıyla, sözleşmenin taraflarına ait kişisel verilerin işlenmesinin gerekli olması.',
+    'c) Bir sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili olması kaydıyla, sözleşmenin taraflarına ait kişisel verilerin işlenmesinin gerekli olması.',
   ],
   relatedLegislation: '4857 sayılı İş Kanunu',
   retentionPeriod: '15 yıl',
-  recipients: ['SGK Ve Diğer Yetkili Kurum ve Kuruluşlar', 'Mali Müşavir'],
+  recipients: ['Yetkili Kamu Kurum ve Kuruluşları', 'Tedarikçiler'],
   administrativeMeasures: ['Gizlilik Taahhütnameleri'],
   technicalMeasures: ['Güvenlik Duvarları', 'Güncel Anti-Virüs Sistemleri'],
 };
@@ -90,8 +90,18 @@ describe('Kişisel Veri Envanteri', () => {
       'İdari Tedbirler',
       'Teknik Tedbirler',
     ]);
-    expect(res.body.suggestions.dataCategory).toContain('Sağlık');
+    expect(res.body.suggestions.dataCategory).toHaveLength(26);
+    expect(res.body.suggestions.dataCategory[0]).toBe('Kimlik');
+    const health = res.body.dataCategories.find((c: any) => c.name === 'Sağlık Bilgileri');
+    expect(health).toMatchObject({ special: true });
+    expect(res.body.dataCategories.filter((c: any) => c.special)).toHaveLength(13);
     // Hazır seçenekler verildiği sırayla önerilir.
+    expect(res.body.suggestions.purposes).toHaveLength(52);
+    expect(res.body.suggestions.recipients).toHaveLength(9);
+    expect(res.body.suggestions.legalBases).toHaveLength(7);
+    expect(res.body.suggestions.legalBases[3]).toMatch(/^ç\) /);
+    expect(res.body.suggestions.dataSubjectGroups).toHaveLength(14);
+    expect(res.body.suggestions.dataSubjectGroups[0]).toBe('Çalışan Adayı');
     expect(res.body.suggestions.technicalMeasures).toHaveLength(17);
     expect(res.body.suggestions.technicalMeasures[0]).toBe('Yetki Matrisi');
     expect(res.body.suggestions.technicalMeasures[16]).toBe('Anahtar Yönetimi');
@@ -139,9 +149,9 @@ describe('Kişisel Veri Envanteri', () => {
     const updated = await request(server)
       .patch(`/api/v1/inventory/${created.body.id}`)
       .set(as(admin.accessToken))
-      .send({ ...rest, dataSubjectGroups: ['Çalışanlar', 'Çalışanlar', ''] })
+      .send({ ...rest, dataSubjectGroups: ['Çalışan', 'Çalışan', ''] })
       .expect(200);
-    expect(updated.body).toMatchObject({ complete: true, missingFields: [], dataSubjectGroups: ['Çalışanlar'] });
+    expect(updated.body).toMatchObject({ complete: true, missingFields: [], dataSubjectGroups: ['Çalışan'] });
 
     // Zorunlu alanlar boşaltılamaz, geçersiz değer kabul edilmez.
     await request(server)
@@ -226,7 +236,7 @@ describe('Kişisel Veri Envanteri', () => {
     const row = sheet.getRow(3);
     expect(row.getCell(1).value).toBe('Muhasebe');
     expect(row.getCell(7).value).toBe('Fiziksel ve Dijital');
-    expect(row.getCell(9).value).toBe('Çalışanlar, Stajyerler');
+    expect(row.getCell(9).value).toBe('Çalışan, Stajyer');
     expect(row.getCell(16).value).toBe(ENTRY.technicalMeasures.join('\n'));
     // Şablondaki örnek satırlar dosyada kalmaz.
     expect(sheet.getRow(4).getCell(1).value).toBeNull();
