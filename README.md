@@ -8,7 +8,7 @@ KVKK uyum yönetimi için web, iOS ve Android uygulaması. Mimari ve modül sır
 |---|---|
 | `apps/api` — Temel modül: giriş (şifre + e-posta kodu), CAPTCHA, hız sınırı, hesap kilidi, şifre sıfırlama/davet, kuruluşlar, üyeler, roller/yetkiler, sistem logu | Hazır, testli |
 | `apps/api` — Doküman Yönetimi: şablonları kuruluş bilgileriyle doldurma, sürümleme, Word ile düzenleyip yükleme, yayınlama | Hazır, testli |
-| `apps/api` — Kişisel Veri Envanteri: TBL-010'un 16 sütunuyla envanter satırları, öneri listeleri, eksik alan takibi, özet, TBL-010 biçiminde Excel çıktısı | Hazır, testli |
+| `apps/api` — Kişisel Veri Envanteri: TBL-010'un 16 sütunuyla envanter satırları, öneri listeleri, eksik alan takibi, özet, TBL-010 biçiminde Excel çıktısı ve Excel'den içe aktarma | Hazır, testli |
 | `packages/shared` — Yetki anahtarları, varsayılan roller, doküman yer tutucuları, şablon kataloğu, envanter sütunları | Hazır |
 | `apps/web` (Next.js), `apps/mobile` (Expo) | Sırada |
 
@@ -54,4 +54,4 @@ Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister.
 | `POST /documents` (şablondan), `POST /documents/setup` (opsiyonel olmayan tüm şablonlar), `POST /documents/:id/regenerate`, `POST /documents/:id/versions` (`.docx` yükleme) | `documents.write` |
 | `POST /documents/:id/versions/:versionId/publish` | `documents.approve` |
 | `GET /inventory`, `GET /inventory/:id`, `GET /inventory/options`, `GET /inventory/summary`, `GET /inventory/export` (TBL-010 Excel) | `inventory.read` |
-| `POST /inventory`, `PATCH /inventory/:id`, `POST /inventory/:id/duplicate`, `DELETE /inventory/:id` | `inventory.write` |
+| `POST /inventory`, `PATCH /inventory/:id`, `POST /inventory/:id/duplicate`, `DELETE /inventory/:id`, `POST /inventory/import` (TBL-010 Excel; `?dryRun=true` kontrol, `?mode=replace` değiştirme) | `inventory.write` |

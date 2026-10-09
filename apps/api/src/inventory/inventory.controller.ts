@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,59 +11,29 @@ import {
   Post,
   Query,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { PERMISSIONS } from '@kvkk/shared';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AuthUser, CurrentOrg, CurrentUser, OrgContext, RequirePermissions } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
+import { createBody, updateBody } from './inventory.schema';
 import { InventoryService } from './inventory.service';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
-/** Boş metin "girilmedi" (null) olarak saklanır. */
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .nullish()
-    .transform((v) => v || null);
-const requiredText = z.string().trim().min(1).max(200);
-/** Çoklu seçim: boşlar atılır, tekrar edenler birleştirilir. */
-const list = z
-  .array(z.string().trim().max(2000))
-  .max(100)
-  .transform((items) => [...new Set(items.filter(Boolean))]);
-
-const fields = {
-  department: requiredText,
-  activity: requiredText,
-  dataCategory: requiredText,
-  personalData: optionalText(5000),
-  specialCategoryData: optionalText(5000),
-  purposes: list,
-  storageMedium: z.enum(['physical', 'digital', 'both']).nullish().transform((v) => v ?? null),
-  storageLocation: optionalText(1000),
-  dataSubjectGroups: list,
-  legalBases: list,
-  relatedLegislation: optionalText(2000),
-  retentionPeriod: optionalText(500),
-  recipients: list,
-  foreignTransfers: optionalText(5000),
-  administrativeMeasures: list,
-  technicalMeasures: list,
-};
-
-const createBody = z.object(fields).partial().extend({
-  department: fields.department,
-  activity: fields.activity,
-  dataCategory: fields.dataCategory,
+const importQuery = z.object({
+  mode: z.enum(['append', 'replace']).default('append'),
+  dryRun: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
-const updateBody = z
-  .object(fields)
-  .partial()
-  .refine((v) => Object.keys(v).length > 0, { message: 'Güncellenecek alan yok' });
+
 const listQuery = z.object({
   department: z.string().trim().max(200).optional(),
   dataCategory: z.string().trim().max(200).optional(),
@@ -100,6 +71,24 @@ export class InventoryController {
       .type(XLSX_MIME)
       .set('Content-Disposition', `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(name)}`)
       .send(file);
+  }
+
+  /**
+   * TBL-010 biçimindeki Excel'i (`file` alanı, multipart) içe aktarır.
+   * `dryRun=true` kaydetmeden kontrol eder; `mode=replace` mevcut envanteri silip dosyadakilerle değiştirir.
+   */
+  @Post('import')
+  @HttpCode(200)
+  @RequirePermissions(PERMISSIONS.INVENTORY_WRITE)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMPORT_BYTES, files: 1 } }))
+  import(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Query(new ZodPipe(importQuery)) query: z.infer<typeof importQuery>,
+  ) {
+    if (!file) throw new BadRequestException('Dosya gerekli');
+    return this.inventory.importXlsx(org.id, user.id, file.buffer, query);
   }
 
   @Get()
