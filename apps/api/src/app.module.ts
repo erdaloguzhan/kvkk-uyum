@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './common/auth.guard';
 import { OrgGuard } from './common/org.guard';
 import { AppConfig, CONFIG, ConfigModule } from './config';
+import { ContractsModule } from './contracts/contracts.module';
 import { DbModule } from './db/db.module';
 import { DocumentsModule } from './documents/documents.module';
 import { HealthController } from './health.controller';
@@ -38,6 +39,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     DocumentsModule,
     InventoryModule,
     WorkflowModule,
+    ContractsModule,
   ],
   controllers: [HealthController],
   providers: [

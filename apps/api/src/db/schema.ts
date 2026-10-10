@@ -356,3 +356,30 @@ export const notifications = pgTable(
     index('notifications_user_org_created_idx').on(t.userId, t.organizationId, t.createdAt),
   ],
 );
+
+/** Kuruluşun bir kişi veya kurumla yaptığı sözleşme ve sözleşmedeki ilgili kişinin iletişim bilgileri. */
+export const contracts = pgTable(
+  'contracts',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    /** Sözleşme yapılan kişinin adı veya kurumun ünvanı. */
+    partyName: text('party_name').notNull(),
+    type: text('type', { enum: ['supplier', 'customer', 'employee', 'public_institution'] }).notNull(),
+    startDate: date('start_date', { mode: 'string' }),
+    /** Boşsa belirsiz süreli. */
+    endDate: date('end_date', { mode: 'string' }),
+    status: text('status', { enum: ['draft', 'active', 'expired', 'terminated'] }).notNull().default('draft'),
+    contactName: text('contact_name'),
+    contactPhone: text('contact_phone'),
+    contactEmail: text('contact_email'),
+    description: text('description'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('contracts_org_status_idx').on(t.organizationId, t.status)],
+);

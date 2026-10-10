@@ -1,4 +1,4 @@
-import { INVENTORY_COLUMNS } from '@kvkk/shared';
+import { CONTRACT_FIELD_LABELS, INVENTORY_COLUMNS } from '@kvkk/shared';
 
 /** Kuruluş profili alanlarının Türkçe adları. */
 export const ORG_FIELD_LABELS: Record<string, string> = {
@@ -21,6 +21,8 @@ const OTHER_LABELS: Record<string, string> = {
   assigneeId: 'Atanan kişi',
   note: 'Not',
   ...Object.fromEntries(INVENTORY_COLUMNS.map((c) => [c.field, c.label])),
+  // `type` ve `status` görevlerde de var; sözleşmeye özgü adla gösterilmesin diye alınmaz.
+  ...Object.fromEntries(Object.entries(CONTRACT_FIELD_LABELS).filter(([k]) => k !== 'type' && k !== 'status')),
 };
 
 export function fieldLabel(field: string): string {

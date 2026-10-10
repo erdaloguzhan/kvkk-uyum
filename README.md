@@ -10,8 +10,9 @@ KVKK uyum yönetimi için web, iOS ve Android uygulaması. Mimari ve modül sır
 | `apps/api` — Doküman Yönetimi: şablonları kuruluş bilgileriyle doldurma, sürümleme, Word ile düzenleyip yükleme, yayınlama | Hazır, testli |
 | `apps/api` — Kişisel Veri Envanteri: TBL-010'un 16 sütunuyla envanter satırları, öneri listeleri, eksik alan takibi, özet, TBL-010 biçiminde Excel çıktısı ve Excel'den içe aktarma | Hazır, testli |
 | `apps/api` — İş akışı ve alarmlar: görev atama, son tarih, tekrarlayan görevler, hatırlatma/gecikme alarmları (uygulama içi + e-posta), doküman yayın onayı | Hazır, testli |
+| `apps/api` — Sözleşmeler: karşı taraf, tür (tedarikçi, müşteri, çalışan, kamu kurumu), başlangıç/bitiş, statü, ilgili kişi, açıklama | Hazır, testli |
 | `packages/shared` — Yetki anahtarları, varsayılan roller, doküman yer tutucuları, şablon kataloğu, envanter sütunları, görev türleri | Hazır |
-| `apps/web` — Web arayüzü (Next.js): giriş (şifre + e-posta kodu), kayıt, şifre sıfırlama/davet, kuruluş oluşturma ve profil, özet, dokümanlar (oluşturma, indirme, Word yükleme, yayınlama, onay), veri envanteri (adım adım giriş, Excel içe/dışa aktarma), görevler, bildirimler; mobil tarayıcıya uyumlu | İlk sürüm |
+| `apps/web` — Web arayüzü (Next.js): giriş (şifre + e-posta kodu), kayıt, şifre sıfırlama/davet, kuruluş oluşturma ve profil, özet, dokümanlar (oluşturma, indirme, Word yükleme, yayınlama, onay), veri envanteri (adım adım giriş, Excel içe/dışa aktarma), sözleşmeler, görevler, bildirimler; mobil tarayıcıya uyumlu | İlk sürüm |
 | `apps/mobile` (Expo) | Sırada |
 
 ## Çalıştırma

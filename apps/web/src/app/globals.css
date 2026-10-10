@@ -67,11 +67,11 @@ p { margin: 0 0 0.75rem; }
 .sidebar-footer { margin-top: auto; padding: 12px; font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.12); }
 .sidebar-footer button { color: var(--sidebar-text); background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
 .org-select { width: 100%; margin: 4px 0 12px; }
-.main { padding: 28px 32px 48px; max-width: 1200px; width: 100%; }
+.main { padding: 28px 32px 48px; max-width: 1200px; width: 100%; min-width: 0; }
 .topbar { display: none; }
 
 @media (max-width: 860px) {
-  .shell { grid-template-columns: 1fr; }
+  .shell { grid-template-columns: 1fr; align-content: start; }
   .sidebar { display: none; position: fixed; inset: 0 30% 0 0; z-index: 20; height: 100%; overflow-y: auto; }
   .sidebar.open { display: flex; }
   .topbar {
@@ -124,7 +124,7 @@ p { margin: 0 0 0.75rem; }
 .form { display: grid; gap: 14px; }
 .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
-.field { display: grid; gap: 5px; }
+.field { display: grid; gap: 5px; align-content: start; }
 .field > label, .field-label { font-weight: 600; font-size: 0.9rem; }
 .field .hint { color: var(--text-3); font-size: 0.82rem; }
 .required::after { content: " *"; color: var(--danger); }
@@ -224,3 +224,7 @@ dl.details dd { margin: 0; }
 .inventory-table thead th:first-child { background: var(--surface-2); }
 .cell-list { margin: 0; padding-left: 16px; }
 .cell-list li { margin-bottom: 2px; }
+
+/* Sözleşmeler tablosu */
+.contracts-table td:first-child { min-width: 200px; }
+.contracts-table td.description { min-width: 240px; white-space: pre-line; }
