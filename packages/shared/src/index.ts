@@ -3,3 +3,4 @@ export * from './organization';
 export * from './documents';
 export * from './inventory';
 export * from './tasks';
+export * from './contracts';

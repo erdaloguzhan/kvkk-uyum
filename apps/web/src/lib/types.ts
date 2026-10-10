@@ -1,4 +1,6 @@
 import type {
+  ContractStatus,
+  ContractType,
   DocumentCategory,
   InventoryColumnDefinition,
   InventoryField,
@@ -179,4 +181,21 @@ export interface Notification {
   approvalRequestId: string | null;
   readAt: string | null;
   createdAt: string;
+}
+
+export interface Contract {
+  id: string;
+  partyName: string;
+  type: ContractType;
+  startDate: string | null;
+  endDate: string | null;
+  status: ContractStatus;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  description: string | null;
+  /** Bitiş tarihine kalan gün (bitiş tarihi yoksa null; geçtiyse eksi). */
+  daysToEnd: number | null;
+  createdAt: string;
+  updatedAt: string;
 }

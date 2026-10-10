@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   TASKS_READ: 'tasks.read',
   TASKS_MANAGE: 'tasks.manage',
   INCIDENTS_MANAGE: 'incidents.manage',
+  CONTRACTS_READ: 'contracts.read',
   CONTRACTS_MANAGE: 'contracts.manage',
   DESTRUCTION_MANAGE: 'destruction.manage',
   REPORTS_READ: 'reports.read',
