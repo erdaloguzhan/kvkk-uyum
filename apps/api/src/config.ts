@@ -12,6 +12,8 @@ const envSchema = z.object({
   ALARM_INTERVAL_MINUTES: z.coerce.number().int().min(0).default(60),
   SMTP_URL: z.string().optional(),
   MAIL_FROM: z.string().default('KVK Yönetim Sistemi <no-reply@localhost>'),
+  APP_URL: z.string().default('http://localhost:3000'),
+  PLATFORM_ADMIN_EMAILS: z.string().optional(),
 });
 
 export interface AppConfig {
@@ -27,6 +29,10 @@ export interface AppConfig {
   /** SMTP bağlantısı (ör. smtp://kullanici:sifre@sunucu:587). Boşsa e-postalar yalnızca loglanır. */
   smtpUrl?: string;
   mailFrom: string;
+  /** Web arayüzünün adresi; e-postalardaki bağlantılar bunu kullanır. */
+  appUrl: string;
+  /** Açılışta platform yöneticisi yapılacak e-posta adresleri (yoksa hesap açılıp davet gönderilir). */
+  platformAdminEmails: string[];
 }
 
 export const CONFIG = Symbol('CONFIG');
@@ -43,6 +49,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     alarmIntervalMinutes: e.ALARM_INTERVAL_MINUTES,
     smtpUrl: e.SMTP_URL || undefined,
     mailFrom: e.MAIL_FROM,
+    appUrl: e.APP_URL.replace(/\/+$/, ''),
+    platformAdminEmails: (e.PLATFORM_ADMIN_EMAILS ?? '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean),
   };
 }
 

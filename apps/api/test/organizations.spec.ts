@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createApp, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
 
 describe('Kuruluşlar, üyeler ve roller', () => {
   let app: INestApplication;
@@ -14,12 +14,7 @@ describe('Kuruluşlar, üyeler ve roller', () => {
 
   async function setupOrg() {
     const admin = await registerAndLogin(app);
-    const res = await request(server)
-      .post('/api/v1/organizations')
-      .set('Authorization', `Bearer ${admin.accessToken}`)
-      .send({ name: 'Örnek Ticaret A.Ş.' })
-      .expect(201);
-    const orgId: string = res.body.id;
+    const orgId = await createOrg(app, admin, { name: 'Örnek Ticaret A.Ş.' });
     const as = (token: string) => ({ Authorization: `Bearer ${token}`, 'X-Organization-Id': orgId });
     const roles = await request(server).get('/api/v1/roles').set(as(admin.accessToken)).expect(200);
     const roleId = (key: string) => roles.body.items.find((r: any) => r.key === key).id;

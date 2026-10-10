@@ -60,7 +60,8 @@ function LoginForm() {
       });
       if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
       const user = await reload();
-      router.replace(user && user.organizations.length === 0 ? '/kurulus-olustur' : next);
+      // Kuruluşu olmayan platform yöneticisi doğrudan yönetim paneline gider.
+      router.replace(user?.isPlatformAdmin && user.organizations.length === 0 && next === '/' ? '/admin' : next);
     } catch (err) {
       setError(errorText(err));
       setBusy(false);
@@ -125,10 +126,9 @@ function LoginForm() {
       </form>
       <div className="auth-links">
         <Link href="/sifremi-unuttum">Şifremi unuttum</Link>
-        <Link href="/kayit">Hesap oluştur</Link>
       </div>
       <p className="small muted" style={{ marginTop: 14 }}>
-        Davet e-postası mı aldınız? <Link href="/sifre-belirle">Şifrenizi belirleyin</Link>.
+        Hesabınız kuruluşunuz sisteme eklendiğinde açılır ve e-posta adresinize şifre oluşturma bağlantısı gönderilir.
       </p>
     </AuthCard>
   );

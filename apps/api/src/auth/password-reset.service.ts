@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { generateToken, hashPassword, sha256 } from '../common/crypto';
+import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { passwordResetTokens, refreshTokens, users } from '../db/schema';
 import { MailerService } from './mailer.service';
@@ -15,6 +16,7 @@ export class PasswordResetService {
     @InjectDb() private readonly db: Database,
     private readonly mailer: MailerService,
     private readonly audit: AuditService,
+    @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
 
   /** Kullanıcı yoksa da aynı yanıt döner (e-posta adresi sızdırılmaz). */
@@ -29,19 +31,52 @@ export class PasswordResetService {
     await this.mailer.send({
       to: user.email,
       subject: 'KVK Yönetim Sistemi şifre sıfırlama',
-      text: `Şifrenizi sıfırlamak için kodunuz: ${token}\nKod 1 saat geçerlidir.`,
+      text:
+        `Şifrenizi sıfırlamak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
+        `Bağlantı 1 saat geçerlidir. Bağlantı açılmazsa şifre belirleme sayfasına şu kodu girebilirsiniz: ${token}\n\n` +
+        'Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.',
     });
     await this.audit.record({ action: 'auth.password_reset_requested', userId: user.id, ...client });
   }
 
-  /** Kuruluşa davet edilen yeni kullanıcıya şifre belirleme bağlantısı gönderir. */
-  async sendInvite(user: { id: string; email: string }, organizationName: string) {
+  /**
+   * Yeni hesaba şifre oluşturma bağlantısı gönderir (kuruluşa davet, platform yöneticisi tarafından
+   * kuruluş açılması veya ilk platform yöneticisi). Şifre e-postayla gönderilmez; kullanıcı bağlantıyla
+   * kendi şifresini oluşturur.
+   */
+  async sendInvite(
+    user: { id: string; email: string; fullName?: string | null },
+    organizationName: string | null,
+    opts: { subject?: string; intro?: string } = {},
+  ) {
     const token = await this.createToken(user.id, INVITE_TTL_MS);
+    const greeting = user.fullName ? `Merhaba ${user.fullName},\n\n` : 'Merhaba,\n\n';
+    const intro =
+      opts.intro ??
+      (organizationName
+        ? `${organizationName} için KVK Yönetim Sistemi hesabınız oluşturuldu.`
+        : 'KVK Yönetim Sistemi hesabınız oluşturuldu.');
     await this.mailer.send({
       to: user.email,
-      subject: `${organizationName} sizi KVK Yönetim Sistemine davet etti`,
-      text: `Hesabınızı etkinleştirmek için şifrenizi belirleyin. Kodunuz: ${token}\nKod 7 gün geçerlidir.`,
+      subject: opts.subject ?? `${organizationName ?? 'KVK Yönetim Sistemi'} - hesabınızı etkinleştirin`,
+      text:
+        `${greeting}${intro}\n\n` +
+        `Şifrenizi oluşturmak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
+        `Bağlantı 7 gün geçerlidir. Kullanıcı adınız bu e-posta adresidir: ${user.email}\n` +
+        `Bağlantı açılmazsa şifre belirleme sayfasına şu kodu girebilirsiniz: ${token}\n`,
     });
+  }
+
+  /** Kullanıcının bekleyen (kullanılmamış) şifre bağlantılarını geçersiz kılar; yeniden davet öncesi çağrılır. */
+  async revokePending(userId: string) {
+    await this.db
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(passwordResetTokens.userId, userId), isNull(passwordResetTokens.usedAt)));
+  }
+
+  private link(token: string) {
+    return `${this.config.appUrl}/sifre-belirle?kod=${encodeURIComponent(token)}`;
   }
 
   async confirm(token: string, newPassword: string, client: { ip: string | null; userAgent: string | null }) {
