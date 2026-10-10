@@ -3,7 +3,7 @@ import request from 'supertest';
 import { MailerService } from '../src/auth/mailer.service';
 import { AlarmsService } from '../src/workflow/alarms.service';
 import { addDays, dateIn } from '../src/workflow/dates';
-import { createApp, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
 
 const PROFILE = {
   address: 'Atatürk Cad. No:1 Çankaya/Ankara',
@@ -34,12 +34,7 @@ describe('İş akışı ve alarmlar', () => {
 
   async function setupOrg() {
     const admin = await registerAndLogin(app);
-    const res = await request(server)
-      .post('/api/v1/organizations')
-      .set('Authorization', `Bearer ${admin.accessToken}`)
-      .send({ name: 'Örnek Ticaret A.Ş.', ...PROFILE })
-      .expect(201);
-    const orgId: string = res.body.id;
+    const orgId = await createOrg(app, admin, { name: 'Örnek Ticaret A.Ş.', ...PROFILE });
     const as = (token: string) => ({ Authorization: `Bearer ${token}`, 'X-Organization-Id': orgId });
     return { admin, orgId, as };
   }

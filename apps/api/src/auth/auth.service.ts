@@ -187,7 +187,12 @@ export class AuthService {
 
   async me(userId: string) {
     const [user] = await this.db
-      .select({ id: users.id, email: users.email, fullName: users.fullName })
+      .select({
+        id: users.id,
+        email: users.email,
+        fullName: users.fullName,
+        isPlatformAdmin: users.isPlatformAdmin,
+      })
       .from(users)
       .where(eq(users.id, userId));
     if (!user) throw new UnauthorizedException();

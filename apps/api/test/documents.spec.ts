@@ -1,7 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import PizZip from 'pizzip';
+import { DOCUMENT_TEMPLATES } from '@kvkk/shared';
 import request from 'supertest';
-import { createApp, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+
+const CATALOG_CODES = DOCUMENT_TEMPLATES.map((t) => t.code);
 
 const PROFILE = {
   address: 'Atatürk Cad. No:1 Çankaya/Ankara',
@@ -40,12 +43,7 @@ describe('Doküman Yönetimi', () => {
 
   async function setupOrg(profile: Record<string, string> = PROFILE) {
     const admin = await registerAndLogin(app);
-    const res = await request(server)
-      .post('/api/v1/organizations')
-      .set('Authorization', `Bearer ${admin.accessToken}`)
-      .send({ name: 'Örnek Ticaret A.Ş.', ...profile })
-      .expect(201);
-    const orgId: string = res.body.id;
+    const orgId = await createOrg(app, admin, { name: 'Örnek Ticaret A.Ş.', ...profile });
     const as = (token: string) => ({ Authorization: `Bearer ${token}`, 'X-Organization-Id': orgId });
     return { admin, orgId, as };
   }
@@ -80,6 +78,8 @@ describe('Doküman Yönetimi', () => {
   it('şablon kataloğunu opsiyonel işaretleriyle listeler', async () => {
     const { admin, as } = await setupOrg();
     const res = await request(server).get('/api/v1/document-templates').set(as(admin.accessToken)).expect(200);
+    // Diğer testlerde platform yöneticisinin eklediği şablonlar hariç.
+    res.body.items = res.body.items.filter((t: any) => CATALOG_CODES.includes(t.code));
     expect(res.body.items).toHaveLength(15);
     const optional = res.body.items.filter((t: any) => t.optional).map((t: any) => t.code);
     expect(optional).toEqual(['AYM-030', 'AYM-040']);
@@ -128,7 +128,7 @@ describe('Doküman Yönetimi', () => {
       .post('/api/v1/documents')
       .set(as(admin.accessToken))
       .send({ templateCode: 'TBL-010' })
-      .expect(400);
+      .expect(404);
   });
 
   it('KEP adresi ve web sitesi boşsa doküman yine oluşturulur, yer tutucu boş kalır', async () => {
@@ -196,7 +196,9 @@ describe('Doküman Yönetimi', () => {
     const again = await request(server).post('/api/v1/documents/setup').set(as(admin.accessToken)).expect(201);
     expect(again.body.created).toEqual([]);
     const catalog = await request(server).get('/api/v1/document-templates').set(as(admin.accessToken)).expect(200);
-    const unused = catalog.body.items.filter((t: any) => !t.documentId).map((t: any) => t.code);
+    const unused = catalog.body.items
+      .filter((t: any) => !t.documentId && CATALOG_CODES.includes(t.code))
+      .map((t: any) => t.code);
     expect(unused).toEqual(['AYM-030']);
   });
 

@@ -77,7 +77,10 @@ export class MembersService {
         .select({ name: organizations.name })
         .from(organizations)
         .where(eq(organizations.id, orgId));
-      await this.passwordReset.sendInvite(user, org.name);
+      await this.passwordReset.sendInvite({ ...user, fullName: input.fullName.trim() }, org.name, {
+        subject: `${org.name} sizi KVK Yönetim Sistemine davet etti`,
+        intro: `${org.name} sizi KVK Yönetim Sistemine davet etti.`,
+      });
     }
     await this.audit.record({
       action: 'member.added',

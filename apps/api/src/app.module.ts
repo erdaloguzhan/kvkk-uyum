@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './common/auth.guard';
@@ -40,6 +41,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     InventoryModule,
     WorkflowModule,
     ContractsModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [

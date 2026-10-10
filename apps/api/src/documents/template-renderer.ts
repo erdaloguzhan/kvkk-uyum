@@ -57,3 +57,22 @@ export function isDocx(file: Buffer): boolean {
     return false;
   }
 }
+
+/**
+ * Şablondaki yer tutucuların listesi. Yer tutucu yazımı bozuksa (ör. kapanmamış `{{`) hata fırlatır.
+ * Ana şablon yüklenirken kontrol için kullanılır.
+ */
+export function templateTags(template: Buffer): string[] {
+  const tags = new Set<string>();
+  new Docxtemplater(new PizZip(template), {
+    delimiters: { start: '{{', end: '}}' },
+    paragraphLoop: true,
+    linebreaks: true,
+    errorLogging: false,
+    parser: (raw: string) => {
+      tags.add(raw.trim());
+      return { get: () => '' };
+    },
+  });
+  return [...tags].sort();
+}

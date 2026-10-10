@@ -12,7 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { DOCUMENT_TEMPLATES, PERMISSIONS } from '@kvkk/shared';
+import { PERMISSIONS } from '@kvkk/shared';
 import type { Response } from 'express';
 import { z } from 'zod';
 import {
@@ -28,8 +28,7 @@ import { DocumentsService } from './documents.service';
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-const templateCodes = DOCUMENT_TEMPLATES.map((t) => t.code) as [string, ...string[]];
-const createBody = z.object({ templateCode: z.enum(templateCodes) });
+const createBody = z.object({ templateCode: z.string().trim().min(1).max(30) });
 const noteBody = z.object({ note: z.string().trim().max(1000).nullish() }).default({});
 
 /** Taslak sürümleri yalnızca doküman düzenleme yetkisi olanlar görür. */

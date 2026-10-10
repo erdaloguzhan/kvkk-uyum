@@ -27,6 +27,8 @@ export interface Me {
   id: string;
   email: string;
   fullName: string;
+  /** Yönetim paneline (/admin) erişebilir. */
+  isPlatformAdmin: boolean;
   organizations: OrgMembership[];
 }
 
@@ -69,6 +71,13 @@ export interface DocumentItem {
   updatedAt: string;
   publishedVersion: DocumentVersion | null;
   latestVersion?: DocumentVersion | null;
+  /** Ana şablonun dokümanın dayandığından daha yeni bir sürümü yayında. */
+  templateUpdate?: TemplateUpdate | null;
+}
+
+export interface TemplateUpdate {
+  versionNo: number;
+  effectiveFrom: string | null;
 }
 
 export interface DocumentDetail extends Omit<DocumentItem, 'publishedVersion' | 'latestVersion'> {
@@ -80,6 +89,8 @@ export interface TemplateItem {
   title: string;
   category: DocumentCategory;
   optional: boolean;
+  versionNo: number;
+  effectiveFrom: string | null;
   documentId: string | null;
 }
 
@@ -198,4 +209,54 @@ export interface Contract {
   daysToEnd: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+// ---- Yönetim paneli ----
+
+export interface AdminOrganization {
+  id: string;
+  name: string;
+  email: string | null;
+  authorizedPerson: string | null;
+  licenseStatus: 'trial' | 'active' | 'expired';
+  licenseExpiresAt: string | null;
+  setupCompletedAt: string | null;
+  createdAt: string;
+  memberCount: number;
+}
+
+export type TemplateVersionState = 'draft' | 'current' | 'scheduled' | 'past';
+
+export interface TemplateVersion {
+  id: string;
+  templateCode: string;
+  versionNo: number;
+  status: 'draft' | 'published';
+  state: TemplateVersionState;
+  fileName: string;
+  sizeBytes: number;
+  note: string | null;
+  effectiveFrom: string | null;
+  createdAt: string;
+  publishedAt: string | null;
+}
+
+export interface AdminTemplate {
+  code: string;
+  title: string;
+  category: DocumentCategory;
+  optional: boolean;
+  updatedAt: string;
+  currentVersion: TemplateVersion | null;
+  scheduledVersions: TemplateVersion[];
+  draftCount: number;
+  latestVersionNo: number;
+}
+
+export interface AdminTemplateDetail {
+  code: string;
+  title: string;
+  category: DocumentCategory;
+  optional: boolean;
+  versions: TemplateVersion[];
 }

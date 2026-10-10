@@ -36,6 +36,11 @@ services:
       SMTP_URL: smtp://mailpit:1025
       MAIL_FROM: KVK Yönetim Sistemi <no-reply@kvkk.local>
       ALARM_INTERVAL_MINUTES: "60"
+      # E-postalardaki bağlantıların açacağı web adresi.
+      APP_URL: http://localhost:3000
+      # Yönetim paneline girebilecek kişiler (virgülle ayrılmış). Bu adresle hesap yoksa açılır ve şifre oluşturma
+      # bağlantısı gönderilir. Değiştirmek için bu klasöre .env dosyası koyup PLATFORM_ADMIN_EMAILS=... yazın.
+      PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-admin@kvkk.local}
     depends_on:
       postgres:
         condition: service_healthy

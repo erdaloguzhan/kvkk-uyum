@@ -153,6 +153,50 @@ export const auditLogs = pgTable(
   (t) => [index('audit_logs_org_created_idx').on(t.organizationId, t.createdAt)],
 );
 
+/**
+ * Platform yöneticisinin yönettiği ana (master) doküman şablonu. İlk kurulumda @kvkk/shared
+ * DOCUMENT_TEMPLATES kataloğu ve content/ klasöründeki dosyalarla doldurulur.
+ */
+export const documentTemplates = pgTable('document_templates', {
+  code: text('code').primaryKey(),
+  title: text('title').notNull(),
+  category: text('category', { enum: ['policy', 'procedure', 'form', 'notice', 'contract'] }).notNull(),
+  optional: boolean('optional').notNull().default(false),
+  createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Ana şablonun sürümleri. Yayınlanan sürüm `effectiveFrom` anından itibaren geçerlidir;
+ * kuruluşlar o andan sonra oluşturdukları/güncelledikleri dokümanları bu sürümden alır.
+ */
+export const templateVersions = pgTable(
+  'template_versions',
+  {
+    id: id(),
+    templateCode: text('template_code')
+      .notNull()
+      .references(() => documentTemplates.code, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    versionNo: integer('version_no').notNull(),
+    status: text('status', { enum: ['draft', 'published'] }).notNull().default('draft'),
+    fileName: text('file_name').notNull(),
+    content: bytea('content').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    sha256: text('sha256').notNull(),
+    note: text('note'),
+    /** Yayın (yürürlük) tarihi; bu andan itibaren yeni dokümanlar bu sürümden üretilir. */
+    effectiveFrom: timestamp('effective_from', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    publishedBy: uuid('published_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    uniqueIndex('template_versions_code_version_unique').on(t.templateCode, t.versionNo),
+    index('template_versions_code_status_idx').on(t.templateCode, t.status, t.effectiveFrom),
+  ],
+);
+
 /** Kuruluşa ait doküman (politika, prosedür, form, aydınlatma metni, sözleşme). */
 export const documents = pgTable(
   'documents',
@@ -198,6 +242,11 @@ export const documentVersions = pgTable(
     /** Henüz desteklenmediği için boş bırakılan yer tutucular (ör. kurum.logo). */
     unfilledPlaceholders: text('unfilled_placeholders').array().notNull().default(sql`'{}'::text[]`),
     note: text('note'),
+    /**
+     * Sürümün dayandığı ana şablon sürümü. Yüklenen sürümler bir öncekinden devralır.
+     * Boşsa (bu alan eklenmeden önce üretilmiş sürümler) şablonun ilk sürümüne dayanır.
+     */
+    templateVersionId: uuid('template_version_id').references(() => templateVersions.id, { onDelete: 'set null' }),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     publishedAt: timestamp('published_at', { withTimezone: true }),

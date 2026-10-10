@@ -35,8 +35,11 @@ export class OrganizationsService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Kuruluşu oluşturur, varsayılan rolleri ekler ve oluşturanı Kuruluş Yöneticisi yapar. */
-  async create(userId: string, profile: OrganizationProfile) {
+  /**
+   * Kuruluşu oluşturur, varsayılan rolleri ekler ve `userId` kullanıcısını Kuruluş Yöneticisi yapar.
+   * `actorId`: işlemi yapan (platform yöneticisi); verilmezse kullanıcının kendisi.
+   */
+  async create(userId: string, profile: OrganizationProfile, actorId = userId) {
     const org = await this.db.transaction(async (tx) => {
       const [org] = await tx
         .insert(organizations)
@@ -65,7 +68,7 @@ export class OrganizationsService {
     await this.audit.record({
       action: 'organization.created',
       organizationId: org.id,
-      userId,
+      userId: actorId,
       entityType: 'organization',
       entityId: org.id,
     });
@@ -92,6 +95,10 @@ export class OrganizationsService {
       metadata: { fields: Object.keys(changes) },
     });
     return org;
+  }
+
+  isSetupComplete(org: OrganizationProfile) {
+    return REQUIRED_FOR_SETUP.every((f) => !!org[f]);
   }
 
   async completeSetup(orgId: string, userId: string) {

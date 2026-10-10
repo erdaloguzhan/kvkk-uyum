@@ -7,7 +7,7 @@ import { FormEvent, useState } from 'react';
 import { CompactTaskList } from '@/components/task-list';
 import { Alert, Badge, Empty, ErrorAlert, Field, Loading, Modal, PageHeader } from '@/components/ui';
 import { api, download, errorText } from '@/lib/api';
-import { formatBytes, formatDateTime, formatDay } from '@/lib/labels';
+import { formatBytes, formatDate, formatDateTime, formatDay } from '@/lib/labels';
 import { useSession } from '@/lib/session';
 import type { ApprovalRequest, DocumentDetail, DocumentVersion, Task } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
@@ -118,6 +118,16 @@ export default function DocumentDetailPage() {
       />
       <ErrorAlert error={error} />
       {message && <Alert kind="success">{message}</Alert>}
+      {canWrite && d.templateUpdate && (
+        <Alert kind="warning">
+          Bu dokümanın ana şablonu güncellendi: şablonun {d.templateUpdate.versionNo}. sürümü
+          {d.templateUpdate.effectiveFrom ? ` ${formatDate(d.templateUpdate.effectiveFrom)} tarihinden itibaren` : ''} yayında. Mevcut
+          dokümanınız kendiliğinden değişmez.{' '}
+          <button className="btn btn-small" onClick={() => setDialog({ kind: 'regenerate' })} disabled={busy}>
+            Yeni şablonla güncelle
+          </button>
+        </Alert>
+      )}
       {canWrite && (
         <Alert kind="info">
           Dokümanı düzenlemek için sürümü indirip Word ile değiştirin, sonra &quot;Düzenlenmiş Word dosyasını yükle&quot; ile yeni sürüm
@@ -263,8 +273,8 @@ export default function DocumentDetailPage() {
       )}
       {dialog?.kind === 'regenerate' && (
       <NoteDialog
-        title="Kuruluş bilgileriyle yeniden oluştur"
-        text="Şablon, kuruluşun güncel bilgileriyle yeniden doldurulur ve yeni taslak sürüm olarak eklenir. Word'de yaptığınız değişiklikler bu sürüme taşınmaz."
+        title={d.templateUpdate ? 'Yeni şablonla güncelle' : 'Kuruluş bilgileriyle yeniden oluştur'}
+        text="Şablonun yayındaki son sürümü, kuruluşun güncel bilgileriyle doldurulur ve yeni taslak sürüm olarak eklenir. Word'de yaptığınız değişiklikler bu sürüme taşınmaz; gözden geçirip yayınlamanız gerekir."
         submitLabel="Yeni sürüm oluştur"
         busy={busy}
         onClose={() => setDialog(null)}

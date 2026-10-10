@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import { Loading } from './ui';
+import { Empty, Loading } from './ui';
 
 interface NavItem {
   href: string;
@@ -24,9 +24,6 @@ const NAV: NavItem[] = [
   { href: '/bildirimler', label: 'Bildirimler' },
 ];
 
-/** Kuruluş seçilmeden açılabilen sayfalar. */
-const NO_ORG_PATHS = ['/kurulus-olustur'];
-
 const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -35,13 +32,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const needsOrg = !NO_ORG_PATHS.includes(pathname);
+  // Kuruluşu olmayan platform yöneticisi yönetim paneline yönlendirilir.
+  const toAdmin = !!me && !org && me.isPlatformAdmin;
 
   useEffect(() => {
     if (loading) return;
     if (!me) router.replace(`/giris?sonra=${encodeURIComponent(pathname)}`);
-    else if (!org && needsOrg) router.replace('/kurulus-olustur');
-  }, [loading, me, org, needsOrg, pathname, router]);
+    else if (toAdmin) router.replace('/admin');
+  }, [loading, me, toAdmin, pathname, router]);
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
@@ -63,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [org]);
 
-  if (loading || !me || (!org && needsOrg)) return <Loading />;
+  if (loading || !me || toAdmin) return <Loading />;
 
   const items = NAV.filter((n) => !n.permission || can(n.permission));
 
@@ -105,9 +103,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               {n.href === '/bildirimler' && unread > 0 && <span className="nav-badge">{unread}</span>}
             </Link>
           ))}
-        <Link href="/kurulus-olustur" className={`nav-link${pathname === '/kurulus-olustur' ? ' active' : ''}`}>
-          + Yeni kuruluş
-        </Link>
+        {me.isPlatformAdmin && (
+          <Link href="/admin" className="nav-link">
+            Yönetim paneli →
+          </Link>
+        )}
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
           {org && <div>{org.role.name}</div>}
@@ -116,7 +116,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </nav>
-      <main className="main">{children}</main>
+      <main className="main">
+        {org ? (
+          children
+        ) : (
+          <div className="card">
+            <Empty title="Hesabınız henüz bir kuruluşa bağlı değil">
+              Kuruluşunuz sisteme eklendiğinde veya bir kuruluş sizi davet ettiğinde burada görünecek. Yardım için sistem
+              yöneticinizle iletişime geçin.
+            </Empty>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

@@ -5,6 +5,10 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { MailerService } from '../src/auth/mailer.service';
 import { setupApp } from '../src/setup-app';
+import { Database, DB } from '../src/db/db.module';
+import { users } from '../src/db/schema';
+import { OrganizationProfile, OrganizationsService } from '../src/organizations/organizations.service';
+import { eq } from 'drizzle-orm';
 
 export const PASSWORD = 'GucluSifre123';
 
@@ -30,7 +34,10 @@ export function lastMailTo(app: INestApplication, email: string) {
   return mail;
 }
 
+/** E-postadaki giriş kodu veya şifre belirleme bağlantısındaki kod. */
 export function extractCode(text: string) {
+  const link = /[?&]kod=([^\s&]+)/.exec(text);
+  if (link) return decodeURIComponent(link[1]);
   return /: (\S+)\n/.exec(text)![1];
 }
 
@@ -61,4 +68,19 @@ export async function login(app: INestApplication, email: string, password = PAS
     refreshToken: string;
     user: { id: string };
   };
+}
+
+/**
+ * Kuruluşu doğrudan oluşturur ve `owner`ı kuruluş yöneticisi yapar. Gerçekte kuruluşları
+ * yönetim panelinden platform yöneticisi açar (admin.spec.ts).
+ */
+export async function createOrg(app: INestApplication, owner: { user: { id: string } }, profile: OrganizationProfile) {
+  const org = await app.get(OrganizationsService).create(owner.user.id, profile);
+  return org.id;
+}
+
+/** Kullanıcıyı platform yöneticisi yapar. */
+export async function makePlatformAdmin(app: INestApplication, userId: string) {
+  const db = app.get<Database>(DB);
+  await db.update(users).set({ isPlatformAdmin: true }).where(eq(users.id, userId));
 }

@@ -29,7 +29,12 @@ export function fieldLabel(field: string): string {
   return ORG_FIELD_LABELS[field] ?? OTHER_LABELS[field] ?? field;
 }
 
-const dateFormat = new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const dateFormat = new Intl.DateTimeFormat('tr-TR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'Europe/Istanbul',
+});
 const dateTimeFormat = new Intl.DateTimeFormat('tr-TR', {
   day: '2-digit',
   month: '2-digit',

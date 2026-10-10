@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import request from 'supertest';
-import { createApp, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
 
 /** TBL-010'daki ilk örnek satırın bir kısmı. */
 const ENTRY = {
@@ -43,12 +43,7 @@ describe('Kişisel Veri Envanteri', () => {
 
   async function setupOrg() {
     const admin = await registerAndLogin(app);
-    const res = await request(server)
-      .post('/api/v1/organizations')
-      .set('Authorization', `Bearer ${admin.accessToken}`)
-      .send({ name: 'Örnek Ticaret A.Ş.' })
-      .expect(201);
-    const orgId: string = res.body.id;
+    const orgId = await createOrg(app, admin, { name: 'Örnek Ticaret A.Ş.' });
     const as = (token: string) => ({ Authorization: `Bearer ${token}`, 'X-Organization-Id': orgId });
     return { admin, orgId, as };
   }

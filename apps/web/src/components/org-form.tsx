@@ -25,11 +25,14 @@ export function OrgForm({
   initial,
   submitLabel,
   readOnly,
+  inviteMode,
   onSubmit,
 }: {
   initial?: Partial<OrgProfile>;
   submitLabel: string;
   readOnly?: boolean;
+  /** Yönetim panelinden kuruluş açılırken: e-posta ve yetkili zorunlu, davet bu adrese gider. */
+  inviteMode?: boolean;
   onSubmit: (profile: OrgProfile) => Promise<void>;
 }) {
   const [v, setV] = useState<OrgProfile>(() => {
@@ -75,15 +78,20 @@ export function OrgForm({
           <input {...bind('taxNumber')} inputMode="numeric" pattern="\d{10,11}" />
         </Field>
         <Field label="Yetkili kişi" required htmlFor="authorizedPerson" hint="Ad soyad">
-          <input {...bind('authorizedPerson')} />
+          <input {...bind('authorizedPerson')} required={inviteMode} minLength={inviteMode ? 2 : undefined} />
         </Field>
       </div>
       <Field label="Adres" required htmlFor="address">
         <textarea {...bind('address')} rows={3} />
       </Field>
       <div className="form-row">
-        <Field label="E-posta" required htmlFor="email">
-          <input type="email" {...bind('email')} />
+        <Field
+          label="E-posta"
+          required
+          htmlFor="email"
+          hint={inviteMode ? 'Kuruluş yetkilisinin kullanıcı adı olur; şifre oluşturma bağlantısı bu adrese gönderilir.' : undefined}
+        >
+          <input type="email" {...bind('email')} required={inviteMode} />
         </Field>
         <Field label="Telefon" required htmlFor="phone">
           <input type="tel" {...bind('phone')} />

@@ -11,8 +11,8 @@ import {
 import { ZodPipe } from '../common/zod.pipe';
 import { OrganizationsService } from './organizations.service';
 
-const optionalText = (max: number) => z.string().trim().max(max).nullish();
-const profileFields = {
+export const optionalText = (max: number) => z.string().trim().max(max).nullish();
+export const profileFields = {
   name: z.string().trim().min(2).max(300),
   address: optionalText(1000),
   email: z.email().max(254).nullish(),
@@ -23,7 +23,6 @@ const profileFields = {
   taxNumber: z.string().trim().regex(/^\d{10,11}$/, 'Vergi numarası 10 veya 11 haneli olmalı').nullish(),
   website: optionalText(300),
 };
-const createBody = z.object(profileFields);
 const updateBody = z.object(profileFields).partial().refine((v) => Object.keys(v).length > 0, {
   message: 'Güncellenecek alan yok',
 });
@@ -31,11 +30,6 @@ const updateBody = z.object(profileFields).partial().refine((v) => Object.keys(v
 @Controller('organizations')
 export class OrganizationsController {
   constructor(private readonly orgs: OrganizationsService) {}
-
-  @Post()
-  create(@CurrentUser() user: AuthUser, @Body(new ZodPipe(createBody)) body: z.infer<typeof createBody>) {
-    return this.orgs.create(user.id, body);
-  }
 
   @Get('current')
   @RequirePermissions(PERMISSIONS.ORG_READ)
