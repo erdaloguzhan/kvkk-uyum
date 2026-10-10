@@ -131,6 +131,20 @@ describe('Doküman Yönetimi', () => {
       .expect(400);
   });
 
+  it('KEP adresi ve web sitesi boşsa doküman yine oluşturulur, yer tutucu boş kalır', async () => {
+    const { kepAddress, website, ...rest } = PROFILE;
+    const { admin, as } = await setupOrg(rest);
+    const created = await request(server)
+      .post('/api/v1/documents')
+      .set(as(admin.accessToken))
+      .send({ templateCode: 'AYM-010' })
+      .expect(201);
+    const text = docxText(await download(as(admin.accessToken), created.body.id, created.body.versions[0].id));
+    expect(text).toContain(PROFILE.address);
+    expect(text).not.toContain('{{');
+    await request(server).post('/api/v1/documents/setup').set(as(admin.accessToken)).expect(201);
+  });
+
   it('kuruluş bilgileri eksikse dokümanı oluşturmaz ve eksik alanları söyler', async () => {
     const { admin, as } = await setupOrg({});
     const res = await request(server)
@@ -138,7 +152,7 @@ describe('Doküman Yönetimi', () => {
       .set(as(admin.accessToken))
       .send({ templateCode: 'AYM-010' })
       .expect(400);
-    expect(res.body.missing).toEqual(['address', 'taxNumber', 'website']);
+    expect(res.body.missing).toEqual(['address', 'taxNumber']);
 
     // Yalnızca ünvan kullanan şablon oluşturulabilir.
     await request(server)
@@ -148,7 +162,7 @@ describe('Doküman Yönetimi', () => {
       .expect(201);
 
     const setup = await request(server).post('/api/v1/documents/setup').set(as(admin.accessToken)).expect(400);
-    expect(setup.body.missing).toEqual(['address', 'taxNumber', 'website']);
+    expect(setup.body.missing).toEqual(['address', 'taxNumber']);
     const list = await request(server).get('/api/v1/documents').set(as(admin.accessToken)).expect(200);
     expect(list.body.items).toHaveLength(1);
   });

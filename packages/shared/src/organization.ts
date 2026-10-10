@@ -14,4 +14,10 @@ export const ORGANIZATION_PLACEHOLDERS = {
   'kurum.yetkili': 'authorizedPerson',
 } as const;
 
+/**
+ * Kuruluş profilinde zorunlu olmayan alanların yer tutucuları. Boşsa doküman yine oluşturulur,
+ * yer tutucu boş bırakılır.
+ */
+export const OPTIONAL_PLACEHOLDERS: string[] = ['kurum.kep', 'kurum.web_sitesi_adresi'];
+
 export type LicenseStatus = 'trial' | 'active' | 'expired';

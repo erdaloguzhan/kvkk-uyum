@@ -1,12 +1,13 @@
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
+import { OPTIONAL_PLACEHOLDERS } from '@kvkk/shared';
 
 /** Şablonlarda geçen ama henüz desteklenmeyen yer tutucular; boş bırakılır ve sürümde not edilir. */
 export const UNSUPPORTED_PLACEHOLDERS = ['kurum.logo'];
 
 export interface RenderResult {
   content: Buffer;
-  /** Kuruluş profilinde boş olduğu için doldurulamayan yer tutucular. */
+  /** Kuruluş profilinde boş olduğu için doldurulamayan zorunlu yer tutucular. */
   missing: string[];
   /** Desteklenmediği için boş bırakılan yer tutucular. */
   unfilled: string[];
@@ -34,7 +35,8 @@ export function renderTemplate(template: Buffer, values: Record<string, string |
           }
           const value = values[tag];
           if (value == null || value.trim() === '') {
-            missing.add(tag);
+            // Zorunlu olmayan alanlar (KEP, web sitesi) boşsa yer tutucu boş kalır.
+            if (!OPTIONAL_PLACEHOLDERS.includes(tag)) missing.add(tag);
             return '';
           }
           return value;
