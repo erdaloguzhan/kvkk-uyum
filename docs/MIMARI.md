@@ -33,7 +33,7 @@ kvkk/
 
 1. **Temel (Foundation)** — *bu aşamada kuruldu*
    Kimlik doğrulama (kullanıcı adı/şifre + doğrulama kodu, CAPTCHA, hız sınırı), kuruluşlar (çoklu kuruluş, kuruluş bazında lisans), kullanıcılar, roller ve yetkiler, sistem hareket logu. Diğer tüm modüller buna dayanır.
-2. **Kurulum sihirbazı + Kuruluş profili** — firma ünvanı, adres, e‑posta, telefon, KEP, yetkili ad soyad. Bu alanlar doküman şablonlarına otomatik yerleşir.
+2. **Kurulum sihirbazı + Kuruluş profili** — firma ünvanı, adres, e‑posta, telefon, KEP (isteğe bağlı), web sitesi (isteğe bağlı), yetkili ad soyad. Bu alanlar doküman şablonlarına otomatik yerleşir.
 3. **Doküman Yönetimi (DMS)** — şablonlar, sürümleme, yayınlama, onay akışı, metadata ve arama. Politika, prosedür, talimat, form içerikleri buraya yüklenir.
    *İlk aşama kuruldu (2026-10-08):* şablondan kuruluşa özel doküman üretme, sürümleme, Word ile düzenleyip yükleme, yayınlama. Dosyalar şimdilik PostgreSQL'de (`document_versions.content`) tutuluyor; S3'e taşıma, onay akışı (5. modülle), arama ve doküman ACL'i sonraki adımlar.
 4. **Kişisel Veri Envanteri** — VERBİS'teki gibi adım adım seçimli giriş; veri kategorisi, işleme amacı, hukuki sebep, saklama süresi, aktarım, tedbirler; raporlama.

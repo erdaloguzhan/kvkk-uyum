@@ -50,7 +50,7 @@ describe('Kuruluşlar, üyeler ve roller', () => {
       .set(as(admin.accessToken))
       .expect(400);
     expect(incomplete.body.missing).toEqual(
-      expect.arrayContaining(['address', 'email', 'phone', 'kepAddress', 'authorizedPerson', 'taxNumber']),
+      expect.arrayContaining(['address', 'email', 'phone', 'authorizedPerson', 'taxNumber']),
     );
 
     await request(server)

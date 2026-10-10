@@ -23,7 +23,6 @@ const REQUIRED_FOR_SETUP: (keyof OrganizationProfile)[] = [
   'address',
   'email',
   'phone',
-  'kepAddress',
   'authorizedPerson',
   'taxNumber',
 ];

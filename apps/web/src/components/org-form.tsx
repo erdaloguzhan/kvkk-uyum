@@ -20,7 +20,7 @@ const EMPTY: OrgProfile = {
   website: '',
 };
 
-/** Dokümanlara otomatik yerleşen alanlar; kurulumun tamamlanması için web sitesi dışındakiler gerekir. */
+/** Dokümanlara otomatik yerleşen alanlar; kurulumun tamamlanması için KEP adresi ve web sitesi dışındakiler gerekir. */
 export function OrgForm({
   initial,
   submitLabel,
@@ -90,10 +90,10 @@ export function OrgForm({
         </Field>
       </div>
       <div className="form-row">
-        <Field label="KEP adresi" required htmlFor="kepAddress" hint="Kayıtlı elektronik posta, ör. firma@hs01.kep.tr">
+        <Field label="KEP adresi" htmlFor="kepAddress" hint="Kayıtlı elektronik posta, ör. firma@hs01.kep.tr">
           <input type="email" {...bind('kepAddress')} />
         </Field>
-        <Field label="Web sitesi" required htmlFor="website" hint="Aydınlatma metinlerinde kullanılır">
+        <Field label="Web sitesi" htmlFor="website" hint="Aydınlatma metinlerinde kullanılır">
           <input {...bind('website')} placeholder="www.ornek.com.tr" />
         </Field>
       </div>
@@ -114,9 +114,8 @@ export const SETUP_REQUIRED: (keyof OrgProfile)[] = [
   'address',
   'email',
   'phone',
-  'kepAddress',
   'authorizedPerson',
 ];
 
-/** Doküman şablonlarında kullanılan alanlar: kurulum alanlarına ek olarak web sitesi. */
-export const DOCUMENT_REQUIRED: (keyof OrgProfile)[] = [...SETUP_REQUIRED, 'website'];
+/** Doküman şablonları için dolu olması gereken alanlar. KEP adresi ve web sitesi zorunlu değildir. */
+export const DOCUMENT_REQUIRED: (keyof OrgProfile)[] = SETUP_REQUIRED;
