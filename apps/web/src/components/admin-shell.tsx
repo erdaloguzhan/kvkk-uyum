@@ -57,13 +57,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
           <div>Platform yöneticisi</div>
-          <button type="button" onClick={logout} style={{ marginTop: 8 }}>
-            Çıkış yap
-          </button>
+          <div className="sidebar-actions">
+            <Link href="/admin/profil" className={pathname === '/admin/profil' ? 'active' : undefined}>
+              Profilim / şifre değiştir
+            </Link>
+            <button type="button" onClick={logout}>
+              Çıkış yap
+            </button>
+          </div>
         </div>
       </nav>
       <main className="main">
-        {me.isPlatformAdmin ? (
+        {me.isPlatformAdmin || pathname === '/admin/profil' ? (
           children
         ) : (
           <div className="card">
