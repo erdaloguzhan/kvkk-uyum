@@ -12,6 +12,7 @@ const CONTRACT = {
   contactPhone: '0212 555 00 00',
   contactEmail: 'ayse@ornekyazilim.com.tr',
   description: 'Bordro yazılımı hizmeti; veri işleyen sözleşmesi ekte.',
+  signedCopyUrl: 'https://drive.example.com/sozlesmeler/ornek-yazilim.pdf',
 };
 
 describe('Sözleşmeler', () => {
@@ -79,9 +80,9 @@ describe('Sözleşmeler', () => {
     const updated = await request(server)
       .patch(`/api/v1/contracts/${created.body.id}`)
       .set(as(admin.accessToken))
-      .send({ status: 'terminated', description: '' })
+      .send({ status: 'terminated', description: '', signedCopyUrl: '' })
       .expect(200);
-    expect(updated.body).toMatchObject({ status: 'terminated', description: null, partyName: CONTRACT.partyName });
+    expect(updated.body).toMatchObject({ status: 'terminated', description: null, signedCopyUrl: null, partyName: CONTRACT.partyName });
 
     await request(server).delete(`/api/v1/contracts/${created.body.id}`).set(as(admin.accessToken)).expect(204);
     await request(server).get(`/api/v1/contracts/${created.body.id}`).set(as(admin.accessToken)).expect(404);
@@ -91,7 +92,7 @@ describe('Sözleşmeler', () => {
     expect(actions).toEqual(expect.arrayContaining(['contract.created', 'contract.updated', 'contract.deleted']));
   });
 
-  it('hatalı tür, e-posta ve tarih sırasını reddeder', async () => {
+  it('hatalı tür, e-posta, bağlantı ve tarih sırasını reddeder', async () => {
     const { admin, as } = await setupOrg();
     await request(server)
       .post('/api/v1/contracts')
@@ -103,6 +104,13 @@ describe('Sözleşmeler', () => {
       .set(as(admin.accessToken))
       .send({ ...CONTRACT, contactEmail: 'gecersiz' })
       .expect(400);
+    for (const signedCopyUrl of ['drive.example.com/a.pdf', 'javascript:alert(1)', 'ftp://example.com/a.pdf']) {
+      await request(server)
+        .post('/api/v1/contracts')
+        .set(as(admin.accessToken))
+        .send({ ...CONTRACT, signedCopyUrl })
+        .expect(400);
+    }
     await request(server)
       .post('/api/v1/contracts')
       .set(as(admin.accessToken))

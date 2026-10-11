@@ -16,6 +16,16 @@ export interface ContractValues {
   contactPhone: string;
   contactEmail: string;
   description: string;
+  signedCopyUrl: string;
+}
+
+/** Islak imzalı sözleşme bağlantısı yeni sekmede açılır; sayfa bilgisi karşı siteye gönderilmez. */
+export function SignedCopyLink({ url, label = 'Aç ↗' }: { url: string; label?: string }) {
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" title={url}>
+      {label}
+    </a>
+  );
 }
 
 function toValues(c?: Contract): ContractValues {
@@ -29,6 +39,7 @@ function toValues(c?: Contract): ContractValues {
     contactPhone: c?.contactPhone ?? '',
     contactEmail: c?.contactEmail ?? '',
     description: c?.description ?? '',
+    signedCopyUrl: c?.signedCopyUrl ?? '',
   };
 }
 
@@ -45,6 +56,7 @@ export function toPayload(v: ContractValues) {
     contactPhone: orNull(v.contactPhone),
     contactEmail: orNull(v.contactEmail),
     description: orNull(v.description),
+    signedCopyUrl: orNull(v.signedCopyUrl),
   };
 }
 
@@ -142,6 +154,21 @@ export function ContractForm({
             onChange={(e) => set('contactEmail', e.target.value)}
             maxLength={254}
           />
+        </Field>
+        <Field label={L.signedCopyUrl} htmlFor="signedCopyUrl" hint="Taranmış sözleşmenin bulunduğu adres (ör. Google Drive, OneDrive). İsteğe bağlı.">
+          <input
+            id="signedCopyUrl"
+            type="url"
+            placeholder="https://"
+            value={values.signedCopyUrl}
+            onChange={(e) => set('signedCopyUrl', e.target.value)}
+            maxLength={2000}
+          />
+          {initial?.signedCopyUrl && (
+            <span className="small">
+              <SignedCopyLink url={initial.signedCopyUrl} label="Kayıtlı bağlantıyı aç ↗" />
+            </span>
+          )}
         </Field>
         <Field label={L.description} htmlFor="description">
           <textarea id="description" value={values.description} onChange={(e) => set('description', e.target.value)} maxLength={5000} />

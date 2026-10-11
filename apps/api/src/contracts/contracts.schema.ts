@@ -26,6 +26,11 @@ const fields = {
     .nullish()
     .transform((v) => v || null),
   description: optionalText(5000),
+  /** Yalnızca http/https bağlantıları kabul edilir (javascript: vb. engellenir). */
+  signedCopyUrl: z
+    .union([z.url({ protocol: /^https?$/}).max(2000), z.literal('')])
+    .nullish()
+    .transform((v) => v || null),
 };
 
 export const createBody = z.object(fields).partial().extend({

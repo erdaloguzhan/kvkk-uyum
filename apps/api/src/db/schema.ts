@@ -425,6 +425,8 @@ export const contracts = pgTable(
     contactPhone: text('contact_phone'),
     contactEmail: text('contact_email'),
     description: text('description'),
+    /** Islak imzalı sözleşmenin taranmış kopyasının bağlantısı (http/https). */
+    signedCopyUrl: text('signed_copy_url'),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAt(),

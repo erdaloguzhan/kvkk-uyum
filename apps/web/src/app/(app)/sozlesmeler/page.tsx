@@ -3,6 +3,7 @@
 import { CONTRACT_STATUSES, CONTRACT_TYPES, ContractStatus, ContractType, PERMISSIONS } from '@kvkk/shared';
 import Link from 'next/link';
 import { useState } from 'react';
+import { SignedCopyLink } from '@/components/contract-form';
 import { contractStatusBadge } from '@/components/contract-status';
 import { Empty, ErrorAlert, Loading, PageHeader } from '@/components/ui';
 import { formatDay } from '@/lib/labels';
@@ -79,6 +80,7 @@ export default function ContractsPage() {
                 <th>Telefon</th>
                 <th>E-posta</th>
                 <th>Açıklama</th>
+                <th>Islak imzalı sözleşme</th>
               </tr>
             </thead>
             <tbody>
@@ -95,6 +97,7 @@ export default function ContractsPage() {
                   <td className="nowrap">{c.contactPhone ? <a href={`tel:${c.contactPhone}`}>{c.contactPhone}</a> : '—'}</td>
                   <td>{c.contactEmail ? <a href={`mailto:${c.contactEmail}`}>{c.contactEmail}</a> : '—'}</td>
                   <td className="small description">{c.description ?? '—'}</td>
+                  <td className="nowrap">{c.signedCopyUrl ? <SignedCopyLink url={c.signedCopyUrl} /> : '—'}</td>
                 </tr>
               ))}
             </tbody>
