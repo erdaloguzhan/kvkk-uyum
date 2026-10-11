@@ -122,4 +122,48 @@ describe('Kimlik doğrulama', () => {
     await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(401);
     await login(app, session.email, 'YeniSifre4567');
   });
+  it('oturum açmış kullanıcı mevcut şifresiyle şifresini değiştirir', async () => {
+    const session = await registerAndLogin(app);
+    const other = await login(app, session.email);
+    const change = (body: object) =>
+      request(server)
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .send(body);
+
+    await request(server)
+      .post('/api/v1/auth/change-password')
+      .send({ currentPassword: PASSWORD, newPassword: 'YeniSifre4567' })
+      .expect(401);
+    const wrong = await change({ currentPassword: 'YanlisSifre99', newPassword: 'YeniSifre4567' }).expect(400);
+    expect(wrong.body.message).toBe('Mevcut şifre hatalı');
+    await change({ currentPassword: PASSWORD, newPassword: 'kisa' }).expect(400);
+    await change({ currentPassword: PASSWORD, newPassword: PASSWORD }).expect(400);
+
+    const res = await change({ currentPassword: PASSWORD, newPassword: 'YeniSifre4567' }).expect(200);
+    expect(res.body.accessToken).toBeTruthy();
+    // Önceki tüm oturumlar kapanır, yeni verilen belirteç çalışır.
+    await request(server).post('/api/v1/auth/refresh').send({ refreshToken: session.refreshToken }).expect(401);
+    await request(server).post('/api/v1/auth/refresh').send({ refreshToken: other.refreshToken }).expect(401);
+    await request(server).post('/api/v1/auth/refresh').send({ refreshToken: res.body.refreshToken }).expect(200);
+    await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(401);
+    await login(app, session.email, 'YeniSifre4567');
+  });
+
+  it('5 hatalı mevcut şifreden sonra hesabı kilitler', async () => {
+    const session = await registerAndLogin(app);
+    for (let i = 0; i < 5; i++) {
+      await request(server)
+        .post('/api/v1/auth/change-password')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .send({ currentPassword: 'YanlisSifre99', newPassword: 'YeniSifre4567' })
+        .expect(400);
+    }
+    const res = await request(server)
+      .post('/api/v1/auth/change-password')
+      .set('Authorization', `Bearer ${session.accessToken}`)
+      .send({ currentPassword: PASSWORD, newPassword: 'YeniSifre4567' })
+      .expect(400);
+    expect(res.body.message).toContain('kilitlendi');
+  });
 });

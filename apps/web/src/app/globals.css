@@ -66,6 +66,9 @@ p { margin: 0 0 0.75rem; }
 .nav-badge { background: #e5484d; color: #fff; border-radius: 999px; font-size: 0.72rem; padding: 0 7px; font-weight: 600; }
 .sidebar-footer { margin-top: auto; padding: 12px; font-size: 0.85rem; border-top: 1px solid rgba(255,255,255,0.12); }
 .sidebar-footer button { color: var(--sidebar-text); background: none; border: 0; padding: 0; cursor: pointer; font: inherit; text-decoration: underline; }
+.sidebar-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.sidebar-footer a { color: var(--sidebar-text); text-decoration: underline; }
+.sidebar-footer a.active { color: #fff; font-weight: 600; }
 .org-select { width: 100%; margin: 4px 0 12px; }
 .main { padding: 28px 32px 48px; max-width: 1200px; width: 100%; min-width: 0; }
 .topbar { display: none; }

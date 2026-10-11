@@ -111,13 +111,18 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
           {org && <div>{org.role.name}</div>}
-          <button type="button" onClick={logout} style={{ marginTop: 8 }}>
-            Çıkış yap
-          </button>
+          <div className="sidebar-actions">
+            <Link href="/profil" className={pathname === '/profil' ? 'active' : undefined}>
+              Profilim / şifre değiştir
+            </Link>
+            <button type="button" onClick={logout}>
+              Çıkış yap
+            </button>
+          </div>
         </div>
       </nav>
       <main className="main">
-        {org ? (
+        {org || pathname === '/profil' ? (
           children
         ) : (
           <div className="card">

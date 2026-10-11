@@ -22,6 +22,10 @@ const loginBody = z.object({
 const verifyBody = z.object({ challengeId: z.uuid(), code: z.string().regex(/^\d{6}$/) });
 const refreshBody = z.object({ refreshToken: z.string().min(1).max(200) });
 const resetRequestBody = z.object({ email: z.email().max(254), captchaToken: z.string().optional() });
+const changePasswordBody = z.object({
+  currentPassword: z.string().min(1).max(128),
+  newPassword: passwordSchema,
+});
 const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
 
 // Kimlik doğrulama uç noktaları için sıkı hız sınırı: dakikada 10 istek.
@@ -102,6 +106,17 @@ export class AuthController {
     @Body(new ZodPipe(refreshBody)) body: z.infer<typeof refreshBody>,
   ) {
     await this.auth.logout(body.refreshToken, user.id, clientInfo(req));
+  }
+
+  @Throttle(AUTH_THROTTLE)
+  @Post('change-password')
+  @HttpCode(200)
+  changePassword(
+    @Req() req: AppRequest,
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodPipe(changePasswordBody)) body: z.infer<typeof changePasswordBody>,
+  ) {
+    return this.auth.changePassword(user.id, body, clientInfo(req));
   }
 
   @Get('me')

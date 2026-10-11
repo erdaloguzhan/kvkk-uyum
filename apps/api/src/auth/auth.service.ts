@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -183,6 +184,56 @@ export class AuthService {
         ),
       );
     await this.audit.record({ action: 'auth.logout', userId, ...client });
+  }
+
+  /**
+   * Oturum açmış kullanıcının şifre değiştirmesi: mevcut şifre doğrulanır, yanlış girişler girişteki gibi
+   * sayılır ve hesabı kilitler. Başarılı olunca tüm açık oturumlar kapatılır ve bu oturum için yeni
+   * belirteçler verilir.
+   */
+  async changePassword(
+    userId: string,
+    input: { currentPassword: string; newPassword: string },
+    client: ClientInfo,
+  ) {
+    const [user] = await this.db.select().from(users).where(eq(users.id, userId));
+    if (!user?.isActive) throw new UnauthorizedException();
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw new BadRequestException('Hesap geçici olarak kilitlendi. Lütfen daha sonra tekrar deneyin.');
+    }
+
+    if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
+      const failed = user.failedLoginCount + 1;
+      const lock = failed >= MAX_FAILED_LOGINS;
+      await this.db
+        .update(users)
+        .set({
+          failedLoginCount: lock ? 0 : failed,
+          lockedUntil: lock ? new Date(Date.now() + LOCK_MS) : user.lockedUntil,
+        })
+        .where(eq(users.id, user.id));
+      await this.audit.record({
+        action: lock ? 'auth.account_locked' : 'auth.password_change_failed',
+        userId: user.id,
+        ...client,
+      });
+      throw new BadRequestException('Mevcut şifre hatalı');
+    }
+    if (input.currentPassword === input.newPassword) {
+      throw new BadRequestException('Yeni şifre mevcut şifreden farklı olmalı');
+    }
+
+    const now = new Date();
+    await this.db
+      .update(users)
+      .set({ passwordHash: await hashPassword(input.newPassword), failedLoginCount: 0, lockedUntil: null })
+      .where(eq(users.id, user.id));
+    await this.db
+      .update(refreshTokens)
+      .set({ revokedAt: now })
+      .where(and(eq(refreshTokens.userId, user.id), isNull(refreshTokens.revokedAt)));
+    await this.audit.record({ action: 'auth.password_changed', userId: user.id, ...client });
+    return this.issueTokens(user);
   }
 
   async me(userId: string) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ACCESS_COOKIE, API_URL, apiUnavailable, forwardHeaders } from '@/lib/server/backend';
 
 /** Belirteç döndüren veya alan uç noktalar yalnızca /api/session üzerinden kullanılır. */
-const SESSION_PATHS = new Set(['auth/verify', 'auth/refresh', 'auth/logout']);
+const SESSION_PATHS = new Set(['auth/verify', 'auth/refresh', 'auth/logout', 'auth/change-password']);
 
 /** Yanıttan tarayıcıya iletilecek başlıklar. */
 const RESPONSE_HEADERS = ['content-type', 'content-disposition'];
