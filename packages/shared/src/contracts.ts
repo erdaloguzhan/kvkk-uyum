@@ -1,13 +1,14 @@
 /**
- * Sözleşmeler: kuruluşun tedarikçi, müşteri, çalışan ve kamu kurumlarıyla yaptığı sözleşmelerin kaydı.
+ * Sözleşmeler: kuruluşun iş, gizlilik ve veri işleyen sözleşmeleri ile aydınlatma metni ve açık rıza kayıtları.
  * Web, mobil ve API aynı listeleri kullanır.
  */
 
 export const CONTRACT_TYPES = {
-  supplier: 'Tedarikçi',
-  customer: 'Müşteri',
-  employee: 'Çalışan',
-  public_institution: 'Kamu kurumu',
+  employment: 'Çalışan İş Sözleşmesi',
+  employee_confidentiality: 'Çalışan Gizlilik Sözleşmesi',
+  processor_confidentiality: 'Dış kaynaklı Veri İşleyen Gizlilik Sözleşmesi',
+  privacy_notice: 'Aydınlatma Metni',
+  explicit_consent: 'Açık Rıza',
 } as const;
 
 export type ContractType = keyof typeof CONTRACT_TYPES;

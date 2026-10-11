@@ -57,6 +57,13 @@
       "when": 1791711111091,
       "tag": "0007_contract_signed_copy",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791712523508,
+      "tag": "0008_contract_types",
+      "breakpoints": true
     }
   ]
 }

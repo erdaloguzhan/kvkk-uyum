@@ -4,7 +4,7 @@ import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin,
 
 const CONTRACT = {
   partyName: 'Örnek Yazılım Ltd. Şti.',
-  type: 'supplier',
+  type: 'processor_confidentiality',
   startDate: '2026-01-01',
   endDate: '2026-12-31',
   status: 'active',
@@ -58,7 +58,7 @@ describe('Sözleşmeler', () => {
     await request(server)
       .post('/api/v1/contracts')
       .set(as(admin.accessToken))
-      .send({ partyName: 'Ahmet Kaya', type: 'employee', startDate: '2025-03-01', contactEmail: '' })
+      .send({ partyName: 'Ahmet Kaya', type: 'employment', startDate: '2025-03-01', contactEmail: '' })
       .expect(201)
       .expect((r) => {
         expect(r.body.status).toBe('draft');
@@ -72,7 +72,7 @@ describe('Sözleşmeler', () => {
 
     const filtered = await request(server)
       .get('/api/v1/contracts')
-      .query({ type: 'supplier', q: 'ayşe' })
+      .query({ type: 'processor_confidentiality', q: 'ayşe' })
       .set(as(admin.accessToken))
       .expect(200);
     expect(filtered.body.items).toHaveLength(1);
@@ -97,7 +97,7 @@ describe('Sözleşmeler', () => {
     await request(server)
       .post('/api/v1/contracts')
       .set(as(admin.accessToken))
-      .send({ ...CONTRACT, type: 'bayi' })
+      .send({ ...CONTRACT, type: 'supplier' })
       .expect(400);
     await request(server)
       .post('/api/v1/contracts')

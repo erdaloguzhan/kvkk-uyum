@@ -89,7 +89,7 @@ export default function ContractsPage() {
                   <td>
                     <Link href={`/sozlesmeler/${c.id}`}>{c.partyName}</Link>
                   </td>
-                  <td className="nowrap">{CONTRACT_TYPES[c.type]}</td>
+                  <td className="nowrap">{c.type ? CONTRACT_TYPES[c.type] : <span className="muted">Seçilmemiş</span>}</td>
                   <td className="nowrap">{formatDay(c.startDate)}</td>
                   <td className="nowrap">{c.endDate ? formatDay(c.endDate) : <span className="muted">Belirsiz</span>}</td>
                   <td>{contractStatusBadge(c)}</td>

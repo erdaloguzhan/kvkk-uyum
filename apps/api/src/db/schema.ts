@@ -416,7 +416,8 @@ export const contracts = pgTable(
       .references(() => organizations.id, { onDelete: 'cascade' }),
     /** Sözleşme yapılan kişinin adı veya kurumun ünvanı. */
     partyName: text('party_name').notNull(),
-    type: text('type', { enum: ['supplier', 'customer', 'employee', 'public_institution'] }).notNull(),
+    /** Eski türlerden yeni karşılığı olmayan kayıtlarda boş (0008); yeni kayıtlarda API zorunlu tutar. */
+    type: text('type', { enum: ['employment', 'employee_confidentiality', 'processor_confidentiality', 'privacy_notice', 'explicit_consent'] }),
     startDate: date('start_date', { mode: 'string' }),
     /** Boşsa belirsiz süreli. */
     endDate: date('end_date', { mode: 'string' }),

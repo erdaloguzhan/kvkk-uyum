@@ -15,7 +15,7 @@ const optionalDate = z
 
 const fields = {
   partyName: z.string().trim().min(1).max(300),
-  type: z.enum(['supplier', 'customer', 'employee', 'public_institution']),
+  type: z.enum(['employment', 'employee_confidentiality', 'processor_confidentiality', 'privacy_notice', 'explicit_consent']),
   startDate: optionalDate,
   endDate: optionalDate,
   status: z.enum(['draft', 'active', 'expired', 'terminated']),
