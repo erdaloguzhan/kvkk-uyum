@@ -197,7 +197,8 @@ export interface Notification {
 export interface Contract {
   id: string;
   partyName: string;
-  type: ContractType;
+  /** Eski türlerden aktarılan kayıtlarda boş olabilir. */
+  type: ContractType | null;
   startDate: string | null;
   endDate: string | null;
   status: ContractStatus;

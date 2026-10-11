@@ -45,7 +45,7 @@ export default function ContractPage() {
         title={c.partyName}
         description={
           <>
-            {CONTRACT_TYPES[c.type]} · Son güncelleme {formatDateTime(c.updatedAt)} {contractStatusBadge(c)}
+            {c.type ? CONTRACT_TYPES[c.type] : 'Türü seçilmemiş'} · Son güncelleme {formatDateTime(c.updatedAt)} {contractStatusBadge(c)}
           </>
         }
         actions={
