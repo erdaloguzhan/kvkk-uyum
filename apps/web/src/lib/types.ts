@@ -205,6 +205,7 @@ export interface Contract {
   contactPhone: string | null;
   contactEmail: string | null;
   description: string | null;
+  signedCopyUrl: string | null;
   /** Bitiş tarihine kalan gün (bitiş tarihi yoksa null; geçtiyse eksi). */
   daysToEnd: number | null;
   createdAt: string;

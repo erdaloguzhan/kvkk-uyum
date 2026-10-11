@@ -1,0 +1,1 @@
+ALTER TABLE "contracts" ADD COLUMN "signed_copy_url" text;

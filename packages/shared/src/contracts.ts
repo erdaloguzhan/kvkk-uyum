@@ -32,6 +32,7 @@ export const CONTRACT_FIELD_LABELS = {
   contactPhone: 'İlgili kişi telefon',
   contactEmail: 'İlgili kişi e-posta',
   description: 'Açıklama',
+  signedCopyUrl: 'Islak imzalı sözleşme linki',
 } as const;
 
 export type ContractField = keyof typeof CONTRACT_FIELD_LABELS;
