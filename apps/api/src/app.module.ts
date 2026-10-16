@@ -16,6 +16,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { MembersModule } from './members/members.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RolesModule } from './roles/roles.module';
+import { TrainingModule } from './training/training.module';
 import { WorkflowModule } from './workflow/workflow.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     WorkflowModule,
     ContractsModule,
     AdminModule,
+    TrainingModule,
   ],
   controllers: [HealthController],
   providers: [

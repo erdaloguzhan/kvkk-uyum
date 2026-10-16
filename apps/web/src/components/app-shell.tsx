@@ -32,8 +32,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  // Kuruluşu olmayan platform yöneticisi yönetim paneline yönlendirilir.
-  const toAdmin = !!me && !org && me.isPlatformAdmin;
+  // Kuruluşu olmayan platform yöneticisi ve eğitimci yönetim paneline yönlendirilir.
+  const toAdmin = !!me && !org && (me.isPlatformAdmin || me.isTrainer);
 
   useEffect(() => {
     if (loading) return;
@@ -103,8 +103,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               {n.href === '/bildirimler' && unread > 0 && <span className="nav-badge">{unread}</span>}
             </Link>
           ))}
-        {me.isPlatformAdmin && (
-          <Link href="/admin" className="nav-link">
+        {(me.isPlatformAdmin || me.isTrainer) && (
+          <Link href={me.isPlatformAdmin ? '/admin' : '/admin/egitim'} className="nav-link">
             Yönetim paneli →
           </Link>
         )}

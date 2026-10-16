@@ -435,3 +435,256 @@ export const contracts = pgTable(
   },
   (t) => [index('contracts_org_status_idx').on(t.organizationId, t.status)],
 );
+
+// ---------------------------------------------------------------------------------------------
+// Uzaktan eğitim modülü
+// ---------------------------------------------------------------------------------------------
+
+/** Kuruluşun (müşterinin) çalışanı. Eğitim gruplarının katılımcıları bu listeden seçilir. */
+export const employees = pgTable(
+  'employees',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    nationalId: text('national_id').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    hireDate: date('hire_date', { mode: 'string' }),
+    terminationDate: date('termination_date', { mode: 'string' }),
+    phone: text('phone'),
+    /** Eğitim portalına giriş bu adresle yapılır; eğitim gönderilecek çalışanda zorunludur. */
+    email: text('email'),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('employees_org_national_id_unique').on(t.organizationId, t.nationalId)],
+);
+
+/**
+ * Eğitimci. Yönetim paneline kendi kullanıcı hesabıyla (e-posta + şifre + doğrulama kodu) girer ve
+ * yalnızca eğitim bölümünü görür. E-posta ve şifre `users` tablosundadır.
+ */
+export const trainers = pgTable(
+  'trainers',
+  {
+    id: id(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    nationalId: text('national_id').notNull(),
+    firstName: text('first_name').notNull(),
+    lastName: text('last_name').notNull(),
+    hireDate: date('hire_date', { mode: 'string' }),
+    terminationDate: date('termination_date', { mode: 'string' }),
+    phone: text('phone'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('trainers_user_unique').on(t.userId), uniqueIndex('trainers_national_id_unique').on(t.nationalId)],
+);
+
+/** Eğitim (ör. "KVKK Farkındalık Eğitimi"). Alt konular, ön test ve son test soruları buna bağlıdır. */
+export const trainings = pgTable('trainings', {
+  id: id(),
+  name: text('name').notNull(),
+  description: text('description'),
+  trainerId: uuid('trainer_id').references(() => trainers.id, { onDelete: 'set null' }),
+  /** Son testte başarılı sayılmak için gereken en düşük not. */
+  passScore: integer('pass_score').notNull().default(70),
+  /** draft: hazırlanıyor; active: içerik ve sorular tamam, gruplara atanabilir. */
+  status: text('status', { enum: ['draft', 'active'] }).notNull().default('draft'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Eğitimin alt konusu: katılımcıya bir sayfa olarak gösterilen ders anlatımı (metin ve görseller). */
+export const trainingTopics = pgTable(
+  'training_topics',
+  {
+    id: id(),
+    trainingId: uuid('training_id')
+      .notNull()
+      .references(() => trainings.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull(),
+    title: text('title').notNull(),
+    /** Ders anlatımı (Markdown: başlık, liste, kalın/italik, bağlantı ve görsel). */
+    content: text('content').notNull().default(''),
+    /** Bu süre (saniye) dolmadan katılımcı sonraki konuya geçemez. */
+    minReadSeconds: integer('min_read_seconds').notNull().default(60),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('training_topics_training_idx').on(t.trainingId, t.sortOrder)],
+);
+
+/** Ders anlatımlarında kullanılan görseller. */
+export const trainingMedia = pgTable('training_media', {
+  id: id(),
+  fileName: text('file_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  content: bytea('content').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+});
+
+/**
+ * Sınav sorusu. Ön test ve son test aynı tabloda `testType` ile ayrılır; bir eğitimin bir test türündeki
+ * soruları o testin sınavıdır ve puanları toplamı 100 olmalıdır.
+ */
+export const trainingQuestions = pgTable(
+  'training_questions',
+  {
+    id: id(),
+    trainingId: uuid('training_id')
+      .notNull()
+      .references(() => trainings.id, { onDelete: 'cascade' }),
+    testType: text('test_type', { enum: ['pre', 'post'] }).notNull(),
+    sortOrder: integer('sort_order').notNull(),
+    text: text('text').notNull(),
+    optionA: text('option_a').notNull(),
+    optionB: text('option_b').notNull(),
+    optionC: text('option_c').notNull(),
+    optionD: text('option_d').notNull(),
+    correctOption: text('correct_option', { enum: ['A', 'B', 'C', 'D'] }).notNull(),
+    points: integer('points').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('training_questions_training_idx').on(t.trainingId, t.testType, t.sortOrder)],
+);
+
+/** Eğitim grubu: bir kuruluşun seçilen çalışanlarına atanan bir eğitim. */
+export const trainingGroups = pgTable(
+  'training_groups',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    trainingId: uuid('training_id')
+      .notNull()
+      .references(() => trainings.id),
+    name: text('name').notNull(),
+    /** Eğitimin başlatıldığı (katılımcılara ilk bildirimin gönderildiği) an. Boşsa henüz başlatılmadı. */
+    assignedAt: timestamp('assigned_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('training_groups_org_idx').on(t.organizationId)],
+);
+
+/**
+ * Eğitim portalı hesabı. Kullanıcı adı e-posta adresidir; aynı kişi birden çok kuruluşta çalışan olarak
+ * kayıtlıysa tek hesapla hepsindeki eğitimlerini görür.
+ */
+export const trainingAccounts = pgTable(
+  'training_accounts',
+  {
+    id: id(),
+    email: text('email').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    /** Geçici şifreyle açılan hesapta ilk girişte şifre değiştirilmeden eğitime geçilemez. */
+    mustChangePassword: boolean('must_change_password').notNull().default(true),
+    failedLoginCount: integer('failed_login_count').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('training_accounts_email_unique').on(sql`lower(${t.email})`)],
+);
+
+/** Eğitim portalı "şifremi unuttum" bağlantıları. */
+export const trainingAccountTokens = pgTable(
+  'training_account_tokens',
+  {
+    id: id(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => trainingAccounts.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex('training_account_tokens_hash_unique').on(t.tokenHash)],
+);
+
+/** Eğitim grubundaki katılımcı ve eğitimdeki ilerlemesi. */
+export const trainingParticipants = pgTable(
+  'training_participants',
+  {
+    id: id(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => trainingGroups.id, { onDelete: 'cascade' }),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id),
+    /** Eğitim bağlantısı ve giriş bilgilerinin gönderildiği an. */
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    /** Katılımcının eğitime ilk başladığı an. */
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    /** Son testi başarıyla tamamladığı an. */
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    /**
+     * Konu ilerlemesi yalnızca bir oturum içinde geçerlidir: katılımcı eğitimi bitirmeden çıkar ve yeniden
+     * girerse (yeni oturum) eğitim ilk konudan başlar.
+     */
+    progressSessionId: text('progress_session_id'),
+    currentTopicIndex: integer('current_topic_index').notNull().default(0),
+    topicStartedAt: timestamp('topic_started_at', { withTimezone: true }),
+    topicsCompletedAt: timestamp('topics_completed_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('training_participants_group_employee_unique').on(t.groupId, t.employeeId),
+    index('training_participants_employee_idx').on(t.employeeId),
+  ],
+);
+
+/** Tamamlanan sınav (ön test veya son test) ve notu. Sınav bitince tek seferde oluşturulur. */
+export const trainingExamAttempts = pgTable(
+  'training_exam_attempts',
+  {
+    id: id(),
+    participantId: uuid('participant_id')
+      .notNull()
+      .references(() => trainingParticipants.id, { onDelete: 'cascade' }),
+    testType: text('test_type', { enum: ['pre', 'post'] }).notNull(),
+    /** Doğru cevaplanan soruların puanları toplamı. */
+    score: integer('score').notNull(),
+    /** Son testte geçme notuna ulaşıldı mı; ön testte boş (sonucu etkilemez). */
+    passed: boolean('passed'),
+    completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('training_exam_attempts_participant_idx').on(t.participantId, t.testType),
+    // Ön test bir kez çözülür.
+    uniqueIndex('training_exam_attempts_single_pre_unique')
+      .on(t.participantId)
+      .where(sql`${t.testType} = 'pre'`),
+  ],
+);
+
+/** Sınavdaki her sorunun cevabı ve aldığı puan (doğruysa sorunun puanı, yanlışsa 0). */
+export const trainingExamAnswers = pgTable(
+  'training_exam_answers',
+  {
+    id: id(),
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => trainingExamAttempts.id, { onDelete: 'cascade' }),
+    questionId: uuid('question_id')
+      .notNull()
+      .references(() => trainingQuestions.id),
+    answer: text('answer', { enum: ['A', 'B', 'C', 'D'] }).notNull(),
+    isCorrect: boolean('is_correct').notNull(),
+    points: integer('points').notNull(),
+  },
+  (t) => [uniqueIndex('training_exam_answers_attempt_question_unique').on(t.attemptId, t.questionId)],
+);

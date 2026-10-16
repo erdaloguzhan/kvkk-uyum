@@ -44,7 +44,7 @@ kvkk/
 7. **Dashboard ve raporlar** (kişiselleştirilebilir).
 8. **Entegrasyonlar** — İleti Yönetim Sistemi (İYS), VERBİS (resmi API olup olmadığı netleşmeli).
 9. **Abonelik ve ödeme** — App Store / Google Play yıllık abonelik, web için ödeme sağlayıcı; kuruluş sayısı kadar lisans.
-10. **Eğitim** — uzaktan eğitim modülü.
+10. **Eğitim** — uzaktan eğitim modülü (bkz. [EGITIM.md](EGITIM.md)).
 11. **Destek** — ticket ve canlı yardım; kullanıcı kılavuzu.
 
 ## 3. Veri modeli (temel modül)

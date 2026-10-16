@@ -17,7 +17,7 @@ import {
   verifyPassword,
 } from '../common/crypto';
 import { Database, InjectDb } from '../db/db.module';
-import { loginChallenges, memberships, organizations, refreshTokens, roles, users } from '../db/schema';
+import { loginChallenges, memberships, organizations, refreshTokens, roles, trainers, users } from '../db/schema';
 import { MailerService } from './mailer.service';
 
 export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -243,10 +243,13 @@ export class AuthService {
         email: users.email,
         fullName: users.fullName,
         isPlatformAdmin: users.isPlatformAdmin,
+        trainerActive: trainers.isActive,
       })
       .from(users)
+      .leftJoin(trainers, eq(trainers.userId, users.id))
       .where(eq(users.id, userId));
     if (!user) throw new UnauthorizedException();
+    const { trainerActive, ...profile } = user;
 
     const orgs = await this.db
       .select({
@@ -262,7 +265,8 @@ export class AuthService {
       .innerJoin(roles, eq(roles.id, memberships.roleId))
       .where(and(eq(memberships.userId, userId), eq(memberships.status, 'active')))
       .orderBy(organizations.name);
-    return { ...user, organizations: orgs };
+    // Aktif eğitimci yönetim panelinde yalnızca eğitim bölümünü görür.
+    return { ...profile, isTrainer: trainerActive === true, organizations: orgs };
   }
 
   private async issueTokens(user: { id: string; email: string; fullName: string }) {

@@ -29,6 +29,8 @@ export interface Me {
   fullName: string;
   /** Yönetim paneline (/admin) erişebilir. */
   isPlatformAdmin: boolean;
+  /** Aktif eğitimci: yönetim panelinde yalnızca eğitim bölümünü görür. */
+  isTrainer: boolean;
   organizations: OrgMembership[];
 }
 
@@ -261,4 +263,155 @@ export interface AdminTemplateDetail {
   category: DocumentCategory;
   optional: boolean;
   versions: TemplateVersion[];
+}
+
+// ---- Uzaktan eğitim ----
+
+export interface Employee {
+  id: string;
+  organizationId: string;
+  nationalId: string;
+  firstName: string;
+  lastName: string;
+  hireDate: string | null;
+  terminationDate: string | null;
+  phone: string | null;
+  email: string | null;
+  trainingCount: number;
+}
+
+export interface Trainer {
+  id: string;
+  nationalId: string;
+  firstName: string;
+  lastName: string;
+  hireDate: string | null;
+  terminationDate: string | null;
+  phone: string | null;
+  email: string;
+  isActive: boolean;
+}
+
+export type TestType = 'pre' | 'post';
+export type OptionKey = 'A' | 'B' | 'C' | 'D';
+
+export interface TrainingSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  trainerId: string | null;
+  trainerName: string | null;
+  passScore: number;
+  status: 'draft' | 'active';
+  topicCount: number;
+  groupCount: number;
+  updatedAt: string;
+}
+
+export interface TrainingTopic {
+  id: string;
+  sortOrder: number;
+  title: string;
+  content: string;
+  minReadSeconds: number;
+}
+
+export interface TrainingQuestion {
+  id: string;
+  testType: TestType;
+  sortOrder: number;
+  text: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+  correctOption: OptionKey;
+  points: number;
+}
+
+export interface TrainingDetail extends TrainingSummary {
+  topics: TrainingTopic[];
+  questions: TrainingQuestion[];
+  totals: Record<TestType, number>;
+  questionsLocked: boolean;
+  problems: string[];
+}
+
+export interface TrainingGroup {
+  id: string;
+  name: string;
+  assignedAt: string | null;
+  createdAt: string;
+  organizationId: string;
+  organizationName: string;
+  trainingId: string;
+  trainingName: string;
+  participantCount: number;
+  sentCount: number;
+  completedCount: number;
+}
+
+export interface TrainingResult {
+  id: string;
+  groupId: string;
+  groupName: string;
+  organizationName: string;
+  trainingName: string;
+  passScore: number;
+  employeeId: string;
+  nationalId: string;
+  fullName: string;
+  email: string | null;
+  sentAt: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  preTestScore: number | null;
+  postTestScore: number | null;
+  postTestAttempts: number;
+  passed: boolean | null;
+}
+
+export interface TrainingGroupDetail extends TrainingGroup {
+  participants: TrainingResult[];
+}
+
+export interface PickableEmployee {
+  id: string;
+  nationalId: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  terminationDate: string | null;
+}
+
+export interface PortalAssignment {
+  id: string;
+  trainingName: string;
+  groupName: string;
+  organizationName: string;
+  sentAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface PortalQuestion {
+  id: string;
+  text: string;
+  options: Record<OptionKey, string>;
+}
+
+export interface PortalView {
+  participantId: string;
+  trainingName: string;
+  organizationName: string;
+  passScore: number;
+  step: 'pretest' | 'topic' | 'posttest' | 'completed';
+  topicCount: number;
+  topic?: { index: number; title: string; content: string; minReadSeconds: number; remainingSeconds: number };
+  questions?: PortalQuestion[];
+  lastPostTest: { score: number; passed: boolean } | null;
+  completedAt: string | null;
+  /** Sınav teslim edilince dönen sonuç. */
+  score?: number;
+  passed?: boolean | null;
 }
