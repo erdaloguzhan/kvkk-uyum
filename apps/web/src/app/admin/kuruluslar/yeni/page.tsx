@@ -24,8 +24,11 @@ export default function NewOrganizationPage() {
             ? `${created.owner.email} adresine şifre oluşturma bağlantısı gönderildi. Yetkili bağlantıya tıklayıp şifresini oluşturduktan sonra giriş yapabilir.`
             : `${created.owner.email} adresiyle zaten bir hesap vardı; kuruluş bu hesaba yönetici olarak bağlandı ve kişi e-postayla bilgilendirildi.`}
         </Alert>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link className="btn btn-primary" href="/admin">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link className="btn btn-primary" href={`/admin/kuruluslar/${created.organization.id}`}>
+            Çalışanları ekle
+          </Link>
+          <Link className="btn" href="/admin">
             Kuruluşlara dön
           </Link>
           <button className="btn" onClick={() => setCreated(null)}>

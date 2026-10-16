@@ -42,7 +42,7 @@ export default function AdminOrganizationsPage() {
     <>
       <PageHeader
         title="Kuruluşlar"
-        description="Sisteme eklenen müşteri kuruluşları. Yeni kuruluş eklendiğinde kayıttaki e-postaya şifre oluşturma bağlantısı gider."
+        description="Sisteme eklenen müşteri kuruluşları. Yeni kuruluş eklendiğinde kayıttaki e-postaya şifre oluşturma bağlantısı gider. Çalışan listesini (eğitim katılımcıları) kuruluşun sayfasından yönetin."
         actions={
           <Link className="btn btn-primary" href="/admin/kuruluslar/yeni">
             + Yeni kuruluş
@@ -72,7 +72,7 @@ export default function AdminOrganizationsPage() {
                 {items.map((o) => (
                   <tr key={o.id}>
                     <td>
-                      {o.name}
+                      <Link href={`/admin/kuruluslar/${o.id}`}>{o.name}</Link>
                       {!o.setupCompletedAt && (
                         <div>
                           <Badge kind="warning">Bilgileri eksik</Badge>
@@ -88,6 +88,9 @@ export default function AdminOrganizationsPage() {
                     </td>
                     <td className="nowrap">{formatDate(o.createdAt)}</td>
                     <td className="nowrap">
+                      <Link className="btn btn-small" href={`/admin/kuruluslar/${o.id}`}>
+                        Çalışanlar
+                      </Link>{' '}
                       {o.email && (
                         <button className="btn btn-small" onClick={() => resend(o)} disabled={busy !== null}>
                           {busy === o.id ? 'Gönderiliyor…' : 'Daveti yeniden gönder'}

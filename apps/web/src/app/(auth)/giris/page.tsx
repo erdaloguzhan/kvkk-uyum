@@ -61,7 +61,8 @@ function LoginForm() {
       if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
       const user = await reload();
       // Kuruluşu olmayan platform yöneticisi doğrudan yönetim paneline gider.
-      router.replace(user?.isPlatformAdmin && user.organizations.length === 0 && next === '/' ? '/admin' : next);
+      const panel = user?.isPlatformAdmin ? '/admin' : user?.isTrainer ? '/admin/egitim' : null;
+      router.replace(panel && user!.organizations.length === 0 && next === '/' ? panel : next);
     } catch (err) {
       setError(errorText(err));
       setBusy(false);

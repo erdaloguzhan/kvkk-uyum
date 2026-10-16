@@ -69,6 +69,17 @@ Davet, şifre sıfırlama ve görev bildirimi e-postaları da http://localhost:8
 
 Daha önce kendi açtığınız hesap ve kuruluş varsa korunur; o hesapla müşteri ekranını kullanmaya devam edebilirsiniz.
 
+### Uzaktan eğitim
+
+Yönetim panelinin sol menüsündeki **Uzaktan eğitim** bölümünü kullanın. Sıra şöyledir:
+
+1. **Çalışanlar:** **Kuruluşlar** listesinde kuruluşun satırındaki **Çalışanlar**'a tıklayın. Çalışanları tek tek ekleyin veya **Boş şablonu indir** ile Excel şablonunu doldurup **Excel'den içe aktar** deyin. Eğitim gönderilecek çalışanın e-posta adresi olmalı.
+2. **Eğitimciler** (isteğe bağlı): Eğitimci ekleyin. Eğitimciye şifre oluşturma bağlantısı gider; eğitimci http://localhost:3000 adresinden giriş yapınca yalnızca eğitim bölümünü görür.
+3. **Eğitimler:** **+ Yeni eğitim** ile eğitimi oluşturun. **Alt konular** sekmesinde ders anlatımlarını yazın (görsel ekleyebilir, sağda önizlemeyi görebilirsiniz) ve her konunun en az okuma süresini girin. **Ön test** ve **Son test** sekmelerinde soruları ekleyin; her testin puanları toplamı 100 olmalı. Sonra **Bilgiler ve yayın** sekmesinde **Yayına al** deyin.
+4. **Eğitim grupları:** **+ Yeni grup**'ta kuruluşu ve eğitimi seçin, çalışanları işaretleyin, **Grubu oluştur** deyin. Grubun sayfasında **Eğitimi başlat**'a tıklayınca katılımcılara eğitim bağlantısı, kullanıcı adı ve geçici şifre e-postayla gider (yerelde http://localhost:8025 adresinde görünür).
+5. **Katılımcı:** E-postadaki bağlantıyla **http://localhost:3000/egitim** adresindeki Eğitim Portalı'na girer, ilk girişte şifresini değiştirir, ön testi çözer, konuları okur ve son testi çözer.
+6. **Sınav sonuçları:** Notları görün, tabloyu Excel'e aktarın; başarılı katılımcı için **Sertifika oluştur** PDF sertifika indirir.
+
 ## Durdurma ve yeniden başlatma
 
 - **Durdurmak:** Komutu çalıştırdığınız pencerede `Ctrl + C` tuşlarına basın.
