@@ -42,7 +42,7 @@ export const trainerCreateBody = z.object({
   email: z.email('Geçerli bir e-posta adresi girin').max(254),
 });
 export const trainerUpdateBody = z
-  .object({ ...personFields, isActive: z.boolean() })
+  .object({ ...personFields, email: z.email('Geçerli bir e-posta adresi girin').max(254), isActive: z.boolean() })
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: 'Güncellenecek alan yok' });
 

@@ -41,7 +41,7 @@ export default function TrainersPage() {
         await api('training-admin/trainers', { method: 'POST', body: { ...profile, email } });
         setMessage(`Eğitimci eklendi. ${email} adresine giriş bilgisi gönderildi.`);
       } else if (editing) {
-        await api(`training-admin/trainers/${editing.id}`, { method: 'PATCH', body: { ...profile, isActive } });
+        await api(`training-admin/trainers/${editing.id}`, { method: 'PATCH', body: { ...profile, email, isActive } });
       }
       setEditing(null);
       await list.reload();
@@ -49,6 +49,19 @@ export default function TrainersPage() {
       setFormError(errorText(err));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function remove(t: Trainer) {
+    if (!confirm(`${t.firstName} ${t.lastName} eğitimci kaydı silinsin mi? Eğitimlerdeki eğitimci alanı boşalır.`)) return;
+    setError(null);
+    setMessage(null);
+    try {
+      await api(`training-admin/trainers/${t.id}`, { method: 'DELETE' });
+      setMessage(`${t.firstName} ${t.lastName} silindi.`);
+      await list.reload();
+    } catch (err) {
+      setError(errorText(err));
     }
   }
 
@@ -128,6 +141,9 @@ export default function TrainersPage() {
                       </button>{' '}
                       <button className="btn btn-small" onClick={() => resend(t)}>
                         Şifre bağlantısı gönder
+                      </button>{' '}
+                      <button className="btn btn-small btn-danger" onClick={() => remove(t)}>
+                        Sil
                       </button>
                     </td>
                   </tr>
@@ -144,8 +160,7 @@ export default function TrainersPage() {
             value={form}
             onChange={setForm}
             emailRequired
-            emailReadOnly={editing !== 'new'}
-            emailHint={editing === 'new' ? 'Kullanıcı adı olur; şifre oluşturma bağlantısı bu adrese gider.' : 'Kullanıcı adı değiştirilemez.'}
+            emailHint={editing === 'new' ? 'Kullanıcı adı olur; şifre oluşturma bağlantısı bu adrese gider.' : 'Kullanıcı adıdır; değiştirirseniz eğitimci yeni adresle giriş yapar.'}
           />
           {editing !== 'new' && (
             <label className="checkbox">

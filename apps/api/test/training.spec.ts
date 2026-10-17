@@ -42,7 +42,7 @@ describe('Uzaktan eğitim', () => {
   let app: INestApplication;
   let server: any;
   let db: Database;
-  let admin: { accessToken: string; user: { id: string } };
+  let admin: { email: string; accessToken: string; user: { id: string } };
   let orgId: string;
 
   const asAdmin = (req: request.Test) => req.set('authorization', `Bearer ${admin.accessToken}`);
@@ -123,6 +123,21 @@ describe('Uzaktan eğitim', () => {
 
     await asAdmin(request(server).patch(`/api/v1/training-admin/trainers/${created.body.id}`)).send({ isActive: false }).expect(200);
     await auth(request(server).get('/api/v1/training-admin/trainings')).expect(403);
+
+    // Platform yöneticisi e-postayı (kullanıcı adı) ve bilgileri değiştirir, sonra eğitimciyi siler.
+    const newEmail = uniqueEmail('egitimci-yeni');
+    const edited = await asAdmin(request(server).patch(`/api/v1/training-admin/trainers/${created.body.id}`))
+      .send({ email: newEmail, phone: '05551112233', hireDate: null })
+      .expect(200);
+    expect(edited.body).toMatchObject({ email: newEmail, phone: '05551112233' });
+    await asAdmin(request(server).patch(`/api/v1/training-admin/trainers/${created.body.id}`))
+      .send({ email: admin.email })
+      .expect(409);
+    await auth(request(server).delete(`/api/v1/training-admin/trainers/${created.body.id}`)).expect(403);
+    await asAdmin(request(server).delete(`/api/v1/training-admin/trainers/${created.body.id}`)).expect(204);
+    const after = await asAdmin(request(server).get('/api/v1/training-admin/trainers')).expect(200);
+    expect(after.body.items.find((t: any) => t.id === created.body.id)).toBeUndefined();
+    await request(server).post('/api/v1/auth/login').send({ email: newEmail, password: PASSWORD }).expect(401);
 
     const outsider = await registerAndLogin(app);
     await request(server).get('/api/v1/training-admin/trainings').set('authorization', `Bearer ${outsider.accessToken}`).expect(403);
@@ -318,6 +333,15 @@ describe('Uzaktan eğitim', () => {
       await request(server).post('/api/v1/training-portal/password-reset/confirm').send({ token, password: 'YeniSifre12345' }).expect(204);
       await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: PASSWORD }).expect(401);
       await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: 'YeniSifre12345' }).expect(200);
+    });
+
+    it('katılımcı kaydını sınav sonuçlarıyla birlikte siler (geçici test özelliği)', async () => {
+      await asAdmin(request(server).delete(`/api/v1/training-admin/participants/${participantId}`)).expect(204);
+      const results = await asAdmin(request(server).get('/api/v1/training-admin/results').query({ groupId })).expect(200);
+      expect(results.body.items.find((r: any) => r.id === participantId)).toBeUndefined();
+      const list = await asAdmin(request(server).get(`/api/v1/admin/organizations/${orgId}/employees`)).expect(200);
+      const can = list.body.items.find((e: any) => e.email === employeeEmail);
+      await asAdmin(request(server).delete(`/api/v1/admin/organizations/${orgId}/employees/${can.id}`)).expect(204);
     });
   });
 
