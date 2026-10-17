@@ -180,6 +180,29 @@ export class GroupsService {
   }
 
   /**
+   * GEÇİCİ (deneme dönemi için, Erdal'ın isteği 2026-10-17; testler bitince kaldırılacak): katılımcı kaydını
+   * gönderilmiş/başlamış olsa da sınav sonuçlarıyla birlikte siler.
+   */
+  async deleteParticipantRecord(userId: string, participantId: string) {
+    const [p] = await this.db
+      .select({ id: trainingParticipants.id, organizationId: trainingGroups.organizationId, employeeId: trainingParticipants.employeeId })
+      .from(trainingParticipants)
+      .innerJoin(trainingGroups, eq(trainingGroups.id, trainingParticipants.groupId))
+      .where(eq(trainingParticipants.id, participantId));
+    if (!p) throw new NotFoundException('Katılımcı bulunamadı');
+    // Sınav denemeleri ve cevapları katılımcıya bağlı olarak (cascade) silinir.
+    await this.db.delete(trainingParticipants).where(eq(trainingParticipants.id, participantId));
+    await this.audit.record({
+      action: 'training.participant_record_deleted',
+      organizationId: p.organizationId,
+      userId,
+      entityType: 'training_participant',
+      entityId: participantId,
+      metadata: { employeeId: p.employeeId },
+    });
+  }
+
+  /**
    * Eğitimi başlatır: katılımcılara eğitim portalı bağlantısı ve giriş bilgileri e-postayla gönderilir.
    * `participantIds` verilmezse henüz gönderilmemiş katılımcılara gönderilir. E-postası olmayan çalışan atlanır.
    */

@@ -1,12 +1,12 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { MailerService } from '../auth/mailer.service';
 import { PasswordResetService } from '../auth/password-reset.service';
 import { generateToken, hashPassword } from '../common/crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
-import { trainers, users } from '../db/schema';
+import { memberships, trainers, users } from '../db/schema';
 import { z } from 'zod';
 import { trainerCreateBody, trainerUpdateBody } from './training.schema';
 
@@ -102,11 +102,24 @@ export class TrainersService {
 
   async update(adminId: string, id: string, input: z.infer<typeof trainerUpdateBody>) {
     const current = await this.get(id);
-    if (input.nationalId && input.nationalId !== current.nationalId) await this.ensureNationalIdFree(input.nationalId);
-    await this.db
-      .update(trainers)
-      .set({ ...input, updatedAt: new Date() })
-      .where(eq(trainers.id, id));
+    const { email: rawEmail, ...profile } = input;
+    if (profile.nationalId && profile.nationalId !== current.nationalId) await this.ensureNationalIdFree(profile.nationalId);
+    const email = rawEmail?.trim();
+    // E-posta kullanıcı adıdır; değişirse kullanıcı hesabında da değişir.
+    if (email && email.toLowerCase() !== current.email.toLowerCase()) {
+      const [taken] = await this.db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(sql`lower(${users.email}) = lower(${email})`, ne(users.id, current.userId)));
+      if (taken) throw new ConflictException('Bu e-posta adresi başka bir kullanıcıya ait');
+      await this.db.update(users).set({ email }).where(eq(users.id, current.userId));
+    }
+    if (Object.keys(profile).length) {
+      await this.db
+        .update(trainers)
+        .set({ ...profile, updatedAt: new Date() })
+        .where(eq(trainers.id, id));
+    }
     if (input.firstName || input.lastName) {
       const fullName = `${input.firstName ?? current.firstName} ${input.lastName ?? current.lastName}`;
       await this.db.update(users).set({ fullName }).where(eq(users.id, current.userId));
@@ -119,6 +132,33 @@ export class TrainersService {
       metadata: { fields: Object.keys(input) },
     });
     return this.get(id);
+  }
+
+  /**
+   * Eğitimciyi siler. Eğitimlerdeki eğitimci alanı boşalır. Kullanıcı hesabı yalnızca eğitimci için açıldıysa
+   * (kuruluş üyeliği yok, platform yöneticisi değil) o da silinir; değilse hesap kalır, yalnızca eğitimci yetkisi gider.
+   */
+  async remove(adminId: string, id: string) {
+    const t = await this.get(id);
+    await this.db.delete(trainers).where(eq(trainers.id, id));
+    const [user] = await this.db
+      .select({ isPlatformAdmin: users.isPlatformAdmin })
+      .from(users)
+      .where(eq(users.id, t.userId));
+    const [membership] = await this.db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(eq(memberships.userId, t.userId))
+      .limit(1);
+    const accountRemoved = !!user && !user.isPlatformAdmin && !membership;
+    if (accountRemoved) await this.db.delete(users).where(eq(users.id, t.userId));
+    await this.audit.record({
+      action: 'training.trainer_deleted',
+      userId: adminId,
+      entityType: 'trainer',
+      entityId: id,
+      metadata: { email: t.email, accountRemoved },
+    });
   }
 
   /** Eğitimcinin şifre oluşturma bağlantısını yeniden gönderir (eskisi geçersiz olur). */

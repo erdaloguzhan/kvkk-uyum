@@ -77,6 +77,13 @@ export class TrainingAdminController {
     return this.trainers.update(user.id, id, body);
   }
 
+  @Delete('trainers/:id')
+  @PlatformAdminOnly()
+  @HttpCode(204)
+  async deleteTrainer(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    await this.trainers.remove(user.id, id);
+  }
+
   @Post('trainers/:id/resend-invite')
   @PlatformAdminOnly()
   @HttpCode(200)
@@ -256,6 +263,14 @@ export class TrainingAdminController {
   @Get('results')
   async results(@Query(new ZodPipe(resultsQuery)) query: z.infer<typeof resultsQuery>) {
     return { items: await this.groups.results(query) };
+  }
+
+  /** GEÇİCİ: deneme dönemi için katılımcı kaydını sonuçlarıyla siler (bkz. GroupsService.deleteParticipantRecord). */
+  @Delete('participants/:id')
+  @PlatformAdminOnly()
+  @HttpCode(204)
+  async deleteParticipantRecord(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    await this.groups.deleteParticipantRecord(user.id, id);
   }
 
   @Get('participants/:id/certificate')
