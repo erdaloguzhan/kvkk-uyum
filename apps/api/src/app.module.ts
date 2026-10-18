@@ -16,6 +16,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { MembersModule } from './members/members.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RolesModule } from './roles/roles.module';
+import { SupportModule } from './support/support.module';
 import { TrainingModule } from './training/training.module';
 import { WorkflowModule } from './workflow/workflow.module';
 
@@ -44,6 +45,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     ContractsModule,
     AdminModule,
     TrainingModule,
+    SupportModule,
   ],
   controllers: [HealthController],
   providers: [

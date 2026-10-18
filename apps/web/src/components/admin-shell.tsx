@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Empty, Loading } from './ui';
 
@@ -16,6 +17,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/admin', label: 'Kuruluşlar' },
   { href: '/admin/sablonlar', label: 'Doküman şablonları' },
+  { href: '/admin/destek', label: 'Destek talepleri' },
 ];
 
 const TRAINING_NAV: NavItem[] = [
@@ -48,12 +50,32 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openTickets, setOpenTickets] = useState(0);
 
   useEffect(() => {
     if (!loading && !me) router.replace(`/giris?sonra=${encodeURIComponent(pathname)}`);
   }, [loading, me, pathname, router]);
 
   useEffect(() => setMenuOpen(false), [pathname]);
+
+  // Yanıt bekleyen destek talebi sayısı dakikada bir yenilenir.
+  const isAdmin = !!me?.isPlatformAdmin;
+  useEffect(() => {
+    if (!isAdmin) return;
+    let stopped = false;
+    const load = () =>
+      api<{ open: number }>('admin/support/summary')
+        .then((r) => !stopped && setOpenTickets(r.open))
+        .catch(() => undefined);
+    load();
+    const timer = setInterval(load, 60_000);
+    window.addEventListener('kvkk:support', load);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      window.removeEventListener('kvkk:support', load);
+    };
+  }, [isAdmin]);
 
   // Eğitimcinin açılış sayfası eğitimlerdir.
   const trainerHome = !!me && !me.isPlatformAdmin && me.isTrainer && pathname === '/admin';
@@ -66,6 +88,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const link = (n: NavItem) => (
     <Link key={n.href} href={n.href} className={`nav-link${isActive(pathname, n.href) ? ' active' : ''}`}>
       {n.label}
+      {n.href === '/admin/destek' && openTickets > 0 && <span className="nav-badge">{openTickets}</span>}
     </Link>
   );
 

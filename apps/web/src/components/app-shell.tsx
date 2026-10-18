@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { href: '/sozlesmeler', label: 'Sözleşmeler', permission: PERMISSIONS.CONTRACTS_READ },
   { href: '/gorevler', label: 'Görevler' },
   { href: '/bildirimler', label: 'Bildirimler' },
+  { href: '/destek', label: 'Destek' },
 ];
 
 const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
