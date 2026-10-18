@@ -12,6 +12,8 @@ import type {
   TaskEntityType,
   ApprovalStatus,
   NotificationKind,
+  SupportCategory,
+  SupportStatus,
 } from '@kvkk/shared';
 
 export interface OrgMembership {
@@ -414,4 +416,45 @@ export interface PortalView {
   /** Sınav teslim edilince dönen sonuç. */
   score?: number;
   passed?: boolean | null;
+}
+
+export interface SupportTicket {
+  id: string;
+  number: number;
+  organizationId: string;
+  organizationName: string;
+  subject: string;
+  category: SupportCategory;
+  status: SupportStatus;
+  createdBy: string | null;
+  createdByName: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  firstResponseAt: string | null;
+  lastMessageAt: string;
+  closedAt: string | null;
+  createdAt: string;
+  messageCount: number;
+}
+
+export interface SupportAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface SupportMessage {
+  id: string;
+  authorId: string | null;
+  authorName: string | null;
+  isStaff: boolean;
+  body: string;
+  createdAt: string;
+  attachments: SupportAttachment[];
+}
+
+export interface SupportTicketDetail extends SupportTicket {
+  createdByEmail: string | null;
+  messages: SupportMessage[];
 }

@@ -688,3 +688,71 @@ export const trainingExamAnswers = pgTable(
   },
   (t) => [uniqueIndex('training_exam_answers_attempt_question_unique').on(t.attemptId, t.questionId)],
 );
+
+// ---------------------------------------------------------------------------------------------
+// Destek talepleri
+// ---------------------------------------------------------------------------------------------
+
+/** Kuruluş kullanıcısının açtığı destek talebi. Yazışma support_messages tablosundadır. */
+export const supportTickets = pgTable(
+  'support_tickets',
+  {
+    id: id(),
+    /** Kullanıcıya gösterilen talep numarası (#1001...). */
+    number: integer('number').notNull().generatedAlwaysAsIdentity({ startWith: 1001 }),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    subject: text('subject').notNull(),
+    category: text('category', {
+      enum: ['usage', 'technical', 'documents', 'inventory', 'training', 'account', 'other'],
+    }).notNull(),
+    status: text('status', { enum: ['open', 'answered', 'closed'] }).notNull().default('open'),
+    /** Talepten sorumlu platform yöneticisi. */
+    assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Destek ekibinin ilk yanıt zamanı (yanıt süresi ölçümü). */
+    firstResponseAt: timestamp('first_response_at', { withTimezone: true }),
+    lastMessageAt: timestamp('last_message_at', { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('support_tickets_number_unique').on(t.number),
+    index('support_tickets_org_created_idx').on(t.organizationId, t.createdAt),
+    index('support_tickets_status_last_idx').on(t.status, t.lastMessageAt),
+  ],
+);
+
+export const supportMessages = pgTable(
+  'support_messages',
+  {
+    id: id(),
+    ticketId: uuid('ticket_id')
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: 'cascade' }),
+    authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Destek ekibinin (platform yöneticisi) yanıtı. */
+    isStaff: boolean('is_staff').notNull(),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('support_messages_ticket_created_idx').on(t.ticketId, t.createdAt)],
+);
+
+/** Mesaj ekleri (ekran görüntüsü, PDF). */
+export const supportAttachments = pgTable(
+  'support_attachments',
+  {
+    id: id(),
+    messageId: uuid('message_id')
+      .notNull()
+      .references(() => supportMessages.id, { onDelete: 'cascade' }),
+    fileName: text('file_name').notNull(),
+    mimeType: text('mime_type').notNull(),
+    size: integer('size').notNull(),
+    content: bytea('content').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('support_attachments_message_idx').on(t.messageId)],
+);
