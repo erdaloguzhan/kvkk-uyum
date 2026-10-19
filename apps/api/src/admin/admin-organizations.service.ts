@@ -1,31 +1,36 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { ORG_ADMIN_ROLE_KEY } from '@kvkk/shared';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
-import { MailerService } from '../auth/mailer.service';
 import { PasswordResetService } from '../auth/password-reset.service';
-import { generateToken, hashPassword } from '../common/crypto';
-import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
-import { memberships, organizations, roles, users } from '../db/schema';
+import { memberships, organizations, users } from '../db/schema';
+import { MembersService } from '../members/members.service';
 import { OrganizationProfile, OrganizationsService } from '../organizations/organizations.service';
 
-export interface NewOrganization extends OrganizationProfile {
-  /** Kuruluş e-postası; kuruluş yetkilisinin kullanıcı adı olur ve davet buraya gönderilir. */
+interface Person {
   email: string;
-  /** Kuruluş yetkilisinin adı soyadı. */
-  authorizedPerson: string;
+  fullName: string;
 }
+
+export interface NewOrganization extends OrganizationProfile {
+  /** Kuruluş e-postası; KVKK Sorumlusunun kullanıcı adı olur ve davet buraya gönderilir. */
+  email: string;
+  /** KVKK Sorumlusunun adı soyadı. */
+  authorizedPerson: string;
+  /** Onay veren Yönetici. E-postası Sorumlununkiyle aynıysa tek kullanıcı "Sorumlu + Yönetici" olur. */
+  approver: Person;
+}
+
+const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** Platform yöneticisinin kuruluş işlemleri (yönetim paneli). */
 @Injectable()
 export class AdminOrganizationsService {
   constructor(
     @InjectDb() private readonly db: Database,
-    @Inject(CONFIG) private readonly config: AppConfig,
     private readonly orgs: OrganizationsService,
     private readonly passwordReset: PasswordResetService,
-    private readonly mailer: MailerService,
+    private readonly members: MembersService,
     private readonly audit: AuditService,
   ) {}
 
@@ -50,47 +55,37 @@ export class AdminOrganizationsService {
   }
 
   /**
-   * Kuruluşu oluşturur ve kayıttaki e-posta adresini kuruluş yöneticisi yapar. Bu adresle hesap yoksa
-   * açılır ve şifre oluşturma bağlantısı gönderilir; hesap varsa kuruluşa eklendiği bildirilir.
+   * Kuruluşu hazır kullanıcılarıyla oluşturur: kuruluş e-postası KVKK Sorumlusu, ayrıca Yönetici (aynı
+   * e-postaysa tek hesap). Hesabı olmayanlara şifre oluşturma bağlantısı, olanlara bilgilendirme gider.
    */
   async create(adminId: string, input: NewOrganization) {
+    const { approver, ...profile } = input;
     const email = input.email.trim();
-    let [owner] = await this.db
-      .select({ id: users.id, email: users.email, fullName: users.fullName })
-      .from(users)
-      .where(sql`lower(${users.email}) = lower(${email})`);
-    const newUser = !owner;
-    if (!owner) {
-      [owner] = await this.db
-        .insert(users)
-        .values({
-          email,
-          fullName: input.authorizedPerson.trim(),
-          // Kullanılamaz rastgele şifre; yetkili bağlantıyla kendi şifresini oluşturur.
-          passwordHash: await hashPassword(generateToken()),
-        })
-        .returning({ id: users.id, email: users.email, fullName: users.fullName });
-    }
+    const combined = sameEmail(approver.email, email);
 
-    const created = await this.orgs.create(owner.id, { ...input, email }, adminId);
+    const created = await this.orgs.create(null, { ...profile, email }, adminId);
+    const people = [
+      { email, fullName: input.authorizedPerson, roleKey: combined ? 'officer_approver' : 'kvkk_officer' },
+      ...(combined ? [] : [{ ...approver, roleKey: 'approver' }]),
+    ];
+    const members = [];
+    for (const person of people) {
+      const added = await this.members.add(created.id, adminId, person);
+      members.push({ ...added.user, role: person.roleKey });
+    }
     const org = this.orgs.isSetupComplete(created)
       ? await this.orgs.completeSetup(created.id, adminId)
       : created;
 
-    if (newUser) {
-      await this.passwordReset.sendInvite(owner, org.name);
-    } else {
-      await this.sendAddedNotice(owner, org.name);
-    }
     await this.audit.record({
       action: 'admin.organization_created',
       organizationId: org.id,
       userId: adminId,
       entityType: 'organization',
       entityId: org.id,
-      metadata: { ownerEmail: email, newUser },
+      metadata: { members: members.map((m) => ({ email: m.email, role: m.role, newUser: m.newUser })) },
     });
-    return { organization: org, owner: { id: owner.id, email: owner.email, newUser } };
+    return { organization: org, members };
   }
 
   /** Kuruluş e-postasındaki yetkiliye şifre oluşturma bağlantısını yeniden gönderir (eskisi geçersiz olur). */
@@ -102,16 +97,11 @@ export class AdminOrganizationsService {
       .select({ id: users.id, email: users.email, fullName: users.fullName })
       .from(memberships)
       .innerJoin(users, eq(users.id, memberships.userId))
-      .innerJoin(roles, eq(roles.id, memberships.roleId))
       .where(
-        and(
-          eq(memberships.organizationId, orgId),
-          eq(roles.key, ORG_ADMIN_ROLE_KEY),
-          sql`lower(${users.email}) = lower(${org.email})`,
-        ),
+        and(eq(memberships.organizationId, orgId), sql`lower(${users.email}) = lower(${org.email})`),
       );
     if (!owner) {
-      throw new BadRequestException('Kuruluş e-postasıyla kayıtlı bir kuruluş yöneticisi yok');
+      throw new BadRequestException('Kuruluş e-postasıyla kayıtlı bir kullanıcı yok');
     }
     await this.passwordReset.revokePending(owner.id);
     await this.passwordReset.sendInvite(owner, org.name);
@@ -123,17 +113,5 @@ export class AdminOrganizationsService {
       entityId: owner.id,
     });
     return { email: owner.email };
-  }
-
-  private sendAddedNotice(user: { email: string; fullName: string }, orgName: string) {
-    return this.mailer.send({
-      to: user.email,
-      subject: `${orgName} - KVK Yönetim Sistemi`,
-      text:
-        `Merhaba ${user.fullName},\n\n` +
-        `${orgName} kuruluşu KVK Yönetim Sistemine eklendi ve hesabınıza kuruluş yöneticisi olarak bağlandı.\n\n` +
-        `Mevcut şifrenizle giriş yapabilirsiniz: ${this.config.appUrl}/giris\n` +
-        `Kullanıcı adınız bu e-posta adresidir: ${user.email}\n`,
-    });
   }
 }

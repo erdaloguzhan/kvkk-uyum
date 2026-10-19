@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createApp, createOrg, extractCode, lastMailTo, login, makePlatformAdmin, registerAndLogin, uniqueEmail } from './helpers';
+import { addMember, createApp, createOrg, extractCode, lastMailTo, login, makePlatformAdmin, registerAndLogin, uniqueEmail } from './helpers';
 
 /** 1x1 PNG. */
 const PNG = Buffer.from(
@@ -33,20 +33,8 @@ describe('Destek talepleri', () => {
     const orgId = await createOrg(app, owner, { name: 'Destek Deneme A.Ş.' });
     const as = (token: string) => ({ ...bearer(token), 'X-Organization-Id': orgId });
 
-    // Görüntüleyici rolünde ikinci kullanıcı.
-    const roles = await request(server).get('/api/v1/roles').set(as(owner.accessToken)).expect(200);
-    const roleId = roles.body.items.find((r: any) => r.key === 'viewer').id;
-    const email = uniqueEmail('calisan');
-    await request(server)
-      .post('/api/v1/members')
-      .set(as(owner.accessToken))
-      .send({ email, fullName: 'Zeynep Çalışan', roleId })
-      .expect(201);
-    await request(server)
-      .post('/api/v1/auth/password-reset/confirm')
-      .send({ token: extractCode(lastMailTo(app, email).text), password: 'DavetSifre2026' })
-      .expect(204);
-    const member = await login(app, email, 'DavetSifre2026');
+    // Yönetici rolünde ikinci kullanıcı (kendi taleplerini görür).
+    const member = await addMember(app, orgId, 'approver', 'Zeynep Çalışan');
     return { staff, owner, member, orgId, as };
   }
 

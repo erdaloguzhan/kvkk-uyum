@@ -92,83 +92,100 @@ describe('Yönetim paneli', () => {
   });
 
   describe('kuruluş ekleme', () => {
-    it('kuruluşu açar, kayıttaki e-postaya şifre oluşturma bağlantısı gönderir; yetkili şifresini belirleyip yönetici olarak girer', async () => {
-      const email = uniqueEmail('yetkili');
+    const person = (prefix: string, fullName: string) => ({ email: uniqueEmail(prefix), fullName });
+
+    async function activate(email: string) {
+      await request(server)
+        .post('/api/v1/auth/password-reset/confirm')
+        .send({ token: extractCode(lastMailTo(app, email).text), password: PASSWORD })
+        .expect(204);
+      return login(app, email);
+    }
+
+    async function roleIn(user: { accessToken: string }, orgId: string) {
+      const me = await request(server).get('/api/v1/auth/me').set(auth(user.accessToken)).expect(200);
+      return me.body.organizations.find((o: any) => o.id === orgId)?.role.key;
+    }
+
+    it('kuruluşu Sorumlu ve Yönetici hesaplarıyla açar; her birine şifre oluşturma bağlantısı gider', async () => {
+      const email = uniqueEmail('sorumlu');
+      const approver = person('yonetici', 'Ali Kaya');
       const res = await request(server)
         .post('/api/v1/admin/organizations')
         .set(auth(admin.accessToken))
-        .send({ ...PROFILE, email, authorizedPerson: 'Mehmet Demir' })
+        .send({ ...PROFILE, email, authorizedPerson: 'Mehmet Demir', approver })
         .expect(201);
-      expect(res.body.owner).toMatchObject({ email, newUser: true });
+      const orgId = res.body.organization.id;
+      expect(res.body.members).toEqual([
+        expect.objectContaining({ email, role: 'kvkk_officer', newUser: true }),
+        expect.objectContaining({ email: approver.email, role: 'approver', newUser: true }),
+      ]);
       // Zorunlu bilgiler girildiği için kurulum tamamlanmış sayılır.
       expect(res.body.organization.setupCompletedAt).toBeTruthy();
 
       const mail = lastMailTo(app, email);
       expect(mail.text).toContain('Merhaba Mehmet Demir');
       expect(mail.text).toContain(PROFILE.name);
+      expect(mail.text).toContain('KVKK Sorumlusu');
       expect(mail.text).toMatch(/http:\/\/localhost:3000\/sifre-belirle\?kod=/);
       // Şifre e-postayla gönderilmez.
       expect(mail.text).not.toContain(PASSWORD);
+      expect(lastMailTo(app, approver.email).text).toContain('Yönetici');
 
-      await request(server)
-        .post('/api/v1/auth/password-reset/confirm')
-        .send({ token: extractCode(mail.text), password: PASSWORD })
-        .expect(204);
-      const owner = await login(app, email);
-      const me = await request(server).get('/api/v1/auth/me').set(auth(owner.accessToken)).expect(200);
-      expect(me.body.fullName).toBe('Mehmet Demir');
-      expect(me.body.organizations).toEqual([
-        expect.objectContaining({ id: res.body.organization.id, role: expect.objectContaining({ key: 'org_admin' }) }),
-      ]);
+      const officer = await activate(email);
+      expect(await roleIn(officer, orgId)).toBe('kvkk_officer');
+      expect(await roleIn(await activate(approver.email), orgId)).toBe('approver');
 
       // Platform yöneticisi kuruluşun üyesi olmaz.
-      const adminMe = await request(server).get('/api/v1/auth/me').set(auth(admin.accessToken)).expect(200);
-      expect(adminMe.body.organizations.map((o: any) => o.id)).not.toContain(res.body.organization.id);
+      expect(await roleIn(admin, orgId)).toBeUndefined();
 
       const list = await request(server).get('/api/v1/admin/organizations').set(auth(admin.accessToken)).expect(200);
-      expect(list.body.items.find((o: any) => o.id === res.body.organization.id)).toMatchObject({
-        name: PROFILE.name,
-        email,
-        memberCount: 1,
-      });
+      expect(list.body.items.find((o: any) => o.id === orgId)).toMatchObject({ name: PROFILE.name, email, memberCount: 2 });
     });
 
-    it('e-posta ve yetkili kişi zorunlu', async () => {
-      await request(server)
+    it('Yönetici e-postası Sorumlununkiyle aynıysa tek "Sorumlu + Yönetici" hesabı açılır', async () => {
+      const email = uniqueEmail('tek');
+      const res = await request(server)
         .post('/api/v1/admin/organizations')
         .set(auth(admin.accessToken))
-        .send({ ...PROFILE, authorizedPerson: 'Mehmet Demir' })
-        .expect(400);
-      await request(server)
-        .post('/api/v1/admin/organizations')
-        .set(auth(admin.accessToken))
-        .send({ ...PROFILE, email: uniqueEmail() })
-        .expect(400);
+        .send({ name: 'Küçük Firma', email, authorizedPerson: 'Ayşe Yılmaz', approver: { email: email.toUpperCase(), fullName: 'Ayşe Yılmaz' } })
+        .expect(201);
+      expect(res.body.members).toEqual([expect.objectContaining({ email, role: 'officer_approver' })]);
+      expect(await roleIn(await activate(email), res.body.organization.id)).toBe('officer_approver');
     });
 
-    it('e-posta kayıtlı bir kullanıcıya aitse kuruluşa yönetici olarak eklenir ve bilgilendirilir', async () => {
+    it('e-posta, Sorumlu ve Yönetici zorunlu', async () => {
+      const approver = person('yonetici', 'Ali Kaya');
+      const send = (body: object) => request(server).post('/api/v1/admin/organizations').set(auth(admin.accessToken)).send({ ...PROFILE, ...body });
+      await send({ authorizedPerson: 'Mehmet Demir', approver }).expect(400);
+      await send({ email: uniqueEmail(), approver }).expect(400);
+      await send({ email: uniqueEmail(), authorizedPerson: 'Mehmet Demir' }).expect(400);
+      await send({ email: uniqueEmail(), authorizedPerson: 'Mehmet Demir', approver: { email: 'gecersiz', fullName: 'Ali Kaya' } }).expect(400);
+    });
+
+    it('e-posta kayıtlı bir kullanıcıya aitse hesabı kuruluşa bağlanır ve bilgilendirilir', async () => {
       const existing = await registerAndLogin(app);
       const res = await request(server)
         .post('/api/v1/admin/organizations')
         .set(auth(admin.accessToken))
-        .send({ name: 'İkinci Kuruluş A.Ş.', email: existing.email, authorizedPerson: 'Test Kullanıcı' })
+        .send({ name: 'İkinci Kuruluş A.Ş.', email: existing.email, authorizedPerson: 'Test Kullanıcı', approver: person('yonetici', 'Ali Kaya') })
         .expect(201);
-      expect(res.body.owner.newUser).toBe(false);
+      expect(res.body.members[0]).toMatchObject({ email: existing.email, newUser: false });
       expect(res.body.organization.setupCompletedAt).toBeNull();
       const mail = lastMailTo(app, existing.email);
       expect(mail.text).toContain('İkinci Kuruluş A.Ş.');
       expect(mail.text).toContain('/giris');
-      const me = await request(server).get('/api/v1/auth/me').set(auth(existing.accessToken)).expect(200);
-      expect(me.body.organizations[0]).toMatchObject({ id: res.body.organization.id, role: { key: 'org_admin' } });
+      expect(await roleIn(existing, res.body.organization.id)).toBe('kvkk_officer');
     });
 
-    it('daveti yeniden gönderir; önceki bağlantı geçersiz olur', async () => {
+    it('kuruluşun kullanıcılarını yönetir; daveti yeniden gönderir ve önceki bağlantı geçersiz olur', async () => {
       const email = uniqueEmail('yetkili');
       const res = await request(server)
         .post('/api/v1/admin/organizations')
         .set(auth(admin.accessToken))
-        .send({ name: 'Üçüncü Kuruluş', email, authorizedPerson: 'Zeynep Kaya' })
+        .send({ name: 'Üçüncü Kuruluş', email, authorizedPerson: 'Zeynep Kaya', approver: { email, fullName: 'Zeynep Kaya' } })
         .expect(201);
+      const base = `/api/v1/admin/organizations/${res.body.organization.id}/members`;
       const first = extractCode(lastMailTo(app, email).text);
       await request(server)
         .post(`/api/v1/admin/organizations/${res.body.organization.id}/resend-invite`)
@@ -176,14 +193,28 @@ describe('Yönetim paneli', () => {
         .expect(200);
       const second = extractCode(lastMailTo(app, email).text);
       expect(second).not.toBe(first);
-      await request(server)
-        .post('/api/v1/auth/password-reset/confirm')
-        .send({ token: first, password: PASSWORD })
-        .expect(400);
-      await request(server)
-        .post('/api/v1/auth/password-reset/confirm')
-        .send({ token: second, password: PASSWORD })
-        .expect(204);
+      await request(server).post('/api/v1/auth/password-reset/confirm').send({ token: first, password: PASSWORD }).expect(400);
+
+      // Ayrı bir Yönetici sonradan eklenir; kullanıcı bazında bağlantı yeniden gönderilir.
+      const viewer = person('yonetici', 'Can Er');
+      await request(server).post(base).set(auth(admin.accessToken)).send({ ...viewer, roleKey: 'viewer' }).expect(400);
+      const added = await request(server).post(base).set(auth(admin.accessToken)).send({ ...viewer, roleKey: 'approver' }).expect(201);
+      const firstViewer = extractCode(lastMailTo(app, viewer.email).text);
+      await request(server).post(`${base}/${added.body.membership.id}/resend-invite`).set(auth(admin.accessToken)).expect(200);
+      await request(server).post('/api/v1/auth/password-reset/confirm').send({ token: firstViewer, password: PASSWORD }).expect(400);
+
+      const list = await request(server).get(base).set(auth(admin.accessToken)).expect(200);
+      expect(list.body.items.map((m: any) => m.role.key).sort()).toEqual(['approver', 'officer_approver']);
+      const own = list.body.items.find((m: any) => m.role.key === 'officer_approver');
+      // Tek Sorumlu düşürülemez veya silinemez.
+      await request(server).patch(`${base}/${own.id}`).set(auth(admin.accessToken)).send({ roleKey: 'approver' }).expect(400);
+      await request(server).delete(`${base}/${own.id}`).set(auth(admin.accessToken)).expect(400);
+      await request(server).patch(`${base}/${added.body.membership.id}`).set(auth(admin.accessToken)).send({ status: 'disabled' }).expect(200);
+      await request(server).delete(`${base}/${added.body.membership.id}`).set(auth(admin.accessToken)).expect(204);
+
+      // Müşteri bu uçlara erişemez.
+      const outsider = await registerAndLogin(app);
+      await request(server).get(base).set(auth(outsider.accessToken)).expect(403);
     });
   });
 

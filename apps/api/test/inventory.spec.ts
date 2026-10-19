@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import request from 'supertest';
-import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { addMember, createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
 
 /** TBL-010'daki ilk örnek satırın bir kısmı. */
 const ENTRY = {
@@ -48,22 +48,6 @@ describe('Kişisel Veri Envanteri', () => {
     return { admin, orgId, as };
   }
 
-  async function addViewer(admin: { accessToken: string }, as: (t: string) => any) {
-    const roles = await request(server).get('/api/v1/roles').set(as(admin.accessToken)).expect(200);
-    const roleId = roles.body.items.find((r: any) => r.key === 'viewer').id;
-    const email = uniqueEmail('viewer');
-    await request(server)
-      .post('/api/v1/members')
-      .set(as(admin.accessToken))
-      .send({ email, fullName: 'Mehmet Demir', roleId })
-      .expect(201);
-    const token = extractCode(lastMailTo(app, email).text);
-    await request(server)
-      .post('/api/v1/auth/password-reset/confirm')
-      .send({ token, password: 'DavetSifre2026' })
-      .expect(204);
-    return login(app, email, 'DavetSifre2026');
-  }
 
   it('TBL-010 sütunlarını ve şablondaki örnek değerleri öneri olarak verir', async () => {
     const { admin, as } = await setupOrg();
@@ -254,11 +238,15 @@ describe('Kişisel Veri Envanteri', () => {
     const listB = await request(server).get('/api/v1/inventory').set(b.as(b.admin.accessToken)).expect(200);
     expect(listB.body.items).toEqual([]);
 
-    const viewer = await addViewer(a.admin, a.as);
-    await request(server).get('/api/v1/inventory').set(a.as(viewer.accessToken)).expect(200);
-    await request(server).get('/api/v1/inventory/export').set(a.as(viewer.accessToken)).expect(200);
-    await request(server).post('/api/v1/inventory').set(a.as(viewer.accessToken)).send(ENTRY).expect(403);
-    await request(server).delete(`/api/v1/inventory/${entry.body.id}`).set(a.as(viewer.accessToken)).expect(403);
+    // Yönetici yalnızca dokümanları görür; envantere erişemez.
+    const approver = await addMember(app, a.orgId, 'approver');
+    await request(server).get('/api/v1/inventory').set(a.as(approver.accessToken)).expect(403);
+    await request(server).get('/api/v1/inventory/export').set(a.as(approver.accessToken)).expect(403);
+    const officer = await addMember(app, a.orgId, 'kvkk_officer');
+    await request(server).get('/api/v1/inventory/export').set(a.as(officer.accessToken)).expect(200);
+    await request(server).post('/api/v1/inventory').set(a.as(officer.accessToken)).send(ENTRY).expect(201);
+    await request(server).post('/api/v1/inventory').set(a.as(approver.accessToken)).send(ENTRY).expect(403);
+    await request(server).delete(`/api/v1/inventory/${entry.body.id}`).set(a.as(approver.accessToken)).expect(403);
   });
 
   describe('Excel içe aktarma', () => {
@@ -371,15 +359,15 @@ describe('Kişisel Veri Envanteri', () => {
     });
 
     it('geçersiz dosyaları ve yetkisiz kullanıcıyı reddeder', async () => {
-      const { admin, as } = await setupOrg();
+      const { admin, as, orgId } = await setupOrg();
       await upload(as(admin.accessToken), Buffer.from('düz metin')).expect(400);
       const noHeaders = await workbook([['a', 'b'], ['c', 'd']]);
       const res = await upload(as(admin.accessToken), noHeaders).expect(400);
       expect(res.body.message).toContain('TBL-010 başlıkları bulunamadı');
       await request(server).post('/api/v1/inventory/import').set(as(admin.accessToken)).expect(400);
 
-      const viewer = await addViewer(admin, as);
-      await upload(as(viewer.accessToken), readFileSync(TEMPLATE)).expect(403);
+      const approver = await addMember(app, orgId, 'approver');
+      await upload(as(approver.accessToken), readFileSync(TEMPLATE)).expect(403);
     });
   });
 });

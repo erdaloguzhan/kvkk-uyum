@@ -213,6 +213,8 @@ export const documents = pgTable(
     publishedVersionId: uuid('published_version_id').references((): AnyPgColumn => documentVersions.id, {
       onDelete: 'set null',
     }),
+    /** Yayınlanmış sürüm kuruluş çalışanlarına eğitim portalında gösterilir. */
+    employeeVisible: boolean('employee_visible').notNull().default(true),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,10 +1,13 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { passwordSchema } from '../common/password-policy';
 import { AppRequest, clientInfo, Public } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
+import { sendFile } from './files';
 import { PortalAuthService, TraineeToken } from './portal-auth.service';
+import { PortalDocumentsService } from './portal-documents.service';
 import { PortalService } from './portal.service';
 import { AllowPendingPasswordChange, CurrentTrainee, TraineeGuard } from './trainee.guard';
 import { answersBody } from './training.schema';
@@ -15,6 +18,8 @@ const resetRequestBody = z.object({ email: z.email().max(254) });
 const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
 const nextBody = z.object({ topicIndex: z.number().int().min(0) });
 
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
 const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 
 /** Eğitim Portalı (katılımcı). Kendi oturum belirteciyle çalışır; yönetim oturumu burada geçmez. */
@@ -24,6 +29,7 @@ export class TrainingPortalController {
   constructor(
     private readonly auth: PortalAuthService,
     private readonly portal: PortalService,
+    private readonly documents: PortalDocumentsService,
   ) {}
 
   @Throttle(AUTH_THROTTLE)
@@ -72,6 +78,20 @@ export class TrainingPortalController {
   @UseGuards(TraineeGuard)
   async assignments(@CurrentTrainee() trainee: TraineeToken) {
     return { items: await this.portal.assignments(trainee) };
+  }
+
+  /** Çalışanın kuruluşlarının yayınlanmış ve çalışanlara açık KVKK dokümanları. */
+  @Get('documents')
+  @UseGuards(TraineeGuard)
+  async listDocuments(@CurrentTrainee() trainee: TraineeToken) {
+    return { items: await this.documents.list(trainee) };
+  }
+
+  @Get('documents/:id/file')
+  @UseGuards(TraineeGuard)
+  async documentFile(@CurrentTrainee() trainee: TraineeToken, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    const file = await this.documents.file(trainee, id);
+    sendFile(res, file.content, file.fileName, DOCX_MIME);
   }
 
   @Get('assignments/:id')

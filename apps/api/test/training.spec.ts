@@ -357,4 +357,78 @@ describe('Uzaktan eğitim', () => {
     expect(ws.getCell('A2').value).toBe('Çağrı');
     expect(ws.getCell('A3').value).toBe(`'=HYPERLINK("x")`);
   });
+  it('çalışan yayınlanmış ve çalışanlara açık dokümanları portal hesabıyla görür; işten çıkan göremez', async () => {
+    const owner = await registerAndLogin(app);
+    const docOrg = await createOrg(app, owner, {
+      name: 'Doküman Müşteri A.Ş.',
+      address: 'Atatürk Cad. No:1 Ankara',
+      email: 'info@ornek.com.tr',
+      phone: '+90 312 000 00 00',
+      authorizedPerson: 'Ayşe Yılmaz',
+      taxNumber: '1234567890',
+    });
+    const as = (req: request.Test) => req.set({ authorization: `Bearer ${owner.accessToken}`, 'x-organization-id': docOrg });
+    const create = async (templateCode: string) =>
+      (await as(request(server).post('/api/v1/documents')).send({ templateCode }).expect(201)).body;
+    const published = await create('PRS-010');
+    const hidden = await create('PRS-020');
+    const draft = await create('AYM-010');
+    for (const d of [published, hidden]) {
+      await as(request(server).post(`/api/v1/documents/${d.id}/versions/${d.versions[0].id}/publish`)).expect(200);
+    }
+    const toggled = await as(request(server).patch(`/api/v1/documents/${hidden.id}`)).send({ employeeVisible: false }).expect(200);
+    expect(toggled.body.employeeVisible).toBe(false);
+
+    const email = uniqueEmail('calisan');
+    const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Er', email })
+      .expect(201);
+    const noEmail = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan' })
+      .expect(201);
+    const access = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`))
+      .send({ employeeIds: [emp.body.id, noEmail.body.id] })
+      .expect(200);
+    expect(access.body).toEqual({ sent: 1, skipped: [{ name: 'E-postasız Çalışan', reason: 'E-posta adresi yok' }] });
+    // Müşteri ve platform yöneticisi olmayanlar portal erişimi gönderemez.
+    await request(server)
+      .post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`)
+      .set('authorization', `Bearer ${owner.accessToken}`)
+      .send({})
+      .expect(403);
+
+    const mail = lastMailTo(app, email).text;
+    expect(mail).toContain('Doküman Müşteri A.Ş.');
+    const temp = /Geçici şifreniz: (\S+)/.exec(mail)![1];
+    const first = await request(server).post('/api/v1/training-portal/login').send({ email, password: temp }).expect(200);
+    const changed = await request(server)
+      .post('/api/v1/training-portal/change-password')
+      .set('authorization', `Bearer ${first.body.token}`)
+      .send({ currentPassword: temp, newPassword: PASSWORD })
+      .expect(200);
+    const portal = (req: request.Test) => req.set('authorization', `Bearer ${changed.body.token}`);
+
+    const list = await portal(request(server).get('/api/v1/training-portal/documents')).expect(200);
+    expect(list.body.items).toEqual([
+      expect.objectContaining({ id: published.id, code: 'PRS-010', organizationName: 'Doküman Müşteri A.Ş.', versionNo: 1 }),
+    ]);
+    const file = await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}/file`))
+      .buffer(true)
+      .parse(binary)
+      .expect(200);
+    expect(file.body.subarray(0, 2).toString()).toBe('PK');
+    for (const d of [hidden, draft]) {
+      await portal(request(server).get(`/api/v1/training-portal/documents/${d.id}/file`)).expect(404);
+    }
+    // Yönetim belirteci portal dokümanlarında geçmez.
+    await request(server).get('/api/v1/training-portal/documents').set('authorization', `Bearer ${owner.accessToken}`).expect(401);
+
+    // İşten çıkan çalışan dokümanları artık göremez.
+    await asAdmin(request(server).patch(`/api/v1/admin/organizations/${docOrg}/employees/${emp.body.id}`))
+      .send({ terminationDate: '2020-01-01', hireDate: '2019-01-01' })
+      .expect(200);
+    const after = await portal(request(server).get('/api/v1/training-portal/documents')).expect(200);
+    expect(after.body.items).toEqual([]);
+    await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}/file`)).expect(404);
+  });
 });

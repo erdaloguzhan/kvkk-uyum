@@ -78,6 +78,20 @@
       "when": 1792287184243,
       "tag": "0010_support",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792439861832,
+      "tag": "0011_fixed_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792441454680,
+      "tag": "0012_document_employee_visible",
+      "breakpoints": true
     }
   ]
 }

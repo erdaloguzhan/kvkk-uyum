@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { MembersModule } from '../members/members.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { TemplatesModule } from '../templates/templates.module';
 import { AdminOrganizationsService } from './admin-organizations.service';
@@ -8,7 +9,7 @@ import { PlatformAdminGuard } from './platform-admin.guard';
 import { PlatformAdminSeeder } from './platform-admin.seeder';
 
 @Module({
-  imports: [AuthModule, OrganizationsModule, TemplatesModule],
+  imports: [AuthModule, MembersModule, OrganizationsModule, TemplatesModule],
   controllers: [AdminController],
   providers: [AdminOrganizationsService, PlatformAdminGuard, PlatformAdminSeeder],
 })

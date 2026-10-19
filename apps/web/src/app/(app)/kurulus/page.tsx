@@ -49,7 +49,7 @@ export default function OrganizationPage() {
           <strong>{missing.map((k) => ORG_FIELD_LABELS[k]).join(', ')}</strong>
         </Alert>
       )}
-      {!canManage && <Alert kind="info">Bu bilgileri yalnızca Kuruluş Yöneticisi değiştirebilir.</Alert>}
+      {!canManage && <Alert kind="info">Bu bilgileri yalnızca KVKK Sorumlusu değiştirebilir.</Alert>}
       <div className="card">
         <OrgForm
           key={org.id}

@@ -47,6 +47,9 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const headers = new Headers({ 'cache-control': 'no-store' });
   const type = upstream.headers.get('content-type');
   if (type) headers.set('content-type', type);
+  // Doküman indirmelerinde dosya adı.
+  const disposition = upstream.headers.get('content-disposition');
+  if (disposition) headers.set('content-disposition', disposition);
   return new NextResponse(upstream.status === 204 ? null : upstream.body, { status: upstream.status, headers });
 }
 

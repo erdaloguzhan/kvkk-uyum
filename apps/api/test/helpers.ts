@@ -7,6 +7,7 @@ import { MailerService } from '../src/auth/mailer.service';
 import { setupApp } from '../src/setup-app';
 import { Database, DB } from '../src/db/db.module';
 import { users } from '../src/db/schema';
+import { MembersService } from '../src/members/members.service';
 import { OrganizationProfile, OrganizationsService } from '../src/organizations/organizations.service';
 import { eq } from 'drizzle-orm';
 
@@ -71,7 +72,7 @@ export async function login(app: INestApplication, email: string, password = PAS
 }
 
 /**
- * Kuruluşu doğrudan oluşturur ve `owner`ı kuruluş yöneticisi yapar. Gerçekte kuruluşları
+ * Kuruluşu doğrudan oluşturur ve `owner`ı "Sorumlu + Yönetici" yapar. Gerçekte kuruluşları
  * yönetim panelinden platform yöneticisi açar (admin.spec.ts).
  */
 export async function createOrg(app: INestApplication, owner: { user: { id: string } }, profile: OrganizationProfile) {
@@ -83,4 +84,19 @@ export async function createOrg(app: INestApplication, owner: { user: { id: stri
 export async function makePlatformAdmin(app: INestApplication, userId: string) {
   const db = app.get<Database>(DB);
   await db.update(users).set({ isPlatformAdmin: true }).where(eq(users.id, userId));
+}
+
+/**
+ * Kuruluşa verilen rolle kullanıcı ekler (gerçekte yönetim panelinden yapılır), davetteki bağlantıyla
+ * şifresini belirletir ve giriş yapar.
+ */
+export async function addMember(app: INestApplication, orgId: string, roleKey: string, fullName = 'Mehmet Demir') {
+  const email = uniqueEmail('uye');
+  const added = await app.get(MembersService).add(orgId, null, { email, fullName, roleKey });
+  const token = extractCode(lastMailTo(app, email).text);
+  await request(app.getHttpServer())
+    .post('/api/v1/auth/password-reset/confirm')
+    .send({ token, password: 'DavetSifre2026' })
+    .expect(204);
+  return { ...(await login(app, email, 'DavetSifre2026')), membershipId: added.membership.id };
 }

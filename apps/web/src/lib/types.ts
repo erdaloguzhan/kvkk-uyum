@@ -71,6 +71,8 @@ export interface DocumentItem {
   code: string;
   title: string;
   category: DocumentCategory;
+  /** Yayınlanmış sürüm çalışanlara eğitim portalında gösterilir. */
+  employeeVisible: boolean;
   publishedVersionId: string | null;
   updatedAt: string;
   publishedVersion: DocumentVersion | null;
@@ -394,6 +396,18 @@ export interface PortalAssignment {
   sentAt: string;
   startedAt: string | null;
   completedAt: string | null;
+}
+
+export interface PortalDocument {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  code: string;
+  title: string;
+  category: DocumentCategory;
+  versionId: string;
+  versionNo: number;
+  publishedAt: string | null;
 }
 
 export interface PortalQuestion {

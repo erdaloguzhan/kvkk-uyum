@@ -70,7 +70,7 @@ export class SupportService {
   // Kuruluş kullanıcısı
   // -------------------------------------------------------------------------------------------
 
-  /** Kullanıcı kendi açtığı talepleri; kuruluş yöneticisi (org.manage) kuruluşun tüm taleplerini görür. */
+  /** Kullanıcı kendi açtığı talepleri; KVKK Sorumlusu (org.manage) kuruluşun tüm taleplerini görür. */
   async listForUser(orgId: string, userId: string, permissions: Permission[], status?: SupportStatus) {
     const conditions: SQL[] = [eq(supportTickets.organizationId, orgId)];
     if (!permissions.includes(PERMISSIONS.ORG_MANAGE)) conditions.push(eq(supportTickets.createdBy, userId));
@@ -391,7 +391,7 @@ export class SupportService {
 
   /**
    * Kullanıcının erişebildiği talep: kuruluşta hâlâ aktif üye olmalı ve talebi kendisi açmış ya da
-   * kuruluş yöneticisi (org.manage) olmalı. Erişemediği talep "bulunamadı" görünür.
+   * KVKK Sorumlusu (org.manage) olmalı. Erişemediği talep "bulunamadı" görünür.
    */
   private async findForUser(userId: string, id: string) {
     const [row] = await this.db

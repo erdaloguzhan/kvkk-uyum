@@ -11,7 +11,8 @@ import { Empty, Loading } from './ui';
 interface NavItem {
   href: string;
   label: string;
-  permission?: Permission;
+  /** Bu yetkilerden biri varsa menüde görünür. */
+  permission?: Permission | Permission[];
 }
 
 const NAV: NavItem[] = [
@@ -20,7 +21,8 @@ const NAV: NavItem[] = [
   { href: '/dokumanlar', label: 'Dokümanlar', permission: PERMISSIONS.DOCUMENTS_READ },
   { href: '/envanter', label: 'Veri envanteri', permission: PERMISSIONS.INVENTORY_READ },
   { href: '/sozlesmeler', label: 'Sözleşmeler', permission: PERMISSIONS.CONTRACTS_READ },
-  { href: '/gorevler', label: 'Görevler' },
+  // Yönetici onay görevlerini burada görür.
+  { href: '/gorevler', label: 'Görevler', permission: [PERMISSIONS.TASKS_READ, PERMISSIONS.DOCUMENTS_APPROVE] },
   { href: '/bildirimler', label: 'Bildirimler' },
   { href: '/destek', label: 'Destek' },
 ];
@@ -64,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (loading || !me || toAdmin) return <Loading />;
 
-  const items = NAV.filter((n) => !n.permission || can(n.permission));
+  const items = NAV.filter((n) => !n.permission || [n.permission].flat().some(can));
 
   return (
     <div className="shell">

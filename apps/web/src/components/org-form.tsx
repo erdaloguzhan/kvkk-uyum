@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, ReactNode, useState } from 'react';
 import type { Organization } from '@/lib/types';
 import { ErrorAlert, Field } from './ui';
 
@@ -27,6 +27,7 @@ export function OrgForm({
   readOnly,
   inviteMode,
   onSubmit,
+  children,
 }: {
   initial?: Partial<OrgProfile>;
   submitLabel: string;
@@ -34,6 +35,8 @@ export function OrgForm({
   /** Yönetim panelinden kuruluş açılırken: e-posta ve yetkili zorunlu, davet bu adrese gider. */
   inviteMode?: boolean;
   onSubmit: (profile: OrgProfile) => Promise<void>;
+  /** Kaydet düğmesinden önce gösterilen ek alanlar (ör. kuruluş kullanıcıları). */
+  children?: ReactNode;
 }) {
   const [v, setV] = useState<OrgProfile>(() => {
     const merged = { ...EMPTY };
@@ -77,7 +80,12 @@ export function OrgForm({
         <Field label="Vergi numarası" required htmlFor="taxNumber" hint="10 haneli vergi no veya şahıs şirketleri için 11 haneli TC kimlik no">
           <input {...bind('taxNumber')} inputMode="numeric" pattern="\d{10,11}" />
         </Field>
-        <Field label="Yetkili kişi" required htmlFor="authorizedPerson" hint="Ad soyad">
+        <Field
+          label={inviteMode ? 'Yetkili kişi / KVKK Sorumlusu' : 'Yetkili kişi'}
+          required
+          htmlFor="authorizedPerson"
+          hint={inviteMode ? 'Ad soyad. Bu kişiye KVKK Sorumlusu hesabı açılır.' : 'Ad soyad'}
+        >
           <input {...bind('authorizedPerson')} required={inviteMode} minLength={inviteMode ? 2 : undefined} />
         </Field>
       </div>
@@ -89,7 +97,7 @@ export function OrgForm({
           label="E-posta"
           required
           htmlFor="email"
-          hint={inviteMode ? 'Kuruluş yetkilisinin kullanıcı adı olur; şifre oluşturma bağlantısı bu adrese gönderilir.' : undefined}
+          hint={inviteMode ? 'KVKK Sorumlusunun kullanıcı adı olur; şifre oluşturma bağlantısı bu adrese gönderilir.' : undefined}
         >
           <input type="email" {...bind('email')} required={inviteMode} />
         </Field>
@@ -105,6 +113,7 @@ export function OrgForm({
           <input {...bind('website')} placeholder="www.ornek.com.tr" />
         </Field>
       </div>
+      {children}
       {!readOnly && (
         <div>
           <button className="btn btn-primary" disabled={busy}>

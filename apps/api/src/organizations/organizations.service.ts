@@ -36,10 +36,10 @@ export class OrganizationsService {
   ) {}
 
   /**
-   * Kuruluşu oluşturur, varsayılan rolleri ekler ve `userId` kullanıcısını Kuruluş Yöneticisi yapar.
+   * Kuruluşu oluşturur, sabit rolleri ekler ve `userId` verilirse onu "Sorumlu + Yönetici" yapar.
    * `actorId`: işlemi yapan (platform yöneticisi); verilmezse kullanıcının kendisi.
    */
-  async create(userId: string, profile: OrganizationProfile, actorId = userId) {
+  async create(userId: string | null, profile: OrganizationProfile, actorId = userId) {
     const org = await this.db.transaction(async (tx) => {
       const [org] = await tx
         .insert(organizations)
@@ -61,8 +61,10 @@ export class OrganizationsService {
           })),
         )
         .returning({ id: roles.id, key: roles.key });
-      const adminRole = createdRoles.find((r) => r.key === ORG_ADMIN_ROLE_KEY)!;
-      await tx.insert(memberships).values({ userId, organizationId: org.id, roleId: adminRole.id });
+      if (userId) {
+        const adminRole = createdRoles.find((r) => r.key === ORG_ADMIN_ROLE_KEY)!;
+        await tx.insert(memberships).values({ userId, organizationId: org.id, roleId: adminRole.id });
+      }
       return org;
     });
     await this.audit.record({

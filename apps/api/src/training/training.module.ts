@@ -6,6 +6,7 @@ import { EmployeesService } from './employees.service';
 import { ExportController } from './export.controller';
 import { GroupsService } from './groups.service';
 import { PortalAuthService } from './portal-auth.service';
+import { PortalDocumentsService } from './portal-documents.service';
 import { PortalService } from './portal.service';
 import { TraineeGuard } from './trainee.guard';
 import { TrainersService } from './trainers.service';
@@ -26,6 +27,7 @@ import { TrainingsService } from './trainings.service';
     GroupsService,
     PortalAuthService,
     PortalService,
+    PortalDocumentsService,
     TrainingStaffGuard,
     TraineeGuard,
     PlatformAdminGuard,
