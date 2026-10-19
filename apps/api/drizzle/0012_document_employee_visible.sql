@@ -1,0 +1,1 @@
+ALTER TABLE "documents" ADD COLUMN "employee_visible" boolean DEFAULT true NOT NULL;

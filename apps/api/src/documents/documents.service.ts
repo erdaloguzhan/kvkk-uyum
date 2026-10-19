@@ -150,6 +150,20 @@ export class DocumentsService {
       .filter((d) => canSeeDrafts || d.publishedVersion);
   }
 
+  async setEmployeeVisible(orgId: string, userId: string, documentId: string, employeeVisible: boolean) {
+    const doc = await this.findDocument(orgId, documentId);
+    await this.db.update(documents).set({ employeeVisible, updatedAt: new Date() }).where(eq(documents.id, doc.id));
+    await this.audit.record({
+      action: 'document.employee_visibility_changed',
+      organizationId: orgId,
+      userId,
+      entityType: 'document',
+      entityId: doc.id,
+      metadata: { employeeVisible },
+    });
+    return this.get(orgId, documentId, true);
+  }
+
   /** Doküman ve sürümleri. Taslak görme yetkisi olmayanlar yalnızca yayındaki sürümü görür. */
   async get(orgId: string, documentId: string, canSeeDrafts: boolean) {
     const doc = await this.findDocument(orgId, documentId);

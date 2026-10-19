@@ -107,20 +107,18 @@ describe('Yönetim paneli', () => {
       return me.body.organizations.find((o: any) => o.id === orgId)?.role.key;
     }
 
-    it('kuruluşu Sorumlu, Yönetici ve İzleyici hesaplarıyla açar; her birine şifre oluşturma bağlantısı gider', async () => {
+    it('kuruluşu Sorumlu ve Yönetici hesaplarıyla açar; her birine şifre oluşturma bağlantısı gider', async () => {
       const email = uniqueEmail('sorumlu');
       const approver = person('yonetici', 'Ali Kaya');
-      const viewer = person('izleyici', 'Zeynep Ak');
       const res = await request(server)
         .post('/api/v1/admin/organizations')
         .set(auth(admin.accessToken))
-        .send({ ...PROFILE, email, authorizedPerson: 'Mehmet Demir', approver, viewer })
+        .send({ ...PROFILE, email, authorizedPerson: 'Mehmet Demir', approver })
         .expect(201);
       const orgId = res.body.organization.id;
       expect(res.body.members).toEqual([
         expect.objectContaining({ email, role: 'kvkk_officer', newUser: true }),
         expect.objectContaining({ email: approver.email, role: 'approver', newUser: true }),
-        expect.objectContaining({ email: viewer.email, role: 'viewer', newUser: true }),
       ]);
       // Zorunlu bilgiler girildiği için kurulum tamamlanmış sayılır.
       expect(res.body.organization.setupCompletedAt).toBeTruthy();
@@ -137,16 +135,15 @@ describe('Yönetim paneli', () => {
       const officer = await activate(email);
       expect(await roleIn(officer, orgId)).toBe('kvkk_officer');
       expect(await roleIn(await activate(approver.email), orgId)).toBe('approver');
-      expect(await roleIn(await activate(viewer.email), orgId)).toBe('viewer');
 
       // Platform yöneticisi kuruluşun üyesi olmaz.
       expect(await roleIn(admin, orgId)).toBeUndefined();
 
       const list = await request(server).get('/api/v1/admin/organizations').set(auth(admin.accessToken)).expect(200);
-      expect(list.body.items.find((o: any) => o.id === orgId)).toMatchObject({ name: PROFILE.name, email, memberCount: 3 });
+      expect(list.body.items.find((o: any) => o.id === orgId)).toMatchObject({ name: PROFILE.name, email, memberCount: 2 });
     });
 
-    it('Yönetici e-postası Sorumlununkiyle aynıysa tek "Sorumlu + Yönetici" hesabı açılır; İzleyici isteğe bağlı', async () => {
+    it('Yönetici e-postası Sorumlununkiyle aynıysa tek "Sorumlu + Yönetici" hesabı açılır', async () => {
       const email = uniqueEmail('tek');
       const res = await request(server)
         .post('/api/v1/admin/organizations')
@@ -157,14 +154,13 @@ describe('Yönetim paneli', () => {
       expect(await roleIn(await activate(email), res.body.organization.id)).toBe('officer_approver');
     });
 
-    it('e-posta, Sorumlu ve Yönetici zorunlu; İzleyici diğerlerinden farklı olmalı', async () => {
+    it('e-posta, Sorumlu ve Yönetici zorunlu', async () => {
       const approver = person('yonetici', 'Ali Kaya');
       const send = (body: object) => request(server).post('/api/v1/admin/organizations').set(auth(admin.accessToken)).send({ ...PROFILE, ...body });
       await send({ authorizedPerson: 'Mehmet Demir', approver }).expect(400);
       await send({ email: uniqueEmail(), approver }).expect(400);
       await send({ email: uniqueEmail(), authorizedPerson: 'Mehmet Demir' }).expect(400);
-      const res = await send({ email: uniqueEmail(), authorizedPerson: 'Mehmet Demir', approver, viewer: { email: approver.email, fullName: 'Ali Kaya' } }).expect(400);
-      expect(res.body.message).toContain('İzleyicinin e-posta adresi');
+      await send({ email: uniqueEmail(), authorizedPerson: 'Mehmet Demir', approver: { email: 'gecersiz', fullName: 'Ali Kaya' } }).expect(400);
     });
 
     it('e-posta kayıtlı bir kullanıcıya aitse hesabı kuruluşa bağlanır ve bilgilendirilir', async () => {
@@ -199,18 +195,19 @@ describe('Yönetim paneli', () => {
       expect(second).not.toBe(first);
       await request(server).post('/api/v1/auth/password-reset/confirm').send({ token: first, password: PASSWORD }).expect(400);
 
-      // İzleyici sonradan eklenir; kullanıcı bazında bağlantı yeniden gönderilir.
-      const viewer = person('izleyici', 'Can Er');
-      const added = await request(server).post(base).set(auth(admin.accessToken)).send({ ...viewer, roleKey: 'viewer' }).expect(201);
+      // Ayrı bir Yönetici sonradan eklenir; kullanıcı bazında bağlantı yeniden gönderilir.
+      const viewer = person('yonetici', 'Can Er');
+      await request(server).post(base).set(auth(admin.accessToken)).send({ ...viewer, roleKey: 'viewer' }).expect(400);
+      const added = await request(server).post(base).set(auth(admin.accessToken)).send({ ...viewer, roleKey: 'approver' }).expect(201);
       const firstViewer = extractCode(lastMailTo(app, viewer.email).text);
       await request(server).post(`${base}/${added.body.membership.id}/resend-invite`).set(auth(admin.accessToken)).expect(200);
       await request(server).post('/api/v1/auth/password-reset/confirm').send({ token: firstViewer, password: PASSWORD }).expect(400);
 
       const list = await request(server).get(base).set(auth(admin.accessToken)).expect(200);
-      expect(list.body.items.map((m: any) => m.role.key).sort()).toEqual(['officer_approver', 'viewer']);
+      expect(list.body.items.map((m: any) => m.role.key).sort()).toEqual(['approver', 'officer_approver']);
       const own = list.body.items.find((m: any) => m.role.key === 'officer_approver');
-      // Tek Sorumlu + Yönetici düşürülemez veya silinemez.
-      await request(server).patch(`${base}/${own.id}`).set(auth(admin.accessToken)).send({ roleKey: 'viewer' }).expect(400);
+      // Tek Sorumlu düşürülemez veya silinemez.
+      await request(server).patch(`${base}/${own.id}`).set(auth(admin.accessToken)).send({ roleKey: 'approver' }).expect(400);
       await request(server).delete(`${base}/${own.id}`).set(auth(admin.accessToken)).expect(400);
       await request(server).patch(`${base}/${added.body.membership.id}`).set(auth(admin.accessToken)).send({ status: 'disabled' }).expect(200);
       await request(server).delete(`${base}/${added.body.membership.id}`).set(auth(admin.accessToken)).expect(204);

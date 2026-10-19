@@ -11,18 +11,17 @@ const ROLE_HINTS: Record<string, string> = {
   officer_approver: 'Tüm KVKK işlerini yapar ve dokümanları kendisi onaylar.',
   kvkk_officer: 'Tüm KVKK işlerini yapar, dokümanları Yöneticinin onayına gönderir.',
   approver: 'Yalnızca kendisine gönderilen dokümanları onaylar veya reddeder.',
-  viewer: 'Yalnızca onaylanıp yayınlanmış dokümanları görür.',
 };
 
 /**
- * Kuruluşun sistem kullanıcıları (yönetim paneli). Müşteri kullanıcı ekleyemediği için Sorumlu,
- * Yönetici ve İzleyici hesapları buradan eklenir, değiştirilir ve davetleri yeniden gönderilir.
+ * Kuruluşun sistem kullanıcıları (yönetim paneli). Müşteri kullanıcı ekleyemediği için Sorumlu ve
+ * Yönetici hesapları buradan eklenir, değiştirilir ve davetleri yeniden gönderilir.
  */
 export function OrgUsers({ orgId }: { orgId: string }) {
   const base = `admin/organizations/${orgId}/members`;
   const list = useApi<{ items: Member[] }>(base);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ fullName: '', email: '', roleKey: 'viewer' });
+  const [form, setForm] = useState({ fullName: '', email: '', roleKey: 'approver' });
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +62,7 @@ export function OrgUsers({ orgId }: { orgId: string }) {
         <button
           className="btn btn-small"
           onClick={() => {
-            setForm({ fullName: '', email: '', roleKey: 'viewer' });
+            setForm({ fullName: '', email: '', roleKey: 'approver' });
             setFormError(null);
             setAdding(true);
           }}
@@ -72,8 +71,8 @@ export function OrgUsers({ orgId }: { orgId: string }) {
         </button>
       </div>
       <p className="hint">
-        KVKK Sorumlusu işi yürütür, Yönetici dokümanları onaylar, İzleyici yalnızca yayınlanmış dokümanları görür. Müşteri
-        kullanıcı ekleyemez; değişiklikler buradan yapılır.
+        KVKK Sorumlusu işi yürütür, Yönetici dokümanları onaylar. Çalışanlar yayınlanmış dokümanları ayrı hesap açılmadan
+        Eğitim Portalında görür. Müşteri kullanıcı ekleyemez; değişiklikler buradan yapılır.
       </p>
       <ErrorAlert error={list.error ?? error} />
       {message && <Alert kind="success">{message}</Alert>}

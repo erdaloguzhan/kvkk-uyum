@@ -35,6 +35,7 @@ export interface SystemRoleDefinition {
  * Müşteri kuruluşlarında yalnızca bu sabit roller vardır; özel rol tanımlanamaz.
  * Sorumlu tüm işi yapar ve dokümanları Yöneticinin onayına gönderir. Yönetici yalnızca onay verir.
  * Aynı kişi (aynı e-posta) her ikisi olacaksa "Sorumlu + Yönetici" rolü atanır.
+ * Çalışanlar yayınlanmış dokümanları ayrı bir rol yerine eğitim portalı hesaplarıyla görür.
  */
 export const SYSTEM_ROLES: SystemRoleDefinition[] = [
   {
@@ -51,12 +52,6 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
     key: 'approver',
     name: 'Yönetici',
     permissions: [PERMISSIONS.DOCUMENTS_READ, PERMISSIONS.DOCUMENTS_APPROVE],
-  },
-  {
-    key: 'viewer',
-    name: 'İzleyici',
-    // Taslakları değil, yalnızca onaylanıp yayınlanmış dokümanları görür.
-    permissions: [PERMISSIONS.DOCUMENTS_READ],
   },
 ];
 

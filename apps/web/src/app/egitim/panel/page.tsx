@@ -7,11 +7,13 @@ import { Badge, Empty, ErrorAlert, Loading, PageHeader } from '@/components/ui';
 import { errorText } from '@/lib/api';
 import { formatDate } from '@/lib/labels';
 import { portalApi } from '@/lib/portal-api';
-import type { PortalAssignment } from '@/lib/types';
+import type { PortalAssignment, PortalDocument } from '@/lib/types';
+import { DOCUMENT_CATEGORIES } from '@kvkk/shared';
 
-/** Katılımcıya gönderilmiş eğitimler. */
+/** Katılımcıya gönderilmiş eğitimler ve kuruluşunun yayınlanmış KVKK dokümanları. */
 export default function PortalHomePage() {
   const [items, setItems] = useState<PortalAssignment[] | null>(null);
+  const [docs, setDocs] = useState<PortalDocument[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -19,7 +21,12 @@ export default function PortalHomePage() {
       (r) => setItems(r.items),
       (err) => setError(errorText(err)),
     );
+    portalApi<{ items: PortalDocument[] }>('documents').then(
+      (r) => setDocs(r.items),
+      (err) => setError(errorText(err)),
+    );
   }, []);
+  const multipleOrgs = new Set(docs?.map((d) => d.organizationId)).size > 1;
 
   return (
     <PortalShell>
@@ -56,6 +63,46 @@ export default function PortalHomePage() {
           )}
         </div>
       ))}
+
+      <PageHeader title="KVKK dokümanları" description="Kuruluşunuzun onaylanıp yayınlanmış politika, prosedür ve metinleri." />
+      {!docs && !error && <Loading />}
+      {docs && docs.length === 0 && (
+        <div className="card">
+          <Empty title="Yayınlanmış doküman yok" />
+        </div>
+      )}
+      {docs && docs.length > 0 && (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kod</th>
+                <th>Doküman</th>
+                <th>Tür</th>
+                {multipleOrgs && <th>Kuruluş</th>}
+                <th>Yayın tarihi</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {docs.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.code}</td>
+                  <td>{d.title}</td>
+                  <td>{DOCUMENT_CATEGORIES[d.category] ?? d.category}</td>
+                  {multipleOrgs && <td>{d.organizationName}</td>}
+                  <td>{d.publishedAt ? formatDate(d.publishedAt) : '—'}</td>
+                  <td>
+                    <a className="btn btn-small" href={`/api/portal/documents/${d.id}/file`} download>
+                      İndir
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </PortalShell>
   );
 }

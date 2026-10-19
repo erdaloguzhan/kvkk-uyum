@@ -110,15 +110,15 @@ describe('Sözleşmeler', () => {
       .expect(400);
   });
 
-  it('izleyici sözleşmeleri göremez ve değiştiremez; başka kuruluşun sözleşmesi görünmez', async () => {
+  it('Yönetici sözleşmeleri göremez ve değiştiremez; başka kuruluşun sözleşmesi görünmez', async () => {
     const { admin, as, orgId } = await setupOrg();
     const created = await request(server).post('/api/v1/contracts').set(as(admin.accessToken)).send(CONTRACT).expect(201);
-    const viewer = await addMember(app, orgId, 'viewer');
-    await request(server).get('/api/v1/contracts').set(as(viewer.accessToken)).expect(403);
-    await request(server).post('/api/v1/contracts').set(as(viewer.accessToken)).send(CONTRACT).expect(403);
+    const approver = await addMember(app, orgId, 'approver');
+    await request(server).get('/api/v1/contracts').set(as(approver.accessToken)).expect(403);
+    await request(server).post('/api/v1/contracts').set(as(approver.accessToken)).send(CONTRACT).expect(403);
     await request(server)
       .patch(`/api/v1/contracts/${created.body.id}`)
-      .set(as(viewer.accessToken))
+      .set(as(approver.accessToken))
       .send({ status: 'expired' })
       .expect(403);
 

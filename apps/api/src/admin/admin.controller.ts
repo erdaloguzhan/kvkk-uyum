@@ -37,12 +37,6 @@ const createOrgBody = z.object({
     email: z.email('Yöneticinin e-posta adresini girin').max(254),
     fullName: z.string().trim().min(2, 'Yöneticinin adını girin').max(200),
   }),
-  viewer: z
-    .object({
-      email: z.email('İzleyicinin e-posta adresini girin').max(254),
-      fullName: z.string().trim().min(2, 'İzleyicinin adını girin').max(200),
-    })
-    .nullish(),
 });
 
 const memberRoleKey = z.enum(SYSTEM_ROLES.map((r) => r.key) as [string, ...string[]]);
@@ -99,7 +93,7 @@ export class AdminController {
     return { items: await this.orgs.list() };
   }
 
-  /** Kuruluşu Sorumlu, Yönetici ve İzleyici kullanıcılarıyla oluşturur; her birine bağlantı gider. */
+  /** Kuruluşu Sorumlu ve Yönetici kullanıcılarıyla oluşturur; her birine bağlantı gider. */
   @Post('organizations')
   createOrganization(
     @CurrentUser() user: AuthUser,

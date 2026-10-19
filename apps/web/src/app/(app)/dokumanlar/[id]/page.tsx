@@ -118,6 +118,25 @@ export default function DocumentDetailPage() {
       />
       <ErrorAlert error={error} />
       {message && <Alert kind="success">{message}</Alert>}
+      {canWrite && (
+        <label className="checkbox" style={{ marginBottom: 16 }}>
+          <input
+            type="checkbox"
+            checked={d.employeeVisible}
+            disabled={busy}
+            onChange={(e) => {
+              const employeeVisible = e.target.checked;
+              act(async () => {
+                await api(`documents/${d.id}`, { method: 'PATCH', body: { employeeVisible } });
+                return employeeVisible
+                  ? 'Yayınlanmış sürüm çalışanlara eğitim portalında gösterilecek.'
+                  : 'Doküman çalışanlara gösterilmeyecek.';
+              }, false);
+            }}
+          />{' '}
+          Çalışanlar eğitim portalında görebilsin (yalnızca yayınlanmış sürüm)
+        </label>
+      )}
       {canWrite && d.templateUpdate && (
         <Alert kind="warning">
           Bu dokümanın ana şablonu güncellendi: şablonun {d.templateUpdate.versionNo}. sürümü

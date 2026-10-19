@@ -263,12 +263,11 @@ describe('Doküman Yönetimi', () => {
     );
   });
 
-  it('izleyici yalnızca yayındaki sürümü görür; Sorumlu yayınlayamaz, Yönetici taslağı görüp yayınlar', async () => {
+  it('Sorumlu yayınlayamaz; Yönetici taslağı görüp yayınlar ama düzenleyemez', async () => {
     const { admin, as, orgId } = await setupOrg();
-    const viewer = await addMember(app, orgId, 'viewer');
     const officer = await addMember(app, orgId, 'kvkk_officer');
     const approver = await addMember(app, orgId, 'approver');
-    const draftDoc = await request(server)
+    await request(server)
       .post('/api/v1/documents')
       .set(as(admin.accessToken))
       .send({ templateCode: 'PRS-010' })
@@ -280,11 +279,7 @@ describe('Doküman Yönetimi', () => {
       .expect(201);
     const v1 = doc.body.versions[0];
 
-    await request(server)
-      .post(`/api/v1/documents/${doc.body.id}/versions/${v1.id}/publish`)
-      .set(as(viewer.accessToken))
-      .expect(403);
-    await request(server).post('/api/v1/documents/setup').set(as(viewer.accessToken)).expect(403);
+    await request(server).post('/api/v1/documents/setup').set(as(approver.accessToken)).expect(403);
     // Sorumlu doğrudan yayınlayamaz, onaya gönderir. Yönetici taslağı görür ama düzenleyemez.
     await request(server)
       .post(`/api/v1/documents/${doc.body.id}/versions/${v1.id}/publish`)
@@ -298,18 +293,6 @@ describe('Doküman Yönetimi', () => {
       .post(`/api/v1/documents/${doc.body.id}/versions/${v1.id}/publish`)
       .set(as(approver.accessToken))
       .expect(200);
-    const v2 = await request(server)
-      .post(`/api/v1/documents/${doc.body.id}/regenerate`)
-      .set(as(admin.accessToken))
-      .expect(201);
-
-    const list = await request(server).get('/api/v1/documents').set(as(viewer.accessToken)).expect(200);
-    expect(list.body.items.map((d: any) => d.code)).toEqual(['PRS-020']);
-    const detail = await request(server).get(`/api/v1/documents/${doc.body.id}`).set(as(viewer.accessToken)).expect(200);
-    expect(detail.body.versions.map((v: any) => v.id)).toEqual([v1.id]);
-    await request(server).get(`/api/v1/documents/${draftDoc.body.id}`).set(as(viewer.accessToken)).expect(404);
-    await download(as(viewer.accessToken), doc.body.id, v1.id);
-    await download(as(viewer.accessToken), doc.body.id, v2.body.id, 404);
   });
 
   it('başka kuruluşun dokümanına erişilemez', async () => {

@@ -101,6 +101,29 @@ export default function AdminOrganizationPage() {
     }
   }
 
+  /** Çalışanlara Eğitim Portalı erişimi gönderir; çalışan yayınlanmış dokümanları portalda okur. */
+  async function sendPortalAccess(e?: Employee) {
+    const text = e
+      ? `${e.firstName} ${e.lastName} için Eğitim Portalı erişimi gönderilsin mi?`
+      : 'E-postası olan ve işten çıkmamış tüm çalışanlara Eğitim Portalı erişimi gönderilsin mi? Hesabı olmayanlara geçici şifre gider.';
+    if (!confirm(text)) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const r = await api<{ sent: number; skipped: { name: string; reason: string }[] }>(
+        `admin/organizations/${id}/employees/portal-access`,
+        { method: 'POST', body: e ? { employeeIds: [e.id] } : {} },
+      );
+      const skipped = r.skipped.map((x) => `${x.name} (${x.reason})`).join(', ');
+      setMessage(`${r.sent} çalışana portal erişimi gönderildi.${skipped ? ` Gönderilmeyenler: ${skipped}.` : ''}`);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function pickFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -113,7 +136,7 @@ export default function AdminOrganizationPage() {
         title={org?.name ?? 'Kuruluş'}
         description={
           <>
-            <Link href="/admin">← Kuruluşlar</Link> · Sistem kullanıcıları ve çalışanlar. Eğitim grupları bu listeden oluşturulur; eğitim
+            <Link href="/admin">← Kuruluşlar</Link> · Sistem kullanıcıları ve çalışanlar. Çalışanlar yayınlanmış KVKK dokümanlarını Eğitim Portalında okur. Eğitim grupları bu listeden oluşturulur; eğitim
             gönderilecek çalışanın e-posta adresi olmalıdır.
           </>
         }
@@ -124,6 +147,9 @@ export default function AdminOrganizationPage() {
             </button>
             <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy}>
               Excel&apos;den içe aktar
+            </button>
+            <button className="btn" onClick={() => sendPortalAccess()} disabled={busy}>
+              Tümüne portal erişimi gönder
             </button>
             <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={pickFile} />
             <button className="btn btn-link" onClick={() => download(`admin/organizations/${id}/employees/import-template`, 'Çalışan listesi şablonu.xlsx')}>
@@ -223,6 +249,13 @@ export default function AdminOrganizationPage() {
                       <button className="btn btn-small" onClick={() => open(e)}>
                         Düzenle
                       </button>{' '}
+                      {e.email && !e.terminationDate && (
+                        <>
+                          <button className="btn btn-small" onClick={() => sendPortalAccess(e)} disabled={busy}>
+                            Portal erişimi
+                          </button>{' '}
+                        </>
+                      )}
                       <button className="btn btn-small btn-danger" onClick={() => remove(e)}>
                         Sil
                       </button>

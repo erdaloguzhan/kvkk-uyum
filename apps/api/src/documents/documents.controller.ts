@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
   Res,
@@ -29,6 +30,7 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 const createBody = z.object({ templateCode: z.string().trim().min(1).max(30) });
+const visibilityBody = z.object({ employeeVisible: z.boolean() });
 const noteBody = z.object({ note: z.string().trim().max(1000).nullish() }).default({});
 
 /** Taslak sürümleri yalnızca doküman düzenleme veya onaylama yetkisi olanlar görür; İzleyici yalnızca yayınlananları. */
@@ -72,6 +74,18 @@ export class DocumentsController {
   @RequirePermissions(PERMISSIONS.DOCUMENTS_READ)
   get(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string) {
     return this.docs.get(org.id, id, canSeeDrafts(org));
+  }
+
+  /** Yayınlanmış sürümün çalışanlara eğitim portalında gösterilip gösterilmeyeceği. */
+  @Patch('documents/:id')
+  @RequirePermissions(PERMISSIONS.DOCUMENTS_WRITE)
+  setVisibility(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(visibilityBody)) body: z.infer<typeof visibilityBody>,
+  ) {
+    return this.docs.setEmployeeVisible(org.id, user.id, id, body.employeeVisible);
   }
 
   /** Şablonu kuruluşun güncel bilgileriyle yeniden doldurur (ör. adres değiştiğinde). */

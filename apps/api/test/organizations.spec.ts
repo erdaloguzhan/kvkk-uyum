@@ -34,7 +34,7 @@ describe('Kuruluşlar, üyeler ve roller', () => {
     });
 
     const roles = await request(server).get('/api/v1/roles').set(as(admin.accessToken)).expect(200);
-    expect(roles.body.items.map((r: any) => r.key)).toEqual(['officer_approver', 'kvkk_officer', 'approver', 'viewer']);
+    expect(roles.body.items.map((r: any) => r.key)).toEqual(['officer_approver', 'kvkk_officer', 'approver']);
     // Müşteri özel rol tanımlayamaz.
     await request(server).post('/api/v1/roles').set(as(admin.accessToken)).send({ name: 'X', permissions: [] }).expect(404);
   });
@@ -92,7 +92,6 @@ describe('Kuruluşlar, üyeler ve roller', () => {
     const { admin, orgId, as } = await setupOrg();
     const officer = await addMember(app, orgId, 'kvkk_officer');
     const approver = await addMember(app, orgId, 'approver');
-    const viewer = await addMember(app, orgId, 'viewer');
 
     // Sorumlu kuruluş bilgilerini düzenler ve kullanıcıları görür ama ekleyemez.
     await request(server).patch('/api/v1/organizations/current').set(as(officer.accessToken)).send({ phone: '+90 212 000 00 00' }).expect(200);
@@ -101,12 +100,12 @@ describe('Kuruluşlar, üyeler ve roller', () => {
       await request(server)
         .post('/api/v1/members')
         .set(as(user.accessToken))
-        .send({ email: uniqueEmail(), fullName: 'Ali Kaya', roleKey: 'viewer' })
+        .send({ email: uniqueEmail(), fullName: 'Ali Kaya', roleKey: 'approver' })
         .expect(404);
     }
 
-    // Yönetici ve İzleyici yalnızca dokümanları görür.
-    for (const user of [approver, viewer]) {
+    // Yönetici yalnızca dokümanları görür.
+    for (const user of [approver]) {
       await request(server).get('/api/v1/documents').set(as(user.accessToken)).expect(200);
       await request(server).get('/api/v1/organizations/current').set(as(user.accessToken)).expect(403);
       await request(server).get('/api/v1/members').set(as(user.accessToken)).expect(403);
@@ -115,8 +114,8 @@ describe('Kuruluşlar, üyeler ve roller', () => {
     }
 
     // Devre dışı bırakılan üye erişemez.
-    await app.get(MembersService).update(orgId, null, viewer.membershipId, { status: 'disabled' });
-    await request(server).get('/api/v1/documents').set(as(viewer.accessToken)).expect(403);
+    await app.get(MembersService).update(orgId, null, approver.membershipId, { status: 'disabled' });
+    await request(server).get('/api/v1/documents').set(as(approver.accessToken)).expect(403);
   });
 
   it('kuruluşta Sorumlu ve Yönetici yetkisi olan birer aktif kişi kalır', async () => {

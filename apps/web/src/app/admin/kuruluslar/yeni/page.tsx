@@ -42,7 +42,6 @@ export default function NewOrganizationPage() {
   const [created, setCreated] = useState<Created | null>(null);
   const [sameApprover, setSameApprover] = useState(true);
   const [approver, setApprover] = useState<Person>(EMPTY);
-  const [viewer, setViewer] = useState<Person>(EMPTY);
 
   if (created) {
     return (
@@ -75,7 +74,6 @@ export default function NewOrganizationPage() {
             onClick={() => {
               setCreated(null);
               setApprover(EMPTY);
-              setViewer(EMPTY);
               setSameApprover(true);
             }}
           >
@@ -85,8 +83,6 @@ export default function NewOrganizationPage() {
       </>
     );
   }
-
-  const hasViewer = viewer.email.trim() !== '' || viewer.fullName.trim() !== '';
 
   return (
     <>
@@ -105,7 +101,6 @@ export default function NewOrganizationPage() {
             const body = {
               ...profile,
               approver: sameApprover ? { email: profile.email, fullName: profile.authorizedPerson } : approver,
-              viewer: hasViewer ? viewer : null,
             };
             setCreated(await api<Created>('admin/organizations', { method: 'POST', body }));
           }}
@@ -116,9 +111,10 @@ export default function NewOrganizationPage() {
             Sorumlusu ile aynı kişi (tek hesap hem hazırlar hem onaylar)
           </label>
           {!sameApprover && <PersonInputs id="approver" value={approver} onChange={setApprover} required />}
-          <h3>İzleyici (isteğe bağlı)</h3>
-          <p className="hint">Yalnızca onaylanıp yayınlanmış dokümanları görür. Boş bırakılabilir, sonradan da eklenebilir.</p>
-          <PersonInputs id="viewer" value={viewer} onChange={setViewer} required={hasViewer} />
+          <p className="hint">
+            Çalışanlar yayınlanmış dokümanları ayrı hesap açılmadan Eğitim Portalında görür; kuruluş sayfasındaki çalışan
+            listesinden portal erişimi gönderilir.
+          </p>
         </OrgForm>
       </div>
     </>

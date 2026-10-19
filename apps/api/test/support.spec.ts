@@ -33,8 +33,8 @@ describe('Destek talepleri', () => {
     const orgId = await createOrg(app, owner, { name: 'Destek Deneme A.Ş.' });
     const as = (token: string) => ({ ...bearer(token), 'X-Organization-Id': orgId });
 
-    // İzleyici rolünde ikinci kullanıcı.
-    const member = await addMember(app, orgId, 'viewer', 'Zeynep Çalışan');
+    // Yönetici rolünde ikinci kullanıcı (kendi taleplerini görür).
+    const member = await addMember(app, orgId, 'approver', 'Zeynep Çalışan');
     return { staff, owner, member, orgId, as };
   }
 

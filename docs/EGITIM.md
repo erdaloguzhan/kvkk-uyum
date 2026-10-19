@@ -34,3 +34,15 @@ olan noktalar ve nedenleri:
 - **Platform yöneticisi:** her şey; kuruluş çalışanları (kuruluş sayfasında) ve eğitimciler yalnızca onun.
 - **Eğitimci:** eğitim içerikleri, sorular, gruplar, gönderim, sonuçlar ve sertifika. Pasif eğitimci giremez.
 - **Katılımcı:** yalnızca Eğitim Portalı (`/egitim`) ve kendisine gönderilen eğitimler.
+
+## Çalışanların doküman erişimi
+
+Ana sistemde ayrı İzleyici hesabı yoktur. Çalışan, Eğitim Portalına portal hesabıyla girip kuruluşunun yayınlanmış
+KVKK dokümanlarını görür ve indirir (`GET /training-portal/documents`, `GET /training-portal/documents/:id/file`).
+
+- Yalnızca yayındaki sürüm ve "Çalışanlar görebilsin" işaretli dokümanlar görünür (varsayılan açık; doküman
+  sayfasında KVKK Sorumlusu kapatabilir).
+- Hesabın e-postasıyla kayıtlı ve işten çıkış tarihi geçmemiş çalışan kayıtlarının kuruluşları esas alınır.
+- Eğitime eklenmemiş çalışana platform yöneticisi kuruluş sayfasından portal erişimi gönderir
+  (`POST /admin/organizations/:orgId/employees/portal-access`); hesabı olmayana geçici şifre gider.
+

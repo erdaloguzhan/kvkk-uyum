@@ -19,8 +19,6 @@ export interface NewOrganization extends OrganizationProfile {
   authorizedPerson: string;
   /** Onay veren Yönetici. E-postası Sorumlununkiyle aynıysa tek kullanıcı "Sorumlu + Yönetici" olur. */
   approver: Person;
-  /** Yalnızca yayınlanmış dokümanları gören İzleyici (isteğe bağlı). */
-  viewer?: Person | null;
 }
 
 const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -57,22 +55,18 @@ export class AdminOrganizationsService {
   }
 
   /**
-   * Kuruluşu hazır kullanıcılarıyla oluşturur: kuruluş e-postası KVKK Sorumlusu, ayrıca Yönetici ve
-   * isteğe bağlı İzleyici. Hesabı olmayanlara şifre oluşturma bağlantısı, olanlara bilgilendirme gider.
+   * Kuruluşu hazır kullanıcılarıyla oluşturur: kuruluş e-postası KVKK Sorumlusu, ayrıca Yönetici (aynı
+   * e-postaysa tek hesap). Hesabı olmayanlara şifre oluşturma bağlantısı, olanlara bilgilendirme gider.
    */
   async create(adminId: string, input: NewOrganization) {
-    const { approver, viewer, ...profile } = input;
+    const { approver, ...profile } = input;
     const email = input.email.trim();
-    if (viewer && (sameEmail(viewer.email, email) || sameEmail(viewer.email, approver.email))) {
-      throw new BadRequestException('İzleyicinin e-posta adresi Sorumlu ve Yöneticiden farklı olmalı');
-    }
     const combined = sameEmail(approver.email, email);
 
     const created = await this.orgs.create(null, { ...profile, email }, adminId);
     const people = [
       { email, fullName: input.authorizedPerson, roleKey: combined ? 'officer_approver' : 'kvkk_officer' },
       ...(combined ? [] : [{ ...approver, roleKey: 'approver' }]),
-      ...(viewer ? [{ ...viewer, roleKey: 'viewer' }] : []),
     ];
     const members = [];
     for (const person of people) {

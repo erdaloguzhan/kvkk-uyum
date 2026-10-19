@@ -23,17 +23,22 @@ import { AuthUser, CurrentUser } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
 import { employeesTemplateXlsx } from './employees-import';
 import { EmployeesService } from './employees.service';
+import { PortalDocumentsService } from './portal-documents.service';
 import { sendFile, XLSX_MIME } from './files';
 import { employeeBody } from './training.schema';
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const importQuery = z.object({ dryRun: z.enum(['true', 'false']).default('false') });
+const portalAccessBody = z.object({ employeeIds: z.array(z.uuid()).min(1).max(5000).optional() }).default({});
 
 /** Kuruluş (müşteri) çalışanları: yönetim panelinde kuruluş sayfasından, yalnızca platform yöneticisi. */
 @Controller('admin/organizations/:orgId/employees')
 @UseGuards(PlatformAdminGuard)
 export class EmployeesController {
-  constructor(private readonly employees: EmployeesService) {}
+  constructor(
+    private readonly employees: EmployeesService,
+    private readonly portalDocuments: PortalDocumentsService,
+  ) {}
 
   @Get()
   async list(@Param('orgId', ParseUUIDPipe) orgId: string) {
@@ -67,6 +72,20 @@ export class EmployeesController {
   ) {
     if (!file) throw new BadRequestException('Dosya gerekli');
     return this.employees.import(user.id, orgId, file.buffer, query.dryRun === 'true');
+  }
+
+  /**
+   * Çalışanlara Eğitim Portalı erişimi gönderir; çalışan yayınlanmış KVKK dokümanlarını portalda okur.
+   * `employeeIds` verilmezse e-postası olan tüm çalışanlara gönderilir.
+   */
+  @Post('portal-access')
+  @HttpCode(200)
+  sendPortalAccess(
+    @CurrentUser() user: AuthUser,
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Body(new ZodPipe(portalAccessBody)) body: z.infer<typeof portalAccessBody>,
+  ) {
+    return this.portalDocuments.sendAccess(user.id, orgId, body.employeeIds);
   }
 
   @Patch(':id')

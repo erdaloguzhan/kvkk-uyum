@@ -63,7 +63,7 @@ Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister.
 | `PATCH /organizations/current`, `POST /organizations/current/complete-setup` | `org.manage` |
 | `GET /members`, `GET /roles` | `users.read` |
 | `GET /audit-logs` | `audit.read` |
-| `GET /document-templates`, `GET /documents`, `GET /documents/:id`, `GET /documents/:id/versions/:versionId/file` | `documents.read` (taslakları yalnızca `documents.write` veya `documents.approve` sahipleri görür) |
+| `GET /document-templates`, `GET /documents`, `GET /documents/:id`, `GET /documents/:id/versions/:versionId/file` | `documents.read` (taslakları yalnızca `documents.write` veya `documents.approve` sahipleri görür); `PATCH /documents/:id` (`employeeVisible`: çalışanlara portalda gösterilsin mi) `documents.write` |
 | `POST /documents` (şablondan), `POST /documents/setup` (opsiyonel olmayan tüm şablonlar), `POST /documents/:id/regenerate`, `POST /documents/:id/versions` (`.docx` yükleme) | `documents.write` |
 | `POST /documents/:id/versions/:versionId/publish` | `documents.approve` |
 | `GET /inventory`, `GET /inventory/:id`, `GET /inventory/options`, `GET /inventory/summary`, `GET /inventory/export` (TBL-010 Excel) | `inventory.read` |
@@ -75,7 +75,7 @@ Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister.
 | `GET /approval-requests`, `GET /approval-requests/:id` | Kuruluş üyesi (doküman yetkisi yoksa yalnızca kendi talepleri / onaylayacakları) |
 | `POST /approval-requests/:id/approve` (sürümü yayınlar), `POST /approval-requests/:id/reject` (gerekçe zorunlu) | `documents.approve` + seçilen onaylayıcı |
 | `GET /notifications` (`?unread=true`), `POST /notifications/:id/read`, `POST /notifications/read-all` | Kuruluş üyesi (kendi bildirimleri) |
-| `GET/POST /admin/organizations` (kuruluşu Sorumlu, Yönetici ve isteğe bağlı İzleyici hesaplarıyla açar; her birine şifre oluşturma bağlantısı gider), `POST /admin/organizations/:id/resend-invite` | Platform yöneticisi |
+| `GET/POST /admin/organizations` (kuruluşu Sorumlu ve Yönetici hesaplarıyla açar; her birine şifre oluşturma bağlantısı gider), `POST /admin/organizations/:id/resend-invite` | Platform yöneticisi |
 | `GET/POST /admin/organizations/:id/members`, `PATCH/DELETE /admin/organizations/:id/members/:memberId`, `POST /admin/organizations/:id/members/:memberId/resend-invite` (kuruluş kullanıcıları; müşteri kullanıcı ekleyemez) | Platform yöneticisi |
 | `GET/POST /admin/templates`, `GET/PATCH /admin/templates/:code`, `POST /admin/templates/:code/versions` (`.docx`, taslak), `POST .../versions/:id/publish` (`effectiveDate`), `POST .../versions/:id/unpublish`, `DELETE .../versions/:id`, `GET .../versions/:id/file` | Platform yöneticisi |
 

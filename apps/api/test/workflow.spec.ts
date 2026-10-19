@@ -48,7 +48,7 @@ describe('İş akışı ve alarmlar', () => {
   it('görev atar, atanana bildirim ve e-posta gönderir', async () => {
     const { admin, as, orgId } = await setupOrg();
     const officer = await addMember(app, orgId, 'kvkk_officer');
-    const viewer = await addMember(app, orgId, 'viewer');
+    const yonetici = await addMember(app, orgId, 'approver');
     const dueDate = addDays(today(), 30);
 
     await request(server)
@@ -64,8 +64,8 @@ describe('İş akışı ve alarmlar', () => {
       .expect(400);
     await request(server)
       .post('/api/v1/tasks')
-      .set(as(viewer.accessToken))
-      .send({ title: 'Yetkisiz', assigneeId: viewer.user.id, dueDate })
+      .set(as(yonetici.accessToken))
+      .send({ title: 'Yetkisiz', assigneeId: yonetici.user.id, dueDate })
       .expect(403);
 
     const created = await request(server)
@@ -94,10 +94,10 @@ describe('İş akışı ve alarmlar', () => {
 
     const list = await request(server).get('/api/v1/tasks?mine=true').set(as(officer.accessToken)).expect(200);
     expect(list.body.items.map((t: any) => t.id)).toEqual([created.body.id]);
-    // İzleyici başkasının görevlerini görmez ve değiştiremez.
-    const all = await request(server).get('/api/v1/tasks').set(as(viewer.accessToken)).expect(200);
+    // Görev yetkisi olmayan Yönetici başkasının görevlerini görmez ve değiştiremez.
+    const all = await request(server).get('/api/v1/tasks').set(as(yonetici.accessToken)).expect(200);
     expect(all.body.items).toHaveLength(0);
-    await request(server).post(`/api/v1/tasks/${created.body.id}/complete`).set(as(viewer.accessToken)).send({}).expect(404);
+    await request(server).post(`/api/v1/tasks/${created.body.id}/complete`).set(as(yonetici.accessToken)).send({}).expect(404);
 
     const summary = await request(server).get('/api/v1/tasks/summary').set(as(admin.accessToken)).expect(200);
     expect(summary.body).toMatchObject({ open: 1, overdue: 0, dueWithin7Days: 0 });
@@ -105,7 +105,7 @@ describe('İş akışı ve alarmlar', () => {
 
   it('görev yetkisi olmayan üye yalnızca kendi görevlerini görür ve tamamlar', async () => {
     const { admin, as, orgId } = await setupOrg();
-    const staff = await addMember(app, orgId, 'viewer');
+    const staff = await addMember(app, orgId, 'approver');
     const officer = await addMember(app, orgId, 'kvkk_officer');
     const dueDate = addDays(today(), 10);
     const mine = await request(server)
@@ -325,20 +325,22 @@ describe('İş akışı ve alarmlar', () => {
       const ctx = await setupOrg();
       // Onaylayıcı yalnızca onay yetkisi olan Yönetici rolündedir.
       const officer = await addMember(app, ctx.orgId, 'approver');
-      const viewer = await addMember(app, ctx.orgId, 'viewer');
+      // Onay yetkisi olmayan Sorumlu.
+      const sorumlu = await addMember(app, ctx.orgId, 'kvkk_officer');
       const doc = await request(server)
         .post('/api/v1/documents')
         .set(ctx.as(ctx.admin.accessToken))
         .send({ templateCode: 'AYM-010' })
         .expect(201);
-      return { ...ctx, officer, viewer, docId: doc.body.id as string, versionId: doc.body.versions[0].id as string };
+      return { ...ctx, officer, sorumlu, docId: doc.body.id as string, versionId: doc.body.versions[0].id as string };
     }
 
     it('onaylanınca sürüm yayınlanır, görev kapanır, talep edene haber verilir', async () => {
-      const { admin, as, officer, viewer, docId, versionId } = await setupDoc();
+      const { admin, as, officer, sorumlu, docId, versionId } = await setupDoc();
       const url = `/api/v1/documents/${docId}/versions/${versionId}/approval-requests`;
-      await request(server).post(url).set(as(admin.accessToken)).send({ approverId: viewer.user.id }).expect(400);
-      await request(server).post(url).set(as(viewer.accessToken)).send({ approverId: officer.user.id }).expect(403);
+      await request(server).post(url).set(as(admin.accessToken)).send({ approverId: sorumlu.user.id }).expect(400);
+      // Doküman yazma yetkisi olmayan Yönetici onay isteyemez.
+      await request(server).post(url).set(as(officer.accessToken)).send({ approverId: officer.user.id }).expect(403);
 
       const req = await request(server)
         .post(url)
@@ -365,8 +367,6 @@ describe('İş akışı ve alarmlar', () => {
 
       // Yalnızca seçilen onaylayıcı karar verebilir.
       await request(server).post(`/api/v1/approval-requests/${req.body.id}/approve`).set(as(admin.accessToken)).send({}).expect(403);
-      // İzleyici talebi göremez.
-      await request(server).get(`/api/v1/approval-requests/${req.body.id}`).set(as(viewer.accessToken)).expect(404);
       const pending = await request(server)
         .get('/api/v1/approval-requests?status=pending')
         .set(as(officer.accessToken))
@@ -381,7 +381,7 @@ describe('İş akışı ve alarmlar', () => {
       expect(approved.body).toMatchObject({ status: 'approved', decisionNote: 'Uygun', version: { status: 'published' } });
       await request(server).post(`/api/v1/approval-requests/${req.body.id}/approve`).set(as(officer.accessToken)).send({}).expect(409);
 
-      const doc = await request(server).get(`/api/v1/documents/${docId}`).set(as(viewer.accessToken)).expect(200);
+      const doc = await request(server).get(`/api/v1/documents/${docId}`).set(as(sorumlu.accessToken)).expect(200);
       expect(doc.body.publishedVersionId).toBe(versionId);
       const task = await request(server).get(`/api/v1/tasks/${req.body.taskId}`).set(as(officer.accessToken)).expect(200);
       expect(task.body).toMatchObject({ status: 'done', completedBy: officer.user.id });

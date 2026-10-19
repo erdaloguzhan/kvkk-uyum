@@ -238,17 +238,15 @@ describe('Kişisel Veri Envanteri', () => {
     const listB = await request(server).get('/api/v1/inventory').set(b.as(b.admin.accessToken)).expect(200);
     expect(listB.body.items).toEqual([]);
 
-    // İzleyici ve Yönetici yalnızca dokümanları görür; envantere erişemez.
-    const viewer = await addMember(app, a.orgId, 'viewer');
+    // Yönetici yalnızca dokümanları görür; envantere erişemez.
     const approver = await addMember(app, a.orgId, 'approver');
-    await request(server).get('/api/v1/inventory').set(a.as(viewer.accessToken)).expect(403);
-    await request(server).get('/api/v1/inventory/export').set(a.as(viewer.accessToken)).expect(403);
     await request(server).get('/api/v1/inventory').set(a.as(approver.accessToken)).expect(403);
+    await request(server).get('/api/v1/inventory/export').set(a.as(approver.accessToken)).expect(403);
     const officer = await addMember(app, a.orgId, 'kvkk_officer');
     await request(server).get('/api/v1/inventory/export').set(a.as(officer.accessToken)).expect(200);
     await request(server).post('/api/v1/inventory').set(a.as(officer.accessToken)).send(ENTRY).expect(201);
-    await request(server).post('/api/v1/inventory').set(a.as(viewer.accessToken)).send(ENTRY).expect(403);
-    await request(server).delete(`/api/v1/inventory/${entry.body.id}`).set(a.as(viewer.accessToken)).expect(403);
+    await request(server).post('/api/v1/inventory').set(a.as(approver.accessToken)).send(ENTRY).expect(403);
+    await request(server).delete(`/api/v1/inventory/${entry.body.id}`).set(a.as(approver.accessToken)).expect(403);
   });
 
   describe('Excel içe aktarma', () => {
@@ -368,8 +366,8 @@ describe('Kişisel Veri Envanteri', () => {
       expect(res.body.message).toContain('TBL-010 başlıkları bulunamadı');
       await request(server).post('/api/v1/inventory/import').set(as(admin.accessToken)).expect(400);
 
-      const viewer = await addMember(app, orgId, 'viewer');
-      await upload(as(viewer.accessToken), readFileSync(TEMPLATE)).expect(403);
+      const approver = await addMember(app, orgId, 'approver');
+      await upload(as(approver.accessToken), readFileSync(TEMPLATE)).expect(403);
     });
   });
 });
