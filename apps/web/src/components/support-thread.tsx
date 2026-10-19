@@ -52,19 +52,21 @@ export function useAttachments() {
   const [error, setError] = useState<string | null>(null);
 
   function add(list: File[]) {
-    setError(null);
+    // Reddedilen her dosyanın nedeni ayrı ayrı gösterilir.
+    const errors: string[] = [];
     const next = [...files];
     for (const f of list) {
       if (!(SUPPORT_ATTACHMENT_MIME_TYPES as readonly string[]).includes(f.type)) {
-        setError(`${f.name}: yalnızca PNG, JPEG, WEBP, GIF görsel veya PDF eklenebilir`);
+        errors.push(`${f.name}: yalnızca PNG, JPEG, WEBP, GIF görsel veya PDF eklenebilir`);
       } else if (f.size > SUPPORT_ATTACHMENT_MAX_BYTES) {
-        setError(`${f.name}: dosya en fazla 5 MB olabilir`);
+        errors.push(`${f.name}: dosya en fazla 5 MB olabilir`);
       } else if (next.length >= SUPPORT_ATTACHMENT_MAX_FILES) {
-        setError(`En fazla ${SUPPORT_ATTACHMENT_MAX_FILES} dosya eklenebilir`);
+        errors.push(`${f.name}: en fazla ${SUPPORT_ATTACHMENT_MAX_FILES} dosya eklenebilir`);
       } else {
         next.push(f);
       }
     }
+    setError(errors.length ? errors.join('; ') : null);
     setFiles(next);
   }
 

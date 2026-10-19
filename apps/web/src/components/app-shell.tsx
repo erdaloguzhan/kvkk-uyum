@@ -66,7 +66,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (loading || !me || toAdmin) return <Loading />;
 
-  const items = NAV.filter((n) => !n.permission || [n.permission].flat().some(can));
+  const allowed = (n: NavItem) => !n.permission || [n.permission].flat().some(can);
+  const items = NAV.filter(allowed);
+  // Menüde görünmeyen bir bölümün adresine doğrudan gidilirse sayfa yerine tek bir yetki mesajı gösterilir.
+  const blocked = NAV.some((n) => n.href !== '/' && isActive(pathname, n.href) && !allowed(n));
 
   return (
     <div className="shell">
@@ -125,7 +128,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
       <main className="main">
-        {org || pathname === '/profil' ? (
+        {org && blocked ? (
+          <div className="card">
+            <Empty title="Bu sayfayı görüntüleme yetkiniz yok">
+              Rolünüz bu bölüme erişim içermiyor. <Link href="/">Özete dön</Link>
+            </Empty>
+          </div>
+        ) : org || pathname === '/profil' ? (
           children
         ) : (
           <div className="card">

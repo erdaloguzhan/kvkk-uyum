@@ -416,9 +416,13 @@ describe('İş akışı ve alarmlar', () => {
       expect(task.body.status).toBe('cancelled');
       await request(server).post(`/api/v1/approval-requests/${second.body.id}/cancel`).set(as(admin.accessToken)).expect(409);
 
-      // Talep beklerken sürüm doğrudan yayınlanırsa talep iptal olur.
+      // Talep beklerken sürüm doğrudan yayınlanırsa talep ve görevi hemen iptal olur.
       const third = await request(server).post(url).set(as(admin.accessToken)).send({ approverId: officer.user.id }).expect(201);
       await request(server).post(`/api/v1/documents/${docId}/versions/${versionId}/publish`).set(as(admin.accessToken)).expect(200);
+      const afterPublish = await request(server).get(`/api/v1/approval-requests/${third.body.id}`).set(as(admin.accessToken)).expect(200);
+      expect(afterPublish.body.status).toBe('cancelled');
+      const taskAfterPublish = await request(server).get(`/api/v1/tasks/${third.body.taskId}`).set(as(admin.accessToken)).expect(200);
+      expect(taskAfterPublish.body.status).toBe('cancelled');
       await request(server).post(`/api/v1/approval-requests/${third.body.id}/approve`).set(as(officer.accessToken)).send({}).expect(409);
       const stale = await request(server).get(`/api/v1/approval-requests/${third.body.id}`).set(as(admin.accessToken)).expect(200);
       expect(stale.body.status).toBe('cancelled');
