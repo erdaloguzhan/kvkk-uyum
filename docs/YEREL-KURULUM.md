@@ -80,6 +80,30 @@ Yönetim panelinin sol menüsündeki **Uzaktan eğitim** bölümünü kullanın.
 5. **Katılımcı:** E-postadaki bağlantıyla **http://localhost:3000/egitim** adresindeki Eğitim Portalı'na girer, ilk girişte şifresini değiştirir, ön testi çözer, konuları okur ve son testi çözer.
 6. **Sınav sonuçları:** Notları görün, tabloyu Excel'e aktarın; başarılı katılımcı için **Sertifika oluştur** PDF sertifika indirir.
 
+## Hazır test verisi yükleme
+
+Her şeyi elle girmeden denemek için sisteme uydurma bir test verisi yükleyebilirsiniz. Sistem çalışırken (`docker compose up` penceresi açıkken) aynı klasörde **ikinci bir** PowerShell / Terminal penceresi açıp şunu yazın:
+
+```
+docker compose exec api node dist/db/seed-test-data.js
+```
+
+Birkaç saniye içinde `Test verisi yüklendi` yazar. Komutu ikinci kez çalıştırırsanız hiçbir şey değişmez. Veri yalnızca bilgisayarınızdaki deneme veritabanına yazılır; silmek için `docker compose down -v` yeterlidir (sizin girdiğiniz diğer bilgiler de silinir).
+
+Tüm test hesaplarının şifresi **Deneme12345**. Müşteri ekranına girişteki 6 haneli kod yine http://localhost:8025 adresine düşer.
+
+| Hesap | Nereden girilir | Rol |
+|---|---|---|
+| sorumlu.a@test.local | http://localhost:3000 | Test Ticaret A.Ş. - KVKK Sorumlusu |
+| yonetici.a@test.local | http://localhost:3000 | Test Ticaret A.Ş. - Yönetici (bir doküman onayını bekliyor) |
+| tek.b@test.local | http://localhost:3000 | Örnek Danışmanlık Ltd. Şti. - KVKK Sorumlusu + Yönetici |
+| egitimci@test.local | http://localhost:3000 | Eğitimci |
+| ayse.yilmaz@test.local, mehmet.kaya@test.local, zeynep.demir@test.local, can.ozturk@test.local | http://localhost:3000/egitim | Çalışan; "KVKK Temel Farkındalık Eğitimi (test)" atanmış |
+| elif.sahin@test.local, gul.aydin@test.local | http://localhost:3000/egitim | Çalışan; yalnızca KVKK dokümanlarını görür |
+| deniz.arslan@test.local | http://localhost:3000/egitim | İşten çıkmış çalışan; dokümanları göremez |
+
+Test Ticaret A.Ş.'de ayrıca şunlar hazırdır: tüm dokümanlar (4'ü yayında, biri çalışanlardan gizli, biri Yönetici onayında), 6 envanter satırı (biri eksik), 5 sözleşme (biri 20 gün içinde bitiyor, birinin süresi geçmiş), 2 görev ve 8 çalışan (biri e-postasız, biri işten çıkmış). Yönetim paneline yine kendi platform yöneticisi hesabınızla girersiniz.
+
 ## Durdurma ve yeniden başlatma
 
 - **Durdurmak:** Komutu çalıştırdığınız pencerede `Ctrl + C` tuşlarına basın.
