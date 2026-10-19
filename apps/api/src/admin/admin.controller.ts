@@ -15,13 +15,14 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { DOCUMENT_CATEGORIES, DocumentCategory } from '@kvkk/shared';
+import { DOCUMENT_CATEGORIES, DocumentCategory, SYSTEM_ROLES } from '@kvkk/shared';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AuthUser, CurrentUser } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
 import { profileFields } from '../organizations/organizations.controller';
 import { TemplatesService } from '../templates/templates.service';
+import { MembersService } from '../members/members.service';
 import { AdminOrganizationsService } from './admin-organizations.service';
 import { PlatformAdminGuard } from './platform-admin.guard';
 
@@ -31,8 +32,29 @@ const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingm
 const createOrgBody = z.object({
   ...profileFields,
   email: z.email('Geçerli bir e-posta adresi girin').max(254),
-  authorizedPerson: z.string().trim().min(2, 'Yetkili kişinin adını girin').max(200),
+  authorizedPerson: z.string().trim().min(2, 'KVKK Sorumlusunun adını girin').max(200),
+  approver: z.object({
+    email: z.email('Yöneticinin e-posta adresini girin').max(254),
+    fullName: z.string().trim().min(2, 'Yöneticinin adını girin').max(200),
+  }),
+  viewer: z
+    .object({
+      email: z.email('İzleyicinin e-posta adresini girin').max(254),
+      fullName: z.string().trim().min(2, 'İzleyicinin adını girin').max(200),
+    })
+    .nullish(),
 });
+
+const memberRoleKey = z.enum(SYSTEM_ROLES.map((r) => r.key) as [string, ...string[]]);
+const addMemberBody = z.object({
+  email: z.email('Geçerli bir e-posta adresi girin').max(254),
+  fullName: z.string().trim().min(2).max(200),
+  roleKey: memberRoleKey,
+});
+const updateMemberBody = z
+  .object({ roleKey: memberRoleKey, status: z.enum(['active', 'disabled']) })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Güncellenecek alan yok' });
 
 const categories = Object.keys(DOCUMENT_CATEGORIES) as [DocumentCategory, ...DocumentCategory[]];
 /** Çok parçalı formdan gelen "true"/"false" değerleri. */
@@ -68,6 +90,7 @@ const fileName = (file: Express.Multer.File) =>
 export class AdminController {
   constructor(
     private readonly orgs: AdminOrganizationsService,
+    private readonly members: MembersService,
     private readonly templates: TemplatesService,
   ) {}
 
@@ -76,7 +99,7 @@ export class AdminController {
     return { items: await this.orgs.list() };
   }
 
-  /** Kuruluşu oluşturur; kayıttaki e-postaya şifre oluşturma bağlantısı gider. */
+  /** Kuruluşu Sorumlu, Yönetici ve İzleyici kullanıcılarıyla oluşturur; her birine bağlantı gider. */
   @Post('organizations')
   createOrganization(
     @CurrentUser() user: AuthUser,
@@ -89,6 +112,51 @@ export class AdminController {
   @HttpCode(200)
   resendInvite(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.orgs.resendInvite(user.id, id);
+  }
+
+  /** Kuruluşun kullanıcıları; müşteri kuruluşlar kullanıcı ekleyemediği için buradan yönetilir. */
+  @Get('organizations/:id/members')
+  async listMembers(@Param('id', ParseUUIDPipe) id: string) {
+    return { items: await this.members.list(id) };
+  }
+
+  @Post('organizations/:id/members')
+  addMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(addMemberBody)) body: z.infer<typeof addMemberBody>,
+  ) {
+    return this.members.add(id, user.id, body);
+  }
+
+  @Patch('organizations/:id/members/:memberId')
+  updateMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @Body(new ZodPipe(updateMemberBody)) body: z.infer<typeof updateMemberBody>,
+  ) {
+    return this.members.update(id, user.id, memberId, body);
+  }
+
+  @Delete('organizations/:id/members/:memberId')
+  @HttpCode(204)
+  removeMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+  ) {
+    return this.members.remove(id, user.id, memberId);
+  }
+
+  @Post('organizations/:id/members/:memberId/resend-invite')
+  @HttpCode(200)
+  resendMemberInvite(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+  ) {
+    return this.members.resendInvite(id, user.id, memberId);
   }
 
   @Get('templates')

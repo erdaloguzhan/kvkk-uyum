@@ -6,8 +6,6 @@ export const PERMISSIONS = {
   ORG_READ: 'org.read',
   ORG_MANAGE: 'org.manage',
   USERS_READ: 'users.read',
-  USERS_MANAGE: 'users.manage',
-  ROLES_MANAGE: 'roles.manage',
   AUDIT_READ: 'audit.read',
   DOCUMENTS_READ: 'documents.read',
   DOCUMENTS_WRITE: 'documents.write',
@@ -33,25 +31,34 @@ export interface SystemRoleDefinition {
   permissions: Permission[];
 }
 
-/** Her yeni kuruluşa otomatik oluşturulan varsayılan roller. */
+/**
+ * Müşteri kuruluşlarında yalnızca bu sabit roller vardır; özel rol tanımlanamaz.
+ * Sorumlu tüm işi yapar ve dokümanları Yöneticinin onayına gönderir. Yönetici yalnızca onay verir.
+ * Aynı kişi (aynı e-posta) her ikisi olacaksa "Sorumlu + Yönetici" rolü atanır.
+ */
 export const SYSTEM_ROLES: SystemRoleDefinition[] = [
   {
-    key: 'org_admin',
-    name: 'Kuruluş Yöneticisi',
+    key: 'officer_approver',
+    name: 'KVKK Sorumlusu + Yönetici',
     permissions: ALL_PERMISSIONS,
   },
   {
     key: 'kvkk_officer',
     name: 'KVKK Sorumlusu',
-    permissions: ALL_PERMISSIONS.filter(
-      (p) => p !== PERMISSIONS.ORG_MANAGE && p !== PERMISSIONS.ROLES_MANAGE && p !== PERMISSIONS.USERS_MANAGE,
-    ),
+    permissions: ALL_PERMISSIONS.filter((p) => p !== PERMISSIONS.DOCUMENTS_APPROVE),
+  },
+  {
+    key: 'approver',
+    name: 'Yönetici',
+    permissions: [PERMISSIONS.DOCUMENTS_READ, PERMISSIONS.DOCUMENTS_APPROVE],
   },
   {
     key: 'viewer',
-    name: 'Görüntüleyici',
-    permissions: ALL_PERMISSIONS.filter((p) => p.endsWith('.read')),
+    name: 'İzleyici',
+    // Taslakları değil, yalnızca onaylanıp yayınlanmış dokümanları görür.
+    permissions: [PERMISSIONS.DOCUMENTS_READ],
   },
 ];
 
-export const ORG_ADMIN_ROLE_KEY = 'org_admin';
+/** Admin panelinden açılan kuruluşa davet edilen ilk kişinin rolü. */
+export const ORG_ADMIN_ROLE_KEY = 'officer_approver';

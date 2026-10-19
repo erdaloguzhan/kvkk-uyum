@@ -11,7 +11,7 @@ Kuruluş kullanıcıları müşteri ekranındaki **Destek** menüsünden talep a
 | Yanıtlandı | Kullanıcının dönüşünü bekliyor | Destek ekibi yanıt yazınca |
 | Kapandı | İş bitti | Kullanıcı "Talebi kapat", destek ekibi "Talebi kapat" veya "Yanıtla ve kapat" |
 
-- Kuruluşun her aktif üyesi talep açabilir. Kullanıcı kendi taleplerini, kuruluş yöneticisi (`org.manage`)
+- Kuruluşun her aktif üyesi talep açabilir. Kullanıcı kendi taleplerini, KVKK Sorumlusu (`org.manage`)
   kuruluşun tüm taleplerini görür.
 - Sorumlu yalnızca platform yöneticisi olabilir. Sorumlusu olmayan talebi ilk yanıtlayan kişi sorumlu olur.
 - İlk yanıt zamanı (`first_response_at`) saklanır; listede "İlk yanıt süresi" olarak görünür.

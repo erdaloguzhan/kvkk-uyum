@@ -64,8 +64,13 @@ audit_logs       id, organization_id, user_id, action, entity_type, entity_id,
 ```
 
 - **Çoklu kuruluş:** Bir kullanıcı (ör. danışman) birden çok kuruluşa üye olabilir. Her istek `X-Organization-Id` başlığıyla bir kuruluş bağlamında çalışır; tüm iş tabloları `organization_id` taşır. Lisans kuruluş başına tutulur.
-- **Yetki:** Yetkiler `modül.eylem` biçiminde anahtarlardır (`users.manage`, `audit.read`, `inventory.write` …) ve `packages/shared` içinde tek listede tanımlıdır. Roller bu anahtarların kümesidir. Menü/fonksiyon yetkisi bu anahtarlarla; içerik bazlı yetki DMS aşamasında doküman ACL'i ile eklenecek. Grup bazlı yetki için `groups` + `group_members` tabloları DMS aşamasında eklenecek.
-- **Varsayılan roller:** Kuruluş Yöneticisi (tüm yetkiler), KVKK Sorumlusu, Görüntüleyici. Kuruluşlar kendi rollerini oluşturabilir.
+- **Yetki:** Yetkiler `modül.eylem` biçiminde anahtarlardır (`documents.approve`, `audit.read`, `inventory.write` …) ve `packages/shared` içinde tek listede tanımlıdır. Roller bu anahtarların kümesidir. Menü/fonksiyon yetkisi bu anahtarlarla; içerik bazlı yetki DMS aşamasında doküman ACL'i ile eklenecek. Grup bazlı yetki için `groups` + `group_members` tabloları DMS aşamasında eklenecek.
+- **Sabit roller (2026-10-19):** Müşteri kuruluşlarda dört sabit rol vardır, özel rol tanımlanamaz:
+  - **KVKK Sorumlusu:** tüm işi yapar (profil, dokümanlar, envanter, görevler, sözleşmeler, denetim kaydı), dokümanları Yöneticinin onayına gönderir; kendisi yayınlayamaz.
+  - **Yönetici:** yalnızca dokümanları görür ve kendisine gönderilen onayları verir/reddeder.
+  - **KVKK Sorumlusu + Yönetici:** aynı kişi (aynı e-posta) ikisini birden üstlenir; küçük kuruluşlar için.
+  - **İzleyici:** yalnızca onaylanıp yayınlanmış dokümanları görür.
+- **Kullanıcılar:** Müşteri kullanıcı ekleyemez. Kuruluş yönetim panelinden açılırken Sorumlu (kuruluş e-postası), Yönetici ve isteğe bağlı İzleyici hesapları birlikte oluşturulur; her birine şifre oluşturma bağlantısı gider. Sonraki değişiklikler (ekleme, rol değiştirme, pasif yapma, bağlantı yeniden gönderme) `/admin/kuruluslar/[id]` sayfasından yapılır. Kuruluşta her zaman en az bir aktif Sorumlu ve bir aktif Yönetici yetkisi kalmalıdır.
 
 İleriki modüller için öngörülen ana tablolar (henüz kurulmadı): `documents`, `document_versions`, `document_templates`, `inventory_records` (+ kategori/amaç/hukuki sebep sözlükleri), `incidents`, `destruction_records`, `contracts`, `data_subject_requests`, `subscriptions`.
 

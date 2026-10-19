@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import PizZip from 'pizzip';
 import { DOCUMENT_TEMPLATES } from '@kvkk/shared';
 import request from 'supertest';
-import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { addMember, createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
 
 const CATALOG_CODES = DOCUMENT_TEMPLATES.map((t) => t.code);
 
@@ -58,22 +58,6 @@ describe('Doküman Yönetimi', () => {
     return res.body as Buffer;
   }
 
-  async function addMember(admin: { accessToken: string }, as: (t: string) => any, roleKey: string) {
-    const roles = await request(server).get('/api/v1/roles').set(as(admin.accessToken)).expect(200);
-    const roleId = roles.body.items.find((r: any) => r.key === roleKey).id;
-    const email = uniqueEmail(roleKey);
-    await request(server)
-      .post('/api/v1/members')
-      .set(as(admin.accessToken))
-      .send({ email, fullName: 'Mehmet Demir', roleId })
-      .expect(201);
-    const token = extractCode(lastMailTo(app, email).text);
-    await request(server)
-      .post('/api/v1/auth/password-reset/confirm')
-      .send({ token, password: 'DavetSifre2026' })
-      .expect(204);
-    return login(app, email, 'DavetSifre2026');
-  }
 
   it('şablon kataloğunu opsiyonel işaretleriyle listeler', async () => {
     const { admin, as } = await setupOrg();
@@ -279,9 +263,11 @@ describe('Doküman Yönetimi', () => {
     );
   });
 
-  it('görüntüleyici yalnızca yayındaki sürümü görür; yayınlama yetki ister', async () => {
-    const { admin, as } = await setupOrg();
-    const viewer = await addMember(admin, as, 'viewer');
+  it('izleyici yalnızca yayındaki sürümü görür; Sorumlu yayınlayamaz, Yönetici taslağı görüp yayınlar', async () => {
+    const { admin, as, orgId } = await setupOrg();
+    const viewer = await addMember(app, orgId, 'viewer');
+    const officer = await addMember(app, orgId, 'kvkk_officer');
+    const approver = await addMember(app, orgId, 'approver');
     const draftDoc = await request(server)
       .post('/api/v1/documents')
       .set(as(admin.accessToken))
@@ -299,9 +285,18 @@ describe('Doküman Yönetimi', () => {
       .set(as(viewer.accessToken))
       .expect(403);
     await request(server).post('/api/v1/documents/setup').set(as(viewer.accessToken)).expect(403);
+    // Sorumlu doğrudan yayınlayamaz, onaya gönderir. Yönetici taslağı görür ama düzenleyemez.
     await request(server)
       .post(`/api/v1/documents/${doc.body.id}/versions/${v1.id}/publish`)
-      .set(as(admin.accessToken))
+      .set(as(officer.accessToken))
+      .expect(403);
+    const approverList = await request(server).get('/api/v1/documents').set(as(approver.accessToken)).expect(200);
+    expect(approverList.body.items.map((d: any) => d.code).sort()).toEqual(['PRS-010', 'PRS-020']);
+    await download(as(approver.accessToken), doc.body.id, v1.id);
+    await request(server).post(`/api/v1/documents/${doc.body.id}/regenerate`).set(as(approver.accessToken)).expect(403);
+    await request(server)
+      .post(`/api/v1/documents/${doc.body.id}/versions/${v1.id}/publish`)
+      .set(as(approver.accessToken))
       .expect(200);
     const v2 = await request(server)
       .post(`/api/v1/documents/${doc.body.id}/regenerate`)

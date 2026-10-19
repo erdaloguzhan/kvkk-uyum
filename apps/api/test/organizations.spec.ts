@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { MembersService } from '../src/members/members.service';
+import { addMember, createApp, createOrg, registerAndLogin, uniqueEmail } from './helpers';
 
 describe('Kuruluşlar, üyeler ve roller', () => {
   let app: INestApplication;
@@ -16,12 +17,10 @@ describe('Kuruluşlar, üyeler ve roller', () => {
     const admin = await registerAndLogin(app);
     const orgId = await createOrg(app, admin, { name: 'Örnek Ticaret A.Ş.' });
     const as = (token: string) => ({ Authorization: `Bearer ${token}`, 'X-Organization-Id': orgId });
-    const roles = await request(server).get('/api/v1/roles').set(as(admin.accessToken)).expect(200);
-    const roleId = (key: string) => roles.body.items.find((r: any) => r.key === key).id;
-    return { admin, orgId, as, roleId };
+    return { admin, orgId, as };
   }
 
-  it('kuruluş oluşturur, varsayılan rolleri ve deneme lisansını ekler', async () => {
+  it('kuruluş oluşturur, sabit rolleri ve deneme lisansını ekler', async () => {
     const { admin, orgId, as } = await setupOrg();
     const me = await request(server)
       .get('/api/v1/auth/me')
@@ -31,11 +30,13 @@ describe('Kuruluşlar, üyeler ve roller', () => {
     expect(me.body.organizations[0]).toMatchObject({
       id: orgId,
       licenseStatus: 'trial',
-      role: { key: 'org_admin' },
+      role: { key: 'officer_approver' },
     });
 
     const roles = await request(server).get('/api/v1/roles').set(as(admin.accessToken)).expect(200);
-    expect(roles.body.items.map((r: any) => r.key).sort()).toEqual(['kvkk_officer', 'org_admin', 'viewer']);
+    expect(roles.body.items.map((r: any) => r.key)).toEqual(['officer_approver', 'kvkk_officer', 'approver', 'viewer']);
+    // Müşteri özel rol tanımlayamaz.
+    await request(server).post('/api/v1/roles').set(as(admin.accessToken)).send({ name: 'X', permissions: [] }).expect(404);
   });
 
   it('kurulum, firma bilgileri tamamlanmadan bitirilemez', async () => {
@@ -87,100 +88,49 @@ describe('Kuruluşlar, üyeler ve roller', () => {
       .expect(400);
   });
 
-  it('yeni kullanıcıyı davet eder, davetli şifresini belirleyip rolü kadar yetki alır', async () => {
-    const { admin, as, roleId } = await setupOrg();
-    const email = uniqueEmail('davetli');
-    const added = await request(server)
-      .post('/api/v1/members')
-      .set(as(admin.accessToken))
-      .send({ email, fullName: 'Mehmet Demir', roleId: roleId('viewer') })
-      .expect(201);
+  it('rollere göre yetki uygular; müşteri kullanıcı ekleyemez', async () => {
+    const { admin, orgId, as } = await setupOrg();
+    const officer = await addMember(app, orgId, 'kvkk_officer');
+    const approver = await addMember(app, orgId, 'approver');
+    const viewer = await addMember(app, orgId, 'viewer');
 
-    const token = extractCode(lastMailTo(app, email).text);
-    await request(server)
-      .post('/api/v1/auth/password-reset/confirm')
-      .send({ token, password: 'DavetSifre2026' })
-      .expect(204);
-    const viewer = await login(app, email, 'DavetSifre2026');
+    // Sorumlu kuruluş bilgilerini düzenler ve kullanıcıları görür ama ekleyemez.
+    await request(server).patch('/api/v1/organizations/current').set(as(officer.accessToken)).send({ phone: '+90 212 000 00 00' }).expect(200);
+    await request(server).get('/api/v1/members').set(as(officer.accessToken)).expect(200);
+    for (const user of [admin, officer]) {
+      await request(server)
+        .post('/api/v1/members')
+        .set(as(user.accessToken))
+        .send({ email: uniqueEmail(), fullName: 'Ali Kaya', roleKey: 'viewer' })
+        .expect(404);
+    }
 
-    // Görüntüleyici okuyabilir ama yönetemez.
-    await request(server).get('/api/v1/organizations/current').set(as(viewer.accessToken)).expect(200);
-    await request(server).get('/api/v1/members').set(as(viewer.accessToken)).expect(200);
-    await request(server)
-      .patch('/api/v1/organizations/current')
-      .set(as(viewer.accessToken))
-      .send({ name: 'Değiştirildi' })
-      .expect(403);
-
-    // Yetki yükseltilince yönetebilir.
-    await request(server)
-      .patch(`/api/v1/members/${added.body.id}`)
-      .set(as(admin.accessToken))
-      .send({ roleId: roleId('org_admin') })
-      .expect(200);
-    await request(server)
-      .patch('/api/v1/organizations/current')
-      .set(as(viewer.accessToken))
-      .send({ phone: '+90 212 000 00 00' })
-      .expect(200);
+    // Yönetici ve İzleyici yalnızca dokümanları görür.
+    for (const user of [approver, viewer]) {
+      await request(server).get('/api/v1/documents').set(as(user.accessToken)).expect(200);
+      await request(server).get('/api/v1/organizations/current').set(as(user.accessToken)).expect(403);
+      await request(server).get('/api/v1/members').set(as(user.accessToken)).expect(403);
+      await request(server).get('/api/v1/audit-logs').set(as(user.accessToken)).expect(403);
+      await request(server).post('/api/v1/documents/setup').set(as(user.accessToken)).expect(403);
+    }
 
     // Devre dışı bırakılan üye erişemez.
-    await request(server)
-      .patch(`/api/v1/members/${added.body.id}`)
-      .set(as(admin.accessToken))
-      .send({ status: 'disabled' })
-      .expect(200);
-    await request(server).get('/api/v1/organizations/current').set(as(viewer.accessToken)).expect(403);
+    await app.get(MembersService).update(orgId, null, viewer.membershipId, { status: 'disabled' });
+    await request(server).get('/api/v1/documents').set(as(viewer.accessToken)).expect(403);
   });
 
-  it('son yönetici kaldırılamaz veya düşürülemez', async () => {
-    const { admin, as, roleId } = await setupOrg();
-    const members = await request(server).get('/api/v1/members').set(as(admin.accessToken)).expect(200);
-    const own = members.body.items[0];
-    await request(server)
-      .patch(`/api/v1/members/${own.id}`)
-      .set(as(admin.accessToken))
-      .send({ roleId: roleId('viewer') })
-      .expect(400);
-    await request(server).delete(`/api/v1/members/${own.id}`).set(as(admin.accessToken)).expect(400);
-  });
+  it('kuruluşta Sorumlu ve Yönetici yetkisi olan birer aktif kişi kalır', async () => {
+    const { admin, orgId, as } = await setupOrg();
+    const members = app.get(MembersService);
+    const own = (await request(server).get('/api/v1/members').set(as(admin.accessToken)).expect(200)).body.items[0];
+    await expect(members.update(orgId, null, own.id, { roleKey: 'kvkk_officer' })).rejects.toThrow('en az bir aktif Yönetici');
+    await expect(members.update(orgId, null, own.id, { roleKey: 'approver' })).rejects.toThrow('en az bir aktif KVKK Sorumlusu');
+    await expect(members.remove(orgId, null, own.id)).rejects.toThrow();
 
-  it('özel rol oluşturur; sistem rolleri ve kullanımdaki roller korunur', async () => {
-    const { admin, as, roleId } = await setupOrg();
-    await request(server)
-      .post('/api/v1/roles')
-      .set(as(admin.accessToken))
-      .send({ name: 'Hatalı', permissions: ['olmayan.yetki'] })
-      .expect(400);
-    const created = await request(server)
-      .post('/api/v1/roles')
-      .set(as(admin.accessToken))
-      .send({ name: 'Envanter Sorumlusu', permissions: ['inventory.read', 'inventory.write', 'inventory.read'] })
-      .expect(201);
-    expect(created.body.permissions).toEqual(['inventory.read', 'inventory.write']);
-
-    await request(server)
-      .patch(`/api/v1/roles/${roleId('org_admin')}`)
-      .set(as(admin.accessToken))
-      .send({ name: 'X' })
-      .expect(400);
-
-    await request(server)
-      .post('/api/v1/members')
-      .set(as(admin.accessToken))
-      .send({ email: uniqueEmail(), fullName: 'Ali Kaya', roleId: created.body.id })
-      .expect(201);
-    await request(server).delete(`/api/v1/roles/${created.body.id}`).set(as(admin.accessToken)).expect(409);
-  });
-
-  it('başka kuruluşun rolü atanamaz', async () => {
-    const a = await setupOrg();
-    const b = await setupOrg();
-    await request(server)
-      .post('/api/v1/members')
-      .set(a.as(a.admin.accessToken))
-      .send({ email: uniqueEmail(), fullName: 'Ali Kaya', roleId: b.roleId('viewer') })
-      .expect(400);
+    const approver = await addMember(app, orgId, 'approver');
+    await members.update(orgId, null, own.id, { roleKey: 'kvkk_officer' });
+    await expect(members.remove(orgId, null, approver.membershipId)).rejects.toThrow('en az bir aktif Yönetici');
+    await expect(members.update(orgId, null, own.id, { roleKey: 'nope' })).rejects.toThrow('Rol bu kuruluşta tanımlı değil');
   });
 
   it('sistem hareketlerini kuruluş bazında loglar', async () => {

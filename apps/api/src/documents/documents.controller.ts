@@ -31,8 +31,9 @@ const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingm
 const createBody = z.object({ templateCode: z.string().trim().min(1).max(30) });
 const noteBody = z.object({ note: z.string().trim().max(1000).nullish() }).default({});
 
-/** Taslak sürümleri yalnızca doküman düzenleme yetkisi olanlar görür. */
-const canSeeDrafts = (org: OrgContext) => org.permissions.includes(PERMISSIONS.DOCUMENTS_WRITE);
+/** Taslak sürümleri yalnızca doküman düzenleme veya onaylama yetkisi olanlar görür; İzleyici yalnızca yayınlananları. */
+const canSeeDrafts = (org: OrgContext) =>
+  org.permissions.includes(PERMISSIONS.DOCUMENTS_WRITE) || org.permissions.includes(PERMISSIONS.DOCUMENTS_APPROVE);
 
 @Controller()
 export class DocumentsController {

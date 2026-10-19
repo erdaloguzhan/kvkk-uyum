@@ -1,4 +1,7 @@
-import { CONTRACT_FIELD_LABELS, INVENTORY_COLUMNS } from '@kvkk/shared';
+import { CONTRACT_FIELD_LABELS, INVENTORY_COLUMNS, SYSTEM_ROLES } from '@kvkk/shared';
+
+/** Sabit kuruluş rollerinin adları (anahtar → ad). */
+export const ROLE_LABELS: Record<string, string> = Object.fromEntries(SYSTEM_ROLES.map((r) => [r.key, r.name]));
 
 /** Kuruluş profili alanlarının Türkçe adları. */
 export const ORG_FIELD_LABELS: Record<string, string> = {

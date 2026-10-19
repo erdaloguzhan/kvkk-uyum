@@ -10,7 +10,7 @@ import { SupportService } from './support.service';
 
 /**
  * Kuruluş kullanıcılarının destek talepleri. Kuruluşun her aktif üyesi talep açabilir; kullanıcı kendi
- * taleplerini, kuruluş yöneticisi kuruluşun tüm taleplerini görür.
+ * taleplerini, KVKK Sorumlusu kuruluşun tüm taleplerini görür.
  */
 @Controller('support')
 export class SupportController {

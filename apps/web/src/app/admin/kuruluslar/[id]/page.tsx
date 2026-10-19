@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChangeEvent, FormEvent, useRef, useState } from 'react';
 import { ExportButton } from '@/components/export-button';
+import { OrgUsers } from '@/components/org-users';
 import { emptyPerson, PersonFields, PersonForm, toPersonForm } from '@/components/person-fields';
 import { Alert, Badge, Empty, ErrorAlert, Loading, Modal, PageHeader } from '@/components/ui';
 import { api, ApiError, download, errorText } from '@/lib/api';
@@ -112,7 +113,7 @@ export default function AdminOrganizationPage() {
         title={org?.name ?? 'Kuruluş'}
         description={
           <>
-            <Link href="/admin">← Kuruluşlar</Link> · Kuruluş çalışanları. Eğitim grupları bu listeden oluşturulur; eğitim
+            <Link href="/admin">← Kuruluşlar</Link> · Sistem kullanıcıları ve çalışanlar. Eğitim grupları bu listeden oluşturulur; eğitim
             gönderilecek çalışanın e-posta adresi olmalıdır.
           </>
         }
@@ -131,6 +132,8 @@ export default function AdminOrganizationPage() {
           </>
         }
       />
+      <OrgUsers orgId={id} />
+      <h2>Çalışanlar</h2>
       <ErrorAlert error={list.error ?? error} />
       {importErrors.length > 0 && (
         <Alert kind="error">

@@ -1,23 +1,32 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ORG_ADMIN_ROLE_KEY } from '@kvkk/shared';
+import { Permission, PERMISSIONS } from '@kvkk/shared';
 import { and, count, eq, ne, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
+import { MailerService } from '../auth/mailer.service';
 import { PasswordResetService } from '../auth/password-reset.service';
 import { generateToken, hashPassword } from '../common/crypto';
+import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { memberships, organizations, roles, users } from '../db/schema';
 
+/**
+ * Kuruluş kullanıcıları. Müşteri kuruluşlar kullanıcı ekleyemez veya rol değiştiremez;
+ * bu işlemler yalnızca yönetim panelinden (platform yöneticisi) yapılır.
+ */
 @Injectable()
 export class MembersService {
   constructor(
     @InjectDb() private readonly db: Database,
+    @Inject(CONFIG) private readonly config: AppConfig,
     private readonly audit: AuditService,
     private readonly passwordReset: PasswordResetService,
+    private readonly mailer: MailerService,
   ) {}
 
   list(orgId: string) {
@@ -37,28 +46,29 @@ export class MembersService {
   }
 
   /**
-   * Kullanıcıyı kuruluşa ekler. Sistemde kayıtlı değilse hesap oluşturulur ve
-   * şifre belirleme daveti e-postayla gönderilir.
+   * Kullanıcıyı kuruluşa verilen rolle ekler. Sistemde kayıtlı değilse hesap açılır ve şifre oluşturma
+   * bağlantısı gönderilir; kayıtlıysa kuruluşa eklendiği bildirilir.
    */
-  async add(orgId: string, actorId: string, input: { email: string; fullName: string; roleId: string }) {
-    await this.findRole(orgId, input.roleId);
+  async add(orgId: string, actorId: string | null, input: { email: string; fullName: string; roleKey: string }) {
+    const role = await this.findRole(orgId, input.roleKey);
     const email = input.email.trim();
+    const fullName = input.fullName.trim();
 
     let [user] = await this.db
-      .select({ id: users.id, email: users.email })
+      .select({ id: users.id, email: users.email, fullName: users.fullName })
       .from(users)
       .where(sql`lower(${users.email}) = lower(${email})`);
-    const isNewUser = !user;
+    const newUser = !user;
     if (!user) {
       [user] = await this.db
         .insert(users)
         .values({
           email,
-          fullName: input.fullName.trim(),
-          // Kullanılamaz rastgele şifre; kullanıcı davetle kendi şifresini belirler.
+          fullName,
+          // Kullanılamaz rastgele şifre; kullanıcı bağlantıyla kendi şifresini oluşturur.
           passwordHash: await hashPassword(generateToken()),
         })
-        .returning({ id: users.id, email: users.email });
+        .returning({ id: users.id, email: users.email, fullName: users.fullName });
     }
 
     const [existing] = await this.db
@@ -69,17 +79,23 @@ export class MembersService {
 
     const [membership] = await this.db
       .insert(memberships)
-      .values({ userId: user.id, organizationId: orgId, roleId: input.roleId })
+      .values({ userId: user.id, organizationId: orgId, roleId: role.id })
       .returning();
 
-    if (isNewUser) {
-      const [org] = await this.db
-        .select({ name: organizations.name })
-        .from(organizations)
-        .where(eq(organizations.id, orgId));
-      await this.passwordReset.sendInvite({ ...user, fullName: input.fullName.trim() }, org.name, {
-        subject: `${org.name} sizi KVK Yönetim Sistemine davet etti`,
-        intro: `${org.name} sizi KVK Yönetim Sistemine davet etti.`,
+    const orgName = await this.orgName(orgId);
+    if (newUser) {
+      await this.passwordReset.sendInvite(user, orgName, {
+        intro: `${orgName} için KVK Yönetim Sistemi hesabınız ${role.name} rolüyle oluşturuldu.`,
+      });
+    } else {
+      await this.mailer.send({
+        to: user.email,
+        subject: `${orgName} - KVK Yönetim Sistemi`,
+        text:
+          `Merhaba ${user.fullName},\n\n` +
+          `Hesabınız KVK Yönetim Sisteminde ${orgName} kuruluşuna ${role.name} rolüyle bağlandı.\n\n` +
+          `Mevcut şifrenizle giriş yapabilirsiniz: ${this.config.appUrl}/giris\n` +
+          `Kullanıcı adınız bu e-posta adresidir: ${user.email}\n`,
       });
     }
     await this.audit.record({
@@ -88,29 +104,27 @@ export class MembersService {
       userId: actorId,
       entityType: 'membership',
       entityId: membership.id,
-      metadata: { email, roleId: input.roleId, newUser: isNewUser },
+      metadata: { email, role: role.key, newUser },
     });
-    return membership;
+    return { membership, user: { id: user.id, email: user.email, newUser } };
   }
 
   async update(
     orgId: string,
-    actorId: string,
+    actorId: string | null,
     membershipId: string,
-    changes: { roleId?: string; status?: 'active' | 'disabled' },
+    changes: { roleKey?: string; status?: 'active' | 'disabled' },
   ) {
     const current = await this.findMembership(orgId, membershipId);
-    if (changes.roleId) await this.findRole(orgId, changes.roleId);
-
-    const losesAdmin =
-      current.roleKey === ORG_ADMIN_ROLE_KEY &&
-      current.status === 'active' &&
-      ((changes.roleId && changes.roleId !== current.roleId) || changes.status === 'disabled');
-    if (losesAdmin) await this.assertAnotherActiveAdmin(orgId, membershipId);
+    const newRole = changes.roleKey ? await this.findRole(orgId, changes.roleKey) : null;
+    if (current.status === 'active') {
+      const keeps = changes.status === 'disabled' ? [] : (newRole?.permissions ?? current.permissions);
+      await this.assertOrgKeepsKeyPermissions(orgId, membershipId, current.permissions, keeps);
+    }
 
     const [updated] = await this.db
       .update(memberships)
-      .set(changes)
+      .set({ ...(newRole && { roleId: newRole.id }), ...(changes.status && { status: changes.status }) })
       .where(eq(memberships.id, membershipId))
       .returning();
     await this.audit.record({
@@ -124,10 +138,10 @@ export class MembersService {
     return updated;
   }
 
-  async remove(orgId: string, actorId: string, membershipId: string) {
+  async remove(orgId: string, actorId: string | null, membershipId: string) {
     const current = await this.findMembership(orgId, membershipId);
-    if (current.roleKey === ORG_ADMIN_ROLE_KEY && current.status === 'active') {
-      await this.assertAnotherActiveAdmin(orgId, membershipId);
+    if (current.status === 'active') {
+      await this.assertOrgKeepsKeyPermissions(orgId, membershipId, current.permissions, []);
     }
     await this.db.delete(memberships).where(eq(memberships.id, membershipId));
     await this.audit.record({
@@ -140,13 +154,41 @@ export class MembersService {
     });
   }
 
-  private async findRole(orgId: string, roleId: string) {
+  /** Şifre oluşturma bağlantısını yeniden gönderir; eski bağlantılar geçersiz olur. */
+  async resendInvite(orgId: string, actorId: string, membershipId: string) {
+    const current = await this.findMembership(orgId, membershipId);
+    const [user] = await this.db
+      .select({ id: users.id, email: users.email, fullName: users.fullName })
+      .from(users)
+      .where(eq(users.id, current.userId));
+    await this.passwordReset.revokePending(user.id);
+    await this.passwordReset.sendInvite(user, await this.orgName(orgId));
+    await this.audit.record({
+      action: 'admin.invite_resent',
+      organizationId: orgId,
+      userId: actorId,
+      entityType: 'user',
+      entityId: user.id,
+    });
+    return { email: user.email };
+  }
+
+  private async orgName(orgId: string) {
+    const [org] = await this.db
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, orgId));
+    if (!org) throw new NotFoundException('Kuruluş bulunamadı');
+    return org.name;
+  }
+
+  private async findRole(orgId: string, roleKey: string) {
     const [role] = await this.db
-      .select({ id: roles.id })
+      .select({ id: roles.id, key: roles.key, name: roles.name, permissions: roles.permissions })
       .from(roles)
-      .where(and(eq(roles.id, roleId), eq(roles.organizationId, orgId)));
-    if (!role) throw new BadRequestException('Rol bu kuruluşa ait değil');
-    return role;
+      .where(and(eq(roles.key, roleKey), eq(roles.organizationId, orgId)));
+    if (!role) throw new BadRequestException('Rol bu kuruluşta tanımlı değil');
+    return { ...role, permissions: role.permissions as Permission[] };
   }
 
   private async findMembership(orgId: string, membershipId: string) {
@@ -154,31 +196,45 @@ export class MembersService {
       .select({
         id: memberships.id,
         userId: memberships.userId,
-        roleId: memberships.roleId,
         status: memberships.status,
-        roleKey: roles.key,
+        permissions: roles.permissions,
       })
       .from(memberships)
       .innerJoin(roles, eq(roles.id, memberships.roleId))
       .where(and(eq(memberships.id, membershipId), eq(memberships.organizationId, orgId)));
     if (!row) throw new NotFoundException('Üyelik bulunamadı');
-    return row;
+    return { ...row, permissions: row.permissions as Permission[] };
   }
 
-  /** Kuruluş yöneticisiz kalmamalı. */
-  private async assertAnotherActiveAdmin(orgId: string, exceptMembershipId: string) {
-    const [{ n }] = await this.db
-      .select({ n: count() })
-      .from(memberships)
-      .innerJoin(roles, eq(roles.id, memberships.roleId))
-      .where(
-        and(
-          eq(memberships.organizationId, orgId),
-          eq(memberships.status, 'active'),
-          eq(roles.key, ORG_ADMIN_ROLE_KEY),
-          ne(memberships.id, exceptMembershipId),
-        ),
-      );
-    if (n === 0) throw new BadRequestException('Kuruluşta en az bir aktif yönetici kalmalı');
+  /**
+   * Kuruluşta işi yürüten (Sorumlu) ve doküman onaylayan (Yönetici) en az birer aktif kişi kalmalı;
+   * aksi halde hiçbir doküman hazırlanamaz ya da yayınlanamaz.
+   */
+  private async assertOrgKeepsKeyPermissions(
+    orgId: string,
+    membershipId: string,
+    had: Permission[],
+    keeps: Permission[],
+  ) {
+    const checks: [Permission, string][] = [
+      [PERMISSIONS.DOCUMENTS_WRITE, 'Kuruluşta en az bir aktif KVKK Sorumlusu kalmalı'],
+      [PERMISSIONS.DOCUMENTS_APPROVE, 'Kuruluşta en az bir aktif Yönetici kalmalı'],
+    ];
+    for (const [permission, message] of checks) {
+      if (!had.includes(permission) || keeps.includes(permission)) continue;
+      const [{ n }] = await this.db
+        .select({ n: count() })
+        .from(memberships)
+        .innerJoin(roles, eq(roles.id, memberships.roleId))
+        .where(
+          and(
+            eq(memberships.organizationId, orgId),
+            eq(memberships.status, 'active'),
+            sql`${permission} = ANY(${roles.permissions})`,
+            ne(memberships.id, membershipId),
+          ),
+        );
+      if (n === 0) throw new BadRequestException(message);
+    }
   }
 }

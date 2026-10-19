@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { addMember, createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
 
 const CONTRACT = {
   partyName: 'Örnek Yazılım Ltd. Şti.',
@@ -32,22 +32,6 @@ describe('Sözleşmeler', () => {
     return { admin, orgId, as };
   }
 
-  async function addViewer(admin: { accessToken: string }, as: (t: string) => any) {
-    const roles = await request(server).get('/api/v1/roles').set(as(admin.accessToken)).expect(200);
-    const roleId = roles.body.items.find((r: any) => r.key === 'viewer').id;
-    const email = uniqueEmail('viewer');
-    await request(server)
-      .post('/api/v1/members')
-      .set(as(admin.accessToken))
-      .send({ email, fullName: 'Mehmet Demir', roleId })
-      .expect(201);
-    const token = extractCode(lastMailTo(app, email).text);
-    await request(server)
-      .post('/api/v1/auth/password-reset/confirm')
-      .send({ token, password: 'DavetSifre2026' })
-      .expect(204);
-    return login(app, email, 'DavetSifre2026');
-  }
 
   it('sözleşme ekler, listeler, günceller ve siler', async () => {
     const { admin, as } = await setupOrg();
@@ -126,11 +110,11 @@ describe('Sözleşmeler', () => {
       .expect(400);
   });
 
-  it('görüntüleyici listeleyebilir ama değiştiremez; başka kuruluşun sözleşmesi görünmez', async () => {
-    const { admin, as } = await setupOrg();
+  it('izleyici sözleşmeleri göremez ve değiştiremez; başka kuruluşun sözleşmesi görünmez', async () => {
+    const { admin, as, orgId } = await setupOrg();
     const created = await request(server).post('/api/v1/contracts').set(as(admin.accessToken)).send(CONTRACT).expect(201);
-    const viewer = await addViewer(admin, as);
-    await request(server).get('/api/v1/contracts').set(as(viewer.accessToken)).expect(200);
+    const viewer = await addMember(app, orgId, 'viewer');
+    await request(server).get('/api/v1/contracts').set(as(viewer.accessToken)).expect(403);
     await request(server).post('/api/v1/contracts').set(as(viewer.accessToken)).send(CONTRACT).expect(403);
     await request(server)
       .patch(`/api/v1/contracts/${created.body.id}`)
