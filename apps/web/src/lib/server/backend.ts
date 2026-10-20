@@ -13,10 +13,10 @@ const REFRESH_MAX_AGE = 30 * 24 * 60 * 60;
 
 /**
  * Web sunucusunun önündeki güvenilir vekil sunucu (yük dengeleyici) sayısı. Her vekil, kendisine bağlananın
- * adresini X-Forwarded-For listesinin sonuna ekler; istemcinin gerçek adresi sondan bu sayı kadar öncedeki
- * kayıttır, daha öncekiler istemcinin kendi yazabileceği değerlerdir. Önde vekil yoksa (0) Next.js başlık
- * yoksa bağlantı adresini yazar; bu durumda istemci başlığı kendisi gönderebileceğinden canlı ortamda
- * web sunucusu bir yük dengeleyicinin arkasında çalıştırılmalı ve bu değer ayarlanmalıdır.
+ * adresini X-Forwarded-For listesinin sonuna ekler. Web sunucusuna bağlanan adres (peer-address.cjs'in
+ * eklediği x-kvkk-peer) bu listenin sonuna konur; istemcinin gerçek adresi sondan bu sayı kadar öncedeki
+ * kayıttır. Önde vekil yoksa (0) bağlantı adresinin kendisi kullanılır, istemcinin yazdığı
+ * X-Forwarded-For değerleri dikkate alınmaz.
  */
 const TRUSTED_PROXY_HOPS = Math.max(0, Number(process.env.TRUSTED_PROXY_HOPS ?? 0) || 0);
 
@@ -25,7 +25,20 @@ function clientIp(req: NextRequest): string | null {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  return list[Math.max(0, list.length - Math.max(1, TRUSTED_PROXY_HOPS))] ?? null;
+  const peer = req.headers.get('x-kvkk-peer');
+  if (peer) {
+    const chain = [...list, peer];
+    return normalizeIp(chain[Math.max(0, chain.length - 1 - TRUSTED_PROXY_HOPS)]);
+  }
+  // peer-address.cjs yüklenmeden çalışan geliştirme sunucusu (next dev): Next.js başlık yoksa bağlantı
+  // adresini yazar.
+  return normalizeIp(list[Math.max(0, list.length - Math.max(1, TRUSTED_PROXY_HOPS))]);
+}
+
+/** IPv4 adreslerinin IPv6 biçimini (::ffff:1.2.3.4) sadeleştirir. */
+function normalizeIp(ip: string | undefined): string | null {
+  if (!ip) return null;
+  return ip.startsWith('::ffff:') && ip.includes('.') ? ip.slice(7) : ip;
 }
 
 /** Tarayıcıdan gelen başlıklardan API'ye iletilecek olanlar. */

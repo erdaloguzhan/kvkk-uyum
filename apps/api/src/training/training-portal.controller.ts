@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Logger, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
@@ -26,6 +26,8 @@ const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 @Controller('training-portal')
 @Public()
 export class TrainingPortalController {
+  private readonly logger = new Logger(TrainingPortalController.name);
+
   constructor(
     private readonly auth: PortalAuthService,
     private readonly portal: PortalService,
@@ -42,8 +44,9 @@ export class TrainingPortalController {
   @Throttle(AUTH_THROTTLE)
   @Post('password-reset/request')
   @HttpCode(202)
-  async requestReset(@Req() req: AppRequest, @Body(new ZodPipe(resetRequestBody)) body: z.infer<typeof resetRequestBody>) {
-    await this.auth.requestReset(body.email, clientInfo(req));
+  requestReset(@Req() req: AppRequest, @Body(new ZodPipe(resetRequestBody)) body: z.infer<typeof resetRequestBody>) {
+    // Yanıt e-postayı beklemez; yanıt süresinden adresin kayıtlı olup olmadığı anlaşılamaz.
+    void this.auth.requestReset(body.email, clientInfo(req)).catch((err) => this.logger.error(`Portal şifre sıfırlama e-postası gönderilemedi: ${err}`));
   }
 
   @Throttle(AUTH_THROTTLE)

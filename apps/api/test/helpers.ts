@@ -35,6 +35,26 @@ export function lastMailTo(app: INestApplication, email: string) {
   return mail;
 }
 
+/** Gönderilmiş e-posta sayısı; `waitForMailTo` ile birlikte yalnızca bundan sonra gidenleri beklemek için. */
+export function mailCount(app: INestApplication) {
+  return app.get(MailerService).outbox.length;
+}
+
+/** Arka planda gönderilen e-postayı (ör. şifre sıfırlama) bekler; yalnızca `since` sırasından sonrakilere bakar. */
+export async function waitForMailTo(app: INestApplication, email: string, since: number, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const mail = app
+      .get(MailerService)
+      .outbox.slice(since)
+      .reverse()
+      .find((m) => m.to === email);
+    if (mail) return mail;
+    if (Date.now() > deadline) throw new Error(`No mail sent to ${email}`);
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}
+
 /** E-postadaki giriş kodu veya şifre belirleme bağlantısındaki kod. */
 export function extractCode(text: string) {
   const link = /[?&]kod=([^\s&]+)/.exec(text);

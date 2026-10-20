@@ -1,10 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DocumentCategory, ORGANIZATION_PLACEHOLDERS } from '@kvkk/shared';
-import { and, desc, eq, getTableColumns, inArray, ne } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, lte, ne } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { Database, InjectDb } from '../db/db.module';
-import { documents, documentVersions, organizations } from '../db/schema';
+import { approvalRequests, documents, documentVersions, organizations, tasks } from '../db/schema';
 import { TemplatesService } from '../templates/templates.service';
 import { isDocx, renderTemplate, RenderResult } from './template-renderer';
 
@@ -268,7 +268,31 @@ export class DocumentsService {
         .update(documents)
         .set({ publishedVersionId: version.id, updatedAt: now })
         .where(eq(documents.id, doc.id));
-      return { versionNo: version.versionNo };
+
+      // Bu sürüm ve daha eski taslaklar için bekleyen onay talepleri artık yayınlanamaz: talepler ve
+      // onay görevleri iptal edilir (ör. Yönetici talebi onaylamadan dokümanı doğrudan yayınladıysa).
+      const stale = await tx
+        .select({ id: approvalRequests.id, taskId: approvalRequests.taskId })
+        .from(approvalRequests)
+        .innerJoin(documentVersions, eq(documentVersions.id, approvalRequests.versionId))
+        .where(
+          and(
+            eq(approvalRequests.documentId, doc.id),
+            eq(approvalRequests.status, 'pending'),
+            lte(documentVersions.versionNo, version.versionNo),
+          ),
+        );
+      if (stale.length) {
+        await tx
+          .update(approvalRequests)
+          .set({ status: 'cancelled', decidedAt: now, decidedBy: userId })
+          .where(inArray(approvalRequests.id, stale.map((r) => r.id)));
+        const taskIds = stale.flatMap((r) => (r.taskId ? [r.taskId] : []));
+        if (taskIds.length) {
+          await tx.update(tasks).set({ status: 'cancelled', updatedAt: now }).where(inArray(tasks.id, taskIds));
+        }
+      }
+      return { versionNo: version.versionNo, cancelledApprovals: stale.map((r) => r.id) };
     });
     await this.audit.record({
       action: 'document.published',
@@ -278,6 +302,16 @@ export class DocumentsService {
       entityId: documentId,
       metadata: { versionId, versionNo: result.versionNo },
     });
+    for (const approvalRequestId of result.cancelledApprovals) {
+      await this.audit.record({
+        action: 'approval.cancelled',
+        organizationId: orgId,
+        userId,
+        entityType: 'document',
+        entityId: documentId,
+        metadata: { approvalRequestId, reason: 'published' },
+      });
+    }
     return this.get(orgId, documentId, true);
   }
 

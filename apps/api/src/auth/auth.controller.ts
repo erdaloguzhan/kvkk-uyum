@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Logger, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { passwordSchema } from '../common/password-policy';
@@ -33,6 +33,8 @@ const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly captcha: CaptchaService,
@@ -84,7 +86,9 @@ export class AuthController {
   ) {
     const client = clientInfo(req);
     await this.captcha.verify(body.captchaToken, client.ip);
-    await this.passwordReset.request(body.email, client);
+    // Yanıt e-postanın gönderilmesini beklemez: kayıtlı ve kayıtsız adresler aynı sürede yanıtlanır,
+    // yanıt süresinden adresin sistemde olup olmadığı anlaşılamaz.
+    void this.passwordReset.request(body.email, client).catch((err) => this.logger.error(`Şifre sıfırlama e-postası gönderilemedi: ${err}`));
   }
 
   @Public()

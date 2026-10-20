@@ -5,7 +5,7 @@ import request from 'supertest';
 import { Database, DB } from '../src/db/db.module';
 import { trainingParticipants } from '../src/db/schema';
 import { isValidNationalId } from '../src/training/national-id';
-import { createApp, createOrg, extractCode, lastMailTo, login, makePlatformAdmin, PASSWORD, registerAndLogin, uniqueEmail } from './helpers';
+import { createApp, createOrg, extractCode, lastMailTo, login, makePlatformAdmin, PASSWORD, registerAndLogin, mailCount, uniqueEmail, waitForMailTo } from './helpers';
 
 /** Rastgele geçerli T.C. kimlik no. */
 function nationalId() {
@@ -328,8 +328,9 @@ describe('Uzaktan eğitim', () => {
       const can = list.body.items.find((e: any) => e.email === employeeEmail);
       await asAdmin(request(server).delete(`/api/v1/admin/organizations/${orgId}/employees/${can.id}`)).expect(409);
 
+      const sent = mailCount(app);
       await request(server).post('/api/v1/training-portal/password-reset/request').send({ email: employeeEmail }).expect(202);
-      const token = extractCode(lastMailTo(app, employeeEmail).text);
+      const token = extractCode((await waitForMailTo(app, employeeEmail, sent)).text);
       await request(server).post('/api/v1/training-portal/password-reset/confirm').send({ token, password: 'YeniSifre12345' }).expect(204);
       await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: PASSWORD }).expect(401);
       await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: 'YeniSifre12345' }).expect(200);

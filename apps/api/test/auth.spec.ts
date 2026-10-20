@@ -5,9 +5,11 @@ import {
   extractCode,
   lastMailTo,
   login,
+  mailCount,
   PASSWORD,
   registerAndLogin,
   uniqueEmail,
+  waitForMailTo,
 } from './helpers';
 
 describe('Kimlik doğrulama', () => {
@@ -109,11 +111,12 @@ describe('Kimlik doğrulama', () => {
 
   it('şifre sıfırlama ile yeni şifre belirlenir', async () => {
     const session = await registerAndLogin(app);
+    const sent = mailCount(app);
     await request(server).post('/api/v1/auth/password-reset/request').send({ email: session.email }).expect(202);
     // Kayıtlı olmayan e-posta için de aynı yanıt.
     await request(server).post('/api/v1/auth/password-reset/request').send({ email: uniqueEmail() }).expect(202);
 
-    const token = extractCode(lastMailTo(app, session.email).text);
+    const token = extractCode((await waitForMailTo(app, session.email, sent)).text);
     await request(server)
       .post('/api/v1/auth/password-reset/confirm')
       .send({ token, password: 'YeniSifre4567' })
