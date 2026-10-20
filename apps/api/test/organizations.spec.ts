@@ -1,5 +1,8 @@
 import { INestApplication } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
 import request from 'supertest';
+import { Database, DB } from '../src/db/db.module';
+import { auditLogs } from '../src/db/schema';
 import { MembersService } from '../src/members/members.service';
 import { addMember, createApp, createOrg, registerAndLogin, uniqueEmail } from './helpers';
 
@@ -104,11 +107,13 @@ describe('Kuruluşlar, üyeler ve roller', () => {
         .expect(404);
     }
 
-    // Yönetici yalnızca dokümanları görür.
+    // Yönetici dokümanları ve envanteri görür, görev atamak için kullanıcıları listeler.
     for (const user of [approver]) {
       await request(server).get('/api/v1/documents').set(as(user.accessToken)).expect(200);
+      await request(server).get('/api/v1/inventory').set(as(user.accessToken)).expect(200);
+      await request(server).get('/api/v1/members').set(as(user.accessToken)).expect(200);
       await request(server).get('/api/v1/organizations/current').set(as(user.accessToken)).expect(403);
-      await request(server).get('/api/v1/members').set(as(user.accessToken)).expect(403);
+      await request(server).patch(`/api/v1/members/${approver.membershipId}`).set(as(user.accessToken)).send({ roleKey: 'officer_approver' }).expect(404);
       await request(server).get('/api/v1/audit-logs').set(as(user.accessToken)).expect(403);
       await request(server).post('/api/v1/documents/setup').set(as(user.accessToken)).expect(403);
     }
@@ -143,5 +148,37 @@ describe('Kuruluşlar, üyeler ve roller', () => {
     const actions = logs.body.items.map((l: any) => l.action);
     expect(actions).toEqual(expect.arrayContaining(['organization.created', 'organization.updated']));
     expect(logs.body.items[0].user.email).toBe(admin.email);
+  });
+
+  it('ayrıntılı kaydı olmayan işlemleri de genel kayıtla loglar; oturum yenilemeyi loglamaz', async () => {
+    const { admin, as } = await setupOrg();
+    await request(server)
+      .patch('/api/v1/organizations/current')
+      .set(as(admin.accessToken))
+      .set('user-agent', 'kvkk-test-tarayici')
+      .send({ phone: '+90 312 222 22 22' })
+      .expect(200);
+    await request(server).post('/api/v1/notifications/read-all').set(as(admin.accessToken)).expect(204);
+    await request(server).post('/api/v1/auth/refresh').send({ refreshToken: admin.refreshToken }).expect(200);
+
+    const logs = await request(server).get('/api/v1/audit-logs').set(as(admin.accessToken)).expect(200);
+    const updated = logs.body.items.find((l: any) => l.action === 'organization.updated');
+    // Ayrıntılı kayıt, IP ve tarayıcı bilgisini istekten alır.
+    expect(updated.ip).toBeTruthy();
+    expect(updated.userAgent).toBe('kvkk-test-tarayici');
+    const generic = logs.body.items.find((l: any) => l.action === 'notifications.readAll');
+    expect(generic).toMatchObject({
+      user: { email: admin.email },
+      metadata: { method: 'POST', path: '/api/v1/notifications/read-all' },
+    });
+    expect(generic.ip).toBeTruthy();
+    // Aynı istek için ikinci (genel) kayıt yazılmaz.
+    expect(logs.body.items.filter((l: any) => l.action.startsWith('organizations.'))).toEqual([]);
+    const refreshLogs = await app
+      .get<Database>(DB)
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.userId, admin.user.id), eq(auditLogs.action, 'auth.refresh')));
+    expect(refreshLogs).toEqual([]);
   });
 });

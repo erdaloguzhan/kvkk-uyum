@@ -62,12 +62,6 @@ describe('İş akışı ve alarmlar', () => {
       .set(as(admin.accessToken))
       .send({ title: 'Dışarıdan', assigneeId: outsider.user.id, dueDate })
       .expect(400);
-    await request(server)
-      .post('/api/v1/tasks')
-      .set(as(yonetici.accessToken))
-      .send({ title: 'Yetkisiz', assigneeId: yonetici.user.id, dueDate })
-      .expect(403);
-
     const created = await request(server)
       .post('/api/v1/tasks')
       .set(as(admin.accessToken))
@@ -94,45 +88,46 @@ describe('İş akışı ve alarmlar', () => {
 
     const list = await request(server).get('/api/v1/tasks?mine=true').set(as(officer.accessToken)).expect(200);
     expect(list.body.items.map((t: any) => t.id)).toEqual([created.body.id]);
-    // Görev yetkisi olmayan Yönetici başkasının görevlerini görmez ve değiştiremez.
+    // Yönetici de görevleri görür.
     const all = await request(server).get('/api/v1/tasks').set(as(yonetici.accessToken)).expect(200);
-    expect(all.body.items).toHaveLength(0);
-    await request(server).post(`/api/v1/tasks/${created.body.id}/complete`).set(as(yonetici.accessToken)).send({}).expect(404);
+    expect(all.body.items.map((t: any) => t.id)).toEqual([created.body.id]);
 
     const summary = await request(server).get('/api/v1/tasks/summary').set(as(admin.accessToken)).expect(200);
     expect(summary.body).toMatchObject({ open: 1, overdue: 0, dueWithin7Days: 0 });
   });
 
-  it('görev yetkisi olmayan üye yalnızca kendi görevlerini görür ve tamamlar', async () => {
-    const { admin, as, orgId } = await setupOrg();
-    const staff = await addMember(app, orgId, 'approver');
+  it('Yönetici görev atar, değiştirir ve iptal eder; başka bir şeyi değiştiremez', async () => {
+    const { as, orgId } = await setupOrg();
+    const yonetici = await addMember(app, orgId, 'approver', 'Zeynep Yönetici');
     const officer = await addMember(app, orgId, 'kvkk_officer');
     const dueDate = addDays(today(), 10);
-    const mine = await request(server)
-      .post('/api/v1/tasks')
-      .set(as(admin.accessToken))
-      .send({ title: 'Çalışan görevi', assigneeId: staff.user.id, dueDate })
-      .expect(201);
-    const other = await request(server)
-      .post('/api/v1/tasks')
-      .set(as(admin.accessToken))
-      .send({ title: 'Başkasının görevi', assigneeId: officer.user.id, dueDate })
-      .expect(201);
+    const y = as(yonetici.accessToken);
 
-    const list = await request(server).get('/api/v1/tasks').set(as(staff.accessToken)).expect(200);
-    expect(list.body.items.map((t: any) => t.id)).toEqual([mine.body.id]);
-    await request(server).get(`/api/v1/tasks/${other.body.id}`).set(as(staff.accessToken)).expect(404);
-    await request(server).post(`/api/v1/tasks/${other.body.id}/complete`).set(as(staff.accessToken)).send({}).expect(404);
-    await request(server).get('/api/v1/tasks/summary').set(as(staff.accessToken)).expect(403);
+    // Atayacağı kişiyi seçmek için kuruluşun kullanıcılarını görür.
+    const members = await request(server).get('/api/v1/members').set(y).expect(200);
+    expect(members.body.items.map((m: any) => m.user.id)).toContain(officer.user.id);
 
-    const done = await request(server)
-      .post(`/api/v1/tasks/${mine.body.id}/complete`)
-      .set(as(staff.accessToken))
-      .send({ note: 'Yapıldı' })
+    const task = await request(server)
+      .post('/api/v1/tasks')
+      .set(y)
+      .send({ type: 'inventory_review', title: 'Envanteri gözden geçir', assigneeId: officer.user.id, dueDate })
+      .expect(201);
+    expect(task.body).toMatchObject({ createdBy: yonetici.user.id, assignee: { id: officer.user.id } });
+    expect(lastMailTo(app, officer.email).subject).toBe('Yeni görev: Envanteri gözden geçir');
+    await request(server)
+      .patch(`/api/v1/tasks/${task.body.id}`)
+      .set(y)
+      .send({ dueDate: addDays(today(), 20) })
       .expect(200);
-    expect(done.body.task).toMatchObject({ status: 'done', completionNote: 'Yapıldı', completedBy: staff.user.id });
-    expect(done.body.next).toBeNull();
-    await request(server).post(`/api/v1/tasks/${mine.body.id}/complete`).set(as(staff.accessToken)).send({}).expect(409);
+    await request(server).get('/api/v1/tasks/summary').set(y).expect(200);
+    await request(server).post(`/api/v1/tasks/${task.body.id}/cancel`).set(y).expect(200);
+
+    // Yönetici envanteri ve dokümanları değiştiremez, kuruluş bilgilerine ve loglara erişemez.
+    await request(server).post('/api/v1/inventory').set(y).send({ department: 'İK', activity: 'İşe alım', dataCategory: 'Kimlik' }).expect(403);
+    await request(server).post('/api/v1/documents/setup').set(y).expect(403);
+    await request(server).get('/api/v1/organizations/current').set(y).expect(403);
+    await request(server).get('/api/v1/audit-logs').set(y).expect(403);
+    await request(server).get('/api/v1/contracts').set(y).expect(403);
   });
 
   it('tekrarlayan görev tamamlanınca sonraki dönem açılır', async () => {

@@ -13,11 +13,12 @@ export function dueBadge(t: Task) {
   return <Badge kind={kind}>{daysLeftText(t.daysLeft, t.overdue)}</Badge>;
 }
 
-/** Göreve bağlı kaydın sayfası (doküman veya envanter satırı). */
+/** Göreve bağlı kaydın sayfası (doküman, envanter satırı veya envanter onay talebi). */
 export function entityHref(t: Pick<Task, 'entityType' | 'entityId'>): string | null {
   if (!t.entityId) return null;
   if (t.entityType === 'document') return `/dokumanlar/${t.entityId}`;
   if (t.entityType === 'inventory_entry') return `/envanter/${t.entityId}`;
+  if (t.entityType === 'inventory_approval') return `/envanter/onay/${t.entityId}`;
   return null;
 }
 

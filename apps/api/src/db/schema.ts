@@ -319,7 +319,7 @@ export const tasks = pgTable(
     recurrenceMonths: integer('recurrence_months'),
     status: text('status', { enum: ['open', 'done', 'cancelled'] }).notNull().default('open'),
     /** Bağlı kayıt (ör. gözden geçirilecek doküman). */
-    entityType: text('entity_type', { enum: ['document', 'inventory_entry'] }),
+    entityType: text('entity_type', { enum: ['document', 'inventory_entry', 'inventory_approval'] }),
     entityId: uuid('entity_id'),
     previousTaskId: uuid('previous_task_id').references((): AnyPgColumn => tasks.id, { onDelete: 'set null' }),
     completionNote: text('completion_note'),
@@ -367,6 +367,58 @@ export const approvalRequests = pgTable(
       .on(t.versionId)
       .where(sql`${t.status} = 'pending'`),
     index('approval_requests_org_status_idx').on(t.organizationId, t.status),
+  ],
+);
+
+/** Envanter satırının onay için saklanan hali (kimlik ve tarih alanları hariç). */
+export type InventorySnapshotEntry = Omit<
+  typeof inventoryEntries.$inferSelect,
+  'organizationId' | 'createdBy' | 'updatedBy' | 'createdAt' | 'updatedAt'
+>;
+
+/** Son onaylanan envantere göre bir satırdaki değişiklik. */
+export interface InventoryChange {
+  entryId: string;
+  kind: 'added' | 'updated' | 'deleted';
+  department: string;
+  activity: string;
+  dataCategory: string;
+  /** Güncellenen satırda değişen alanlar ve önceki/yeni değerleri. */
+  fields?: { field: string; before: unknown; after: unknown }[];
+}
+
+/**
+ * Veri envanterindeki değişikliklerin onayı. Sorumlu, son onaydan bu yana yapılan değişiklikleri Yöneticiye
+ * gönderir; talep o anki envanterin tamamını (`snapshot`) ve değişiklik listesini (`changes`) saklar.
+ * Onaylanan talebin `snapshot`'ı bir sonraki değişiklik listesinin karşılaştırma tabanıdır.
+ */
+export const inventoryApprovals = pgTable(
+  'inventory_approvals',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    approverId: uuid('approver_id')
+      .notNull()
+      .references(() => users.id),
+    status: text('status', { enum: ['pending', 'approved', 'rejected', 'cancelled'] }).notNull().default('pending'),
+    note: text('note'),
+    decisionNote: text('decision_note'),
+    snapshot: jsonb('snapshot').$type<InventorySnapshotEntry[]>().notNull(),
+    changes: jsonb('changes').$type<InventoryChange[]>().notNull(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // Kuruluşta aynı anda tek bekleyen envanter onay talebi olabilir.
+    uniqueIndex('inventory_approvals_pending_org_unique')
+      .on(t.organizationId)
+      .where(sql`${t.status} = 'pending'`),
+    index('inventory_approvals_org_created_idx').on(t.organizationId, t.createdAt),
   ],
 );
 
@@ -757,4 +809,34 @@ export const supportAttachments = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('support_attachments_message_idx').on(t.messageId)],
+);
+
+/**
+ * Çalışanın eğitim portalında yayınlanmış bir doküman sürümünü sonuna kadar okuyup "Okudum, anladım."
+ * onayı verdiği kayıt. Doküman yeni sürümle yayınlanırsa çalışan yeni sürümü ayrıca onaylar.
+ */
+export const documentReads = pgTable(
+  'document_reads',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    versionId: uuid('version_id')
+      .notNull()
+      .references(() => documentVersions.id, { onDelete: 'cascade' }),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id, { onDelete: 'cascade' }),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('document_reads_version_employee_unique').on(t.versionId, t.employeeId),
+    index('document_reads_document_idx').on(t.documentId),
+  ],
 );

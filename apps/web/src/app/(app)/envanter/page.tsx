@@ -4,11 +4,12 @@ import { INVENTORY_COLUMNS, InventoryField, PERMISSIONS, STORAGE_MEDIA } from '@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { CHANGE_KINDS, InventoryApprovalPanel } from '@/components/inventory-approval';
 import { Alert, Badge, Empty, ErrorAlert, Loading, PageHeader, Stat } from '@/components/ui';
 import { api, download, errorText } from '@/lib/api';
 import { fieldLabel } from '@/lib/labels';
 import { useSession } from '@/lib/session';
-import type { InventoryEntry, InventorySummary } from '@/lib/types';
+import type { InventoryApprovalStatus, InventoryEntry, InventorySummary } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 /** Özet görünümde gösterilen sütunlar; tam görünümde TBL-010'un 16 sütununun tamamı gösterilir. */
@@ -88,6 +89,8 @@ export default function InventoryPage() {
     incomplete: onlyIncomplete ? true : undefined,
   });
   const summary = useApi<InventorySummary>('inventory/summary');
+  const approval = useApi<InventoryApprovalStatus>('inventory/approval');
+  const unapproved = new Map((approval.data?.changes ?? []).map((c) => [c.entryId, c.kind]));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -113,7 +116,7 @@ export default function InventoryPage() {
     if (!confirm(`"${e.department} / ${e.activity} / ${e.dataCategory}" satırı silinsin mi?`)) return;
     act(e.id, async () => {
       await api(`inventory/${e.id}`, { method: 'DELETE' });
-      await Promise.all([list.reload(), summary.reload()]);
+      await Promise.all([list.reload(), summary.reload(), approval.reload()]);
     });
   };
 
@@ -144,6 +147,7 @@ export default function InventoryPage() {
         }
       />
       <ErrorAlert error={error ?? list.error} />
+      {approval.data && <InventoryApprovalPanel status={approval.data} onChange={approval.reload} />}
 
       {s && (
         <div className="grid grid-4" style={{ marginBottom: 16 }}>
@@ -236,6 +240,11 @@ export default function InventoryPage() {
                         <Badge kind="warning">{e.missingFields.length} eksik</Badge>
                       </span>
                     )}
+                    {unapproved.has(e.id) && (
+                      <div style={{ marginTop: 4 }} title="Son Yönetici onayından sonra eklendi veya değişti">
+                        <Badge kind="info">{CHANGE_KINDS[unapproved.get(e.id)!].label} · onaysız</Badge>
+                      </div>
+                    )}
                   </td>
                   {canWrite && (
                     <td>
@@ -260,7 +269,12 @@ export default function InventoryPage() {
           Eksik alanları görmek için satırın faaliyet adına tıklayın.
         </p>
       )}
-      {!canWrite && <Alert kind="info">Envanteri yalnızca görüntüleme yetkiniz var.</Alert>}
+      {!canWrite && (
+        <Alert kind="info">
+          Envanteri görüntüleyebilirsiniz; değişiklikleri Sorumlu yapar.
+          {can(PERMISSIONS.INVENTORY_APPROVE) && ' Size gönderilen değişiklikleri yukarıdaki "Yönetici onayı" bölümünden onaylarsınız.'}
+        </Alert>
+      )}
     </>
   );
 }

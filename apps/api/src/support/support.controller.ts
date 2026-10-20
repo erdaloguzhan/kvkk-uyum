@@ -3,6 +3,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AuthUser, CurrentOrg, CurrentUser, OrgContext, RequirePermissions } from '../common/request-context';
+import { AuditMode } from '../audit/audit.interceptor';
 import { ZodPipe } from '../common/zod.pipe';
 import { sendAttachment, toAttachments } from './files';
 import { createTicketBody, uploadLimits, userListQuery, userReplyBody } from './support.schema';
@@ -65,6 +66,7 @@ export class SupportController {
   }
 
   /** Ek dosyası (talebi görebilen kullanıcı veya platform yöneticisi). */
+  @AuditMode('access')
   @Get('attachments/:id')
   async attachment(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
     sendAttachment(res, await this.support.attachment(user.id, id));

@@ -19,6 +19,7 @@ import { DOCUMENT_CATEGORIES, DocumentCategory, SYSTEM_ROLES } from '@kvkk/share
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AuthUser, CurrentUser } from '../common/request-context';
+import { AuditMode } from '../audit/audit.interceptor';
 import { ZodPipe } from '../common/zod.pipe';
 import { profileFields } from '../organizations/organizations.controller';
 import { TemplatesService } from '../templates/templates.service';
@@ -229,6 +230,7 @@ export class AdminController {
     await this.templates.deleteDraft(user.id, code, versionId);
   }
 
+  @AuditMode('access')
   @Get('templates/:code/versions/:versionId/file')
   async download(
     @Param('code') code: string,

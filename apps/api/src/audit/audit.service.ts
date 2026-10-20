@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Database, InjectDb } from '../db/db.module';
 import { auditLogs } from '../db/schema';
+import { auditContext } from './audit-context';
 
 export interface AuditEntry {
   action: string;
@@ -19,7 +20,13 @@ export class AuditService {
 
   constructor(@InjectDb() private readonly db: Database) {}
 
+  /** Log kaydı yazar. HTTP isteği içinde çağrılırsa IP ve tarayıcı bilgisi verilmediğinde istekten alınır. */
   async record(entry: AuditEntry): Promise<void> {
+    const ctx = auditContext.getStore();
+    if (ctx) {
+      ctx.recorded = true;
+      entry = { ...entry, ip: entry.ip ?? ctx.ip, userAgent: entry.userAgent ?? ctx.userAgent };
+    }
     try {
       await this.db.insert(auditLogs).values(entry);
     } catch (err) {

@@ -432,4 +432,100 @@ describe('Uzaktan eğitim', () => {
     expect(after.body.items).toEqual([]);
     await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}/file`)).expect(404);
   });
+
+  it('çalışan dokümanı portalda sonuna kadar okur ve "Okudum, anladım." onayı okunan sürümle kaydedilir', async () => {
+    const owner = await registerAndLogin(app);
+    const docOrg = await createOrg(app, owner, {
+      name: 'Okuma Müşteri A.Ş.',
+      address: 'Atatürk Cad. No:1 Ankara',
+      email: 'info@ornek.com.tr',
+      phone: '+90 312 000 00 00',
+      authorizedPerson: 'Ayşe Yılmaz',
+      taxNumber: '1234567890',
+    });
+    const as = (req: request.Test) => req.set({ authorization: `Bearer ${owner.accessToken}`, 'x-organization-id': docOrg });
+    const doc = (await as(request(server).post('/api/v1/documents')).send({ templateCode: 'PRS-010' }).expect(201)).body;
+    const v1 = doc.versions[0].id;
+    await as(request(server).post(`/api/v1/documents/${doc.id}/versions/${v1}/publish`)).expect(200);
+
+    const email = uniqueEmail('okuyan');
+    const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Okur', email })
+      .expect(201);
+    const other = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'Ece', lastName: 'Henüz', email: uniqueEmail('okumayan') })
+      .expect(201);
+    await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`))
+      .send({ employeeIds: [emp.body.id] })
+      .expect(200);
+    const temp = /Geçici şifreniz: (\S+)/.exec(lastMailTo(app, email).text)![1];
+    const first = await request(server).post('/api/v1/training-portal/login').send({ email, password: temp }).expect(200);
+    const changed = await request(server)
+      .post('/api/v1/training-portal/change-password')
+      .set('authorization', `Bearer ${first.body.token}`)
+      .send({ currentPassword: temp, newPassword: PASSWORD })
+      .expect(200);
+    const portal = (req: request.Test) => req.set('authorization', `Bearer ${changed.body.token}`);
+
+    // Doküman portalda okunabilir metin olarak gelir.
+    const view = await portal(request(server).get(`/api/v1/training-portal/documents/${doc.id}`)).expect(200);
+    expect(view.body).toMatchObject({ id: doc.id, code: 'PRS-010', versionId: v1, versionNo: 1, confirmedAt: null });
+    expect(view.body.html).toContain('<p>');
+    expect(view.body.html).toContain('<h1>AMAÇ</h1>');
+
+    // Bu arada değişen sürüm onaylanamaz; doğru sürümün onayı bir kez kaydedilir.
+    await portal(request(server).post(`/api/v1/training-portal/documents/${doc.id}/read`))
+      .send({ versionId: other.body.id })
+      .expect(409);
+    const confirmed = await portal(request(server).post(`/api/v1/training-portal/documents/${doc.id}/read`))
+      .send({ versionId: v1 })
+      .expect(200);
+    expect(confirmed.body.versionNo).toBe(1);
+    const again = await portal(request(server).post(`/api/v1/training-portal/documents/${doc.id}/read`))
+      .send({ versionId: v1 })
+      .expect(200);
+    expect(again.body.confirmedAt).toBe(confirmed.body.confirmedAt);
+    const list = await portal(request(server).get('/api/v1/training-portal/documents')).expect(200);
+    expect(list.body.items).toEqual([expect.objectContaining({ id: doc.id, confirmedAt: confirmed.body.confirmedAt })]);
+
+    // Kuruluş, kimin hangi sürümü ne zaman onayladığını ve kimin henüz onaylamadığını görür.
+    let report = await as(request(server).get(`/api/v1/documents/${doc.id}/reads`)).expect(200);
+    expect(report.body).toMatchObject({ publishedVersion: { id: v1, versionNo: 1 } });
+    expect(report.body.reads).toEqual([
+      expect.objectContaining({ versionNo: 1, employee: expect.objectContaining({ id: emp.body.id, lastName: 'Okur' }) }),
+    ]);
+    expect(report.body.notConfirmed.map((e: any) => e.id)).toEqual([other.body.id]);
+
+    // Yeni sürüm yayınlanınca çalışan yeni sürümü ayrıca onaylar; eski onay kayıtta kalır.
+    const regenerated = await as(request(server).post(`/api/v1/documents/${doc.id}/regenerate`)).expect(201);
+    const v2 = regenerated.body.id;
+    await as(request(server).post(`/api/v1/documents/${doc.id}/versions/${v2}/publish`)).expect(200);
+    const relist = await portal(request(server).get('/api/v1/training-portal/documents')).expect(200);
+    expect(relist.body.items).toEqual([expect.objectContaining({ versionNo: 2, confirmedAt: null })]);
+    await portal(request(server).post(`/api/v1/training-portal/documents/${doc.id}/read`)).send({ versionId: v1 }).expect(409);
+    report = await as(request(server).get(`/api/v1/documents/${doc.id}/reads`)).expect(200);
+    expect(report.body.notConfirmed.map((e: any) => e.id).sort()).toEqual([emp.body.id, other.body.id].sort());
+    await portal(request(server).post(`/api/v1/training-portal/documents/${doc.id}/read`)).send({ versionId: v2 }).expect(200);
+    report = await as(request(server).get(`/api/v1/documents/${doc.id}/reads`)).expect(200);
+    expect(report.body.reads.map((r: any) => r.versionNo)).toEqual([2, 1]);
+
+    // Başka kuruluşun kullanıcısı okuma kayıtlarını göremez; okuma, onay ve indirme loglanır.
+    const stranger = await registerAndLogin(app);
+    const strangerOrg = await createOrg(app, stranger, { name: 'Başka Kuruluş A.Ş.' });
+    await request(server)
+      .get(`/api/v1/documents/${doc.id}/reads`)
+      .set({ authorization: `Bearer ${stranger.accessToken}`, 'x-organization-id': strangerOrg })
+      .expect(404);
+    await as(request(server).get(`/api/v1/documents/${doc.id}/versions/${v2}/file`)).expect(200);
+    const logs = await as(request(server).get('/api/v1/audit-logs?module=document')).expect(200);
+    const actions = logs.body.items.map((l: any) => l.action);
+    expect(actions).toEqual(expect.arrayContaining(['document.portal_viewed', 'document.read_confirmed']));
+    expect(logs.body.items.find((l: any) => l.action === 'document.read_confirmed').metadata).toMatchObject({
+      employeeId: emp.body.id,
+      versionNo: 2,
+      account: email,
+    });
+    const download = await as(request(server).get('/api/v1/audit-logs?action=documents.download')).expect(200);
+    expect(download.body.items).toEqual([expect.objectContaining({ entityId: doc.id, user: expect.objectContaining({ email: owner.email }) })]);
+  });
 });

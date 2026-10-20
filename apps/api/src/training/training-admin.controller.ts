@@ -19,6 +19,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AuthUser, CurrentUser } from '../common/request-context';
+import { AuditMode } from '../audit/audit.interceptor';
 import { ZodPipe } from '../common/zod.pipe';
 import { sendFile } from './files';
 import { GroupsService } from './groups.service';
@@ -273,6 +274,7 @@ export class TrainingAdminController {
     await this.groups.deleteParticipantRecord(user.id, id);
   }
 
+  @AuditMode('access')
   @Get('participants/:id/certificate')
   async certificate(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
     const { pdf, fileName } = await this.groups.certificate(user.id, id);

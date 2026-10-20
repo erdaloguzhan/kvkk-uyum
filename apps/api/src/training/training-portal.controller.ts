@@ -17,6 +17,7 @@ const changePasswordBody = z.object({ currentPassword: z.string().min(1).max(128
 const resetRequestBody = z.object({ email: z.email().max(254) });
 const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
 const nextBody = z.object({ topicIndex: z.number().int().min(0) });
+const readBody = z.object({ versionId: z.uuid() });
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -88,6 +89,26 @@ export class TrainingPortalController {
   @UseGuards(TraineeGuard)
   async listDocuments(@CurrentTrainee() trainee: TraineeToken) {
     return { items: await this.documents.list(trainee) };
+  }
+
+  /** Dokümanı portalda okumak için (HTML) ve yayındaki sürüm için verilmiş okuma onayı. */
+  @Get('documents/:id')
+  @UseGuards(TraineeGuard)
+  viewDocument(@CurrentTrainee() trainee: TraineeToken, @Param('id', ParseUUIDPipe) id: string) {
+    return this.documents.view(trainee, id);
+  }
+
+  /** Dokümanın sonundaki "Okudum, anladım." onayı; okunan sürümle birlikte kaydedilir. */
+  @Post('documents/:id/read')
+  @HttpCode(200)
+  @UseGuards(TraineeGuard)
+  confirmRead(
+    @Req() req: AppRequest,
+    @CurrentTrainee() trainee: TraineeToken,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(readBody)) body: z.infer<typeof readBody>,
+  ) {
+    return this.documents.confirmRead(trainee, id, body.versionId, clientInfo(req));
   }
 
   @Get('documents/:id/file')

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Logger, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
+import { AuditMode } from '../audit/audit.interceptor';
 import { passwordSchema } from '../common/password-policy';
 import { AppRequest, AuthUser, clientInfo, CurrentUser, Public } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
@@ -70,6 +71,7 @@ export class AuthController {
 
   @Public()
   @Throttle(AUTH_THROTTLE)
+  @AuditMode('skip')
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body(new ZodPipe(refreshBody)) body: z.infer<typeof refreshBody>) {
