@@ -15,12 +15,13 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PERMISSIONS } from '@kvkk/shared';
+import { APPROVAL_STATUSES, ApprovalStatus, PERMISSIONS } from '@kvkk/shared';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { AuthUser, CurrentOrg, CurrentUser, OrgContext, RequirePermissions } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
 import { createBody, updateBody } from './inventory.schema';
+import { InventoryApprovalsService } from './inventory-approvals.service';
 import { InventoryService } from './inventory.service';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -43,9 +44,81 @@ const listQuery = z.object({
     .transform((v) => (v === undefined ? undefined : v === 'true')),
 });
 
+const note = z.string().trim().max(2000).nullish();
+const approvalRequestBody = z.object({ approverId: z.uuid(), dueDate: z.iso.date().nullish(), note });
+const approvalNoteBody = z.object({ note }).default({});
+const approvalRejectBody = z.object({ note: z.string().trim().min(2, 'Ret gerekçesi yazılmalı').max(2000) });
+const approvalQuery = z.object({
+  status: z.enum(Object.keys(APPROVAL_STATUSES) as [ApprovalStatus, ...ApprovalStatus[]]).optional(),
+});
+
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventory: InventoryService) {}
+  constructor(
+    private readonly inventory: InventoryService,
+    private readonly approvals: InventoryApprovalsService,
+  ) {}
+
+  /** Son onay, bekleyen onay talebi ve son onaydan bu yana yapılan değişiklikler. */
+  @Get('approval')
+  @RequirePermissions(PERMISSIONS.INVENTORY_READ)
+  approvalStatus(@CurrentOrg() org: OrgContext) {
+    return this.approvals.status(org.id);
+  }
+
+  /** Son onaydan bu yana yapılan değişiklikleri Yöneticinin onayına gönderir. */
+  @Post('approval-requests')
+  @RequirePermissions(PERMISSIONS.INVENTORY_WRITE)
+  requestApproval(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodPipe(approvalRequestBody)) body: z.infer<typeof approvalRequestBody>,
+  ) {
+    return this.approvals.request(org.id, user.id, body);
+  }
+
+  @Get('approval-requests')
+  @RequirePermissions(PERMISSIONS.INVENTORY_READ)
+  async approvalRequests(@CurrentOrg() org: OrgContext, @Query(new ZodPipe(approvalQuery)) q: z.infer<typeof approvalQuery>) {
+    return { items: await this.approvals.list(org.id, q) };
+  }
+
+  @Get('approval-requests/:id')
+  @RequirePermissions(PERMISSIONS.INVENTORY_READ)
+  approvalRequest(@CurrentOrg() org: OrgContext, @Param('id', ParseUUIDPipe) id: string) {
+    return this.approvals.get(org.id, id);
+  }
+
+  @Post('approval-requests/:id/approve')
+  @HttpCode(200)
+  @RequirePermissions(PERMISSIONS.INVENTORY_APPROVE)
+  approve(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(approvalNoteBody)) body: z.infer<typeof approvalNoteBody>,
+  ) {
+    return this.approvals.approve(org.id, user.id, id, body.note);
+  }
+
+  @Post('approval-requests/:id/reject')
+  @HttpCode(200)
+  @RequirePermissions(PERMISSIONS.INVENTORY_APPROVE)
+  reject(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(approvalRejectBody)) body: z.infer<typeof approvalRejectBody>,
+  ) {
+    return this.approvals.reject(org.id, user.id, id, body.note);
+  }
+
+  @Post('approval-requests/:id/cancel')
+  @HttpCode(200)
+  @RequirePermissions(PERMISSIONS.INVENTORY_WRITE)
+  cancelApproval(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.approvals.cancel(org.id, user.id, id);
+  }
 
   /** Adım adım giriş için sütunlar, zorunlu alanlar ve öneri listeleri. */
   @Get('options')

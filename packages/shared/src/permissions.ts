@@ -12,6 +12,7 @@ export const PERMISSIONS = {
   DOCUMENTS_APPROVE: 'documents.approve',
   INVENTORY_READ: 'inventory.read',
   INVENTORY_WRITE: 'inventory.write',
+  INVENTORY_APPROVE: 'inventory.approve',
   TASKS_READ: 'tasks.read',
   TASKS_MANAGE: 'tasks.manage',
   INCIDENTS_MANAGE: 'incidents.manage',
@@ -33,7 +34,8 @@ export interface SystemRoleDefinition {
 
 /**
  * Müşteri kuruluşlarında yalnızca bu sabit roller vardır; özel rol tanımlanamaz.
- * Sorumlu tüm işi yapar ve dokümanları Yöneticinin onayına gönderir. Yönetici yalnızca onay verir.
+ * Sorumlu tüm işi yapar; dokümanları ve veri envanterindeki değişiklikleri Yöneticinin onayına gönderir.
+ * Yönetici dokümanları ve envanter değişikliklerini onaylar, görev atar; başka bir şeyi değiştiremez.
  * Aynı kişi (aynı e-posta) her ikisi olacaksa "Sorumlu + Yönetici" rolü atanır.
  * Çalışanlar yayınlanmış dokümanları ayrı bir rol yerine eğitim portalı hesaplarıyla görür.
  */
@@ -46,12 +48,23 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
   {
     key: 'kvkk_officer',
     name: 'KVKK Sorumlusu',
-    permissions: ALL_PERMISSIONS.filter((p) => p !== PERMISSIONS.DOCUMENTS_APPROVE),
+    permissions: ALL_PERMISSIONS.filter(
+      (p) => p !== PERMISSIONS.DOCUMENTS_APPROVE && p !== PERMISSIONS.INVENTORY_APPROVE,
+    ),
   },
   {
     key: 'approver',
     name: 'Yönetici',
-    permissions: [PERMISSIONS.DOCUMENTS_READ, PERMISSIONS.DOCUMENTS_APPROVE],
+    permissions: [
+      PERMISSIONS.DOCUMENTS_READ,
+      PERMISSIONS.DOCUMENTS_APPROVE,
+      PERMISSIONS.INVENTORY_READ,
+      PERMISSIONS.INVENTORY_APPROVE,
+      // Görev atamak için: görevleri görür, açar/değiştirir ve atayacağı kişileri seçmek için üyeleri listeler.
+      PERMISSIONS.TASKS_READ,
+      PERMISSIONS.TASKS_MANAGE,
+      PERMISSIONS.USERS_READ,
+    ],
   },
 ];
 

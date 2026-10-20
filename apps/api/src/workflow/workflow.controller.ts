@@ -4,6 +4,7 @@ import {
   ApprovalStatus,
   DEFAULT_APPROVAL_DUE_DAYS,
   DEFAULT_REMINDER_DAYS,
+  LINKABLE_TASK_ENTITY_TYPES,
   NOTIFICATION_KINDS,
   PERMISSIONS,
   TASK_ENTITY_TYPES,
@@ -45,7 +46,7 @@ const taskFields = {
     .int()
     .refine((m) => (TASK_RECURRENCE_MONTHS as readonly number[]).includes(m), 'Geçersiz tekrarlama aralığı')
     .nullish(),
-  entityType: z.enum(keys<TaskEntityType>(TASK_ENTITY_TYPES)).nullish(),
+  entityType: z.enum(LINKABLE_TASK_ENTITY_TYPES).nullish(),
   entityId: z.uuid().nullish(),
 };
 const createTaskBody = z

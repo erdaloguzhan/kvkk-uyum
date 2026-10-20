@@ -10,7 +10,7 @@ import { and, asc, eq, getTableColumns, gte, lt, SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { AuditService } from '../audit/audit.service';
 import { Database, InjectDb } from '../db/db.module';
-import { documents, inventoryEntries, tasks, users } from '../db/schema';
+import { documents, inventoryApprovals, inventoryEntries, tasks, users } from '../db/schema';
 import { addDays, addMonths, dateIn, daysBetween, formatDate, IsoDate } from './dates';
 import { requireActiveMember } from './members';
 import { NotificationsService } from './notifications.service';
@@ -264,7 +264,8 @@ export class TasksService {
 
   private async checkEntity(orgId: string, entityType?: TaskEntityType | null, entityId?: string | null) {
     if (!entityType || !entityId) return;
-    const table = entityType === 'document' ? documents : inventoryEntries;
+    const table =
+      entityType === 'document' ? documents : entityType === 'inventory_entry' ? inventoryEntries : inventoryApprovals;
     const [row] = await this.db
       .select({ id: table.id })
       .from(table)

@@ -408,6 +408,12 @@ export interface PortalDocument {
   versionId: string;
   versionNo: number;
   publishedAt: string | null;
+  /** Yayındaki sürüm için verilen "Okudum, anladım." onayının zamanı. */
+  confirmedAt: string | null;
+}
+
+export interface PortalDocumentView extends PortalDocument {
+  html: string;
 }
 
 export interface PortalQuestion {
@@ -471,4 +477,63 @@ export interface SupportMessage {
 export interface SupportTicketDetail extends SupportTicket {
   createdByEmail: string | null;
   messages: SupportMessage[];
+}
+
+/** Son onaylanan envantere göre bir satırdaki değişiklik. */
+export interface InventoryChange {
+  entryId: string;
+  kind: 'added' | 'updated' | 'deleted';
+  department: string;
+  activity: string;
+  dataCategory: string;
+  fields?: { field: InventoryField; before: unknown; after: unknown }[];
+}
+
+export interface InventoryApproval {
+  id: string;
+  status: ApprovalStatus;
+  note: string | null;
+  decisionNote: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  taskId: string | null;
+  dueDate: string | null;
+  approver: { id: string; fullName: string };
+  requestedBy: { id: string; fullName: string } | null;
+  decidedBy: { id: string; fullName: string } | null;
+  changes: InventoryChange[];
+}
+
+export type InventoryApprovalListItem = Omit<InventoryApproval, 'changes'> & { changeCount: number };
+
+export interface InventoryApprovalStatus {
+  lastApproved: InventoryApproval | null;
+  pending: InventoryApproval | null;
+  changes: InventoryChange[];
+}
+
+export interface ReadEmployee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+}
+
+export interface DocumentReadReport {
+  publishedVersion: { id: string; versionNo: number } | null;
+  employeeVisible: boolean;
+  reads: { id: string; confirmedAt: string; versionId: string; versionNo: number; employee: ReadEmployee }[];
+  notConfirmed: ReadEmployee[];
+}
+
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  user: { id: string; email: string; fullName: string } | null;
 }

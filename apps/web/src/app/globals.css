@@ -270,3 +270,7 @@ dl.details dd { margin: 0; }
 .msg-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .msg-files img { max-width: 220px; max-height: 160px; border: 1px solid var(--border); border-radius: 6px; display: block; background: #fff; }
 .file-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.document-body table { border-collapse: collapse; margin: 0 0 0.75rem; width: 100%; }
+.document-body td, .document-body th { border: 1px solid var(--border); padding: 6px 8px; vertical-align: top; }
+.document-body td p, .document-body th p { margin: 0; }
+.document-body h1 { font-size: 1.15rem; margin: 20px 0 8px; }

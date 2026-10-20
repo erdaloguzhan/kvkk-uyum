@@ -1,9 +1,11 @@
 'use client';
 
-import { APPROVAL_STATUSES, DEFAULT_APPROVAL_DUE_DAYS, DOCUMENT_CATEGORIES, PERMISSIONS } from '@kvkk/shared';
+import { APPROVAL_STATUSES, DOCUMENT_CATEGORIES, PERMISSIONS } from '@kvkk/shared';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import { ApproverDialog, NoteDialog } from '@/components/approval-dialogs';
+import { DocumentReads } from '@/components/document-reads';
 import { CompactTaskList } from '@/components/task-list';
 import { Alert, Badge, Empty, ErrorAlert, Field, Loading, Modal, PageHeader } from '@/components/ui';
 import { api, download, errorText } from '@/lib/api';
@@ -11,7 +13,6 @@ import { formatBytes, formatDate, formatDateTime, formatDay } from '@/lib/labels
 import { useSession } from '@/lib/session';
 import type { ApprovalRequest, DocumentDetail, DocumentVersion, Task } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
-import { useMembers } from '@/lib/use-members';
 
 const VERSION_STATUS: Record<DocumentVersion['status'], { label: string; kind?: 'success' | 'warning' }> = {
   draft: { label: 'Taslak', kind: 'warning' },
@@ -275,6 +276,8 @@ export default function DocumentDetailPage() {
         </div>
       </div>
 
+      <DocumentReads documentId={d.id} code={d.code} />
+
       {dialog?.kind === 'upload' && (
         <UploadDialog
           busy={busy}
@@ -306,8 +309,10 @@ export default function DocumentDetailPage() {
       />
       )}
       {dialog?.kind === 'request' && (
-        <RequestDialog
-          version={dialog.version}
+        <ApproverDialog
+          title={`Sürüm ${dialog.version.versionNo} için onay iste`}
+          permission={PERMISSIONS.DOCUMENTS_APPROVE}
+          hint="Yalnızca doküman onay yetkisi olan üyeler listelenir."
           busy={busy}
           onClose={() => setDialog(null)}
           onSubmit={(body) =>
@@ -377,103 +382,6 @@ function UploadDialog({
           </button>
           <button className="btn btn-primary" disabled={busy || !file}>
             {busy ? 'Yükleniyor…' : 'Yükle'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function NoteDialog({
-  title,
-  text,
-  submitLabel,
-  required,
-  busy,
-  onClose,
-  onSubmit,
-}: {
-  title: string;
-  text: string;
-  submitLabel: string;
-  required?: boolean;
-  busy: boolean;
-  onClose: () => void;
-  onSubmit: (note: string) => void;
-}) {
-  const [note, setNote] = useState('');
-  return (
-    <Modal open onClose={onClose} title={title}>
-      <p className="muted">{text}</p>
-      <form
-        className="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit(note.trim());
-        }}
-      >
-        <Field label={required ? 'Gerekçe' : 'Not'} htmlFor="dialog-note" required={required}>
-          <textarea id="dialog-note" value={note} onChange={(e) => setNote(e.target.value)} required={required} minLength={required ? 2 : undefined} />
-        </Field>
-        <div className="dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
-            Vazgeç
-          </button>
-          <button className="btn btn-primary" disabled={busy}>
-            {busy ? 'Kaydediliyor…' : submitLabel}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function RequestDialog({
-  version,
-  busy,
-  onClose,
-  onSubmit,
-}: {
-  version: DocumentVersion;
-  busy: boolean;
-  onClose: () => void;
-  onSubmit: (body: { approverId: string; dueDate: string | null; note: string | null }) => void;
-}) {
-  const { options, loading } = useMembers(PERMISSIONS.DOCUMENTS_APPROVE);
-  const [approverId, setApproverId] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [note, setNote] = useState('');
-  return (
-    <Modal open onClose={onClose} title={`Sürüm ${version.versionNo} için onay iste`}>
-      <form
-        className="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit({ approverId, dueDate: dueDate || null, note: note.trim() || null });
-        }}
-      >
-        <Field label="Onaylayacak kişi" htmlFor="approver" required hint="Yalnızca doküman onay yetkisi olan üyeler listelenir.">
-          <select id="approver" value={approverId} onChange={(e) => setApproverId(e.target.value)} required>
-            <option value="">{loading ? 'Yükleniyor…' : 'Seçin'}</option>
-            {options.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.fullName} ({m.email})
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Son tarih" htmlFor="due" hint={`Boş bırakılırsa ${DEFAULT_APPROVAL_DUE_DAYS} gün sonrası`}>
-          <input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        </Field>
-        <Field label="Not" htmlFor="req-note">
-          <textarea id="req-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
-        </Field>
-        <div className="dialog-actions">
-          <button type="button" className="btn" onClick={onClose}>
-            Vazgeç
-          </button>
-          <button className="btn btn-primary" disabled={busy || !approverId}>
-            {busy ? 'Gönderiliyor…' : 'Onaya gönder'}
           </button>
         </div>
       </form>

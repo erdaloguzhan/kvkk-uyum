@@ -26,9 +26,13 @@ export type TaskStatus = keyof typeof TASK_STATUSES;
 export const TASK_ENTITY_TYPES = {
   document: 'Doküman',
   inventory_entry: 'Envanter satırı',
+  inventory_approval: 'Envanter onay talebi',
 } as const;
 
 export type TaskEntityType = keyof typeof TASK_ENTITY_TYPES;
+
+/** Görev açılırken bağlanabilecek kayıtlar; envanter onay talebine yalnızca onay görevi bağlanır. */
+export const LINKABLE_TASK_ENTITY_TYPES = ['document', 'inventory_entry'] as const satisfies readonly TaskEntityType[];
 
 /**
  * Tekrarlayan görevler için seçenekler (ay cinsinden). Tekrarlayan görev tamamlanınca

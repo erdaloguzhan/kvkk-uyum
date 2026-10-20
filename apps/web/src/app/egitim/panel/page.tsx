@@ -64,7 +64,10 @@ export default function PortalHomePage() {
         </div>
       ))}
 
-      <PageHeader title="KVKK dokümanları" description="Kuruluşunuzun onaylanıp yayınlanmış politika, prosedür ve metinleri." />
+      <PageHeader
+        title="KVKK dokümanları"
+        description='Kuruluşunuzun onaylanıp yayınlanmış politika, prosedür ve metinleri. Her dokümanı sonuna kadar okuyup "Okudum, anladım." onayı verin.'
+      />
       {!docs && !error && <Loading />}
       {docs && docs.length === 0 && (
         <div className="card">
@@ -81,6 +84,7 @@ export default function PortalHomePage() {
                 <th>Tür</th>
                 {multipleOrgs && <th>Kuruluş</th>}
                 <th>Yayın tarihi</th>
+                <th>Okuma onayı</th>
                 <th />
               </tr>
             </thead>
@@ -93,9 +97,16 @@ export default function PortalHomePage() {
                   {multipleOrgs && <td>{d.organizationName}</td>}
                   <td>{d.publishedAt ? formatDate(d.publishedAt) : '—'}</td>
                   <td>
-                    <a className="btn btn-small" href={`/api/portal/documents/${d.id}/file`} download>
-                      İndir
-                    </a>
+                    {d.confirmedAt ? (
+                      <Badge kind="success">Okundu · {formatDate(d.confirmedAt)}</Badge>
+                    ) : (
+                      <Badge kind="warning">Okunmadı</Badge>
+                    )}
+                  </td>
+                  <td>
+                    <Link className={`btn btn-small${d.confirmedAt ? '' : ' btn-primary'}`} href={`/egitim/dokuman/${d.id}`}>
+                      Oku
+                    </Link>
                   </td>
                 </tr>
               ))}

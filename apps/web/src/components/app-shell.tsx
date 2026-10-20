@@ -21,9 +21,9 @@ const NAV: NavItem[] = [
   { href: '/dokumanlar', label: 'Dokümanlar', permission: PERMISSIONS.DOCUMENTS_READ },
   { href: '/envanter', label: 'Veri envanteri', permission: PERMISSIONS.INVENTORY_READ },
   { href: '/sozlesmeler', label: 'Sözleşmeler', permission: PERMISSIONS.CONTRACTS_READ },
-  // Yönetici onay görevlerini burada görür.
-  { href: '/gorevler', label: 'Görevler', permission: [PERMISSIONS.TASKS_READ, PERMISSIONS.DOCUMENTS_APPROVE] },
+  { href: '/gorevler', label: 'Görevler', permission: PERMISSIONS.TASKS_READ },
   { href: '/bildirimler', label: 'Bildirimler' },
+  { href: '/kayitlar', label: 'İşlem kayıtları', permission: PERMISSIONS.AUDIT_READ },
   { href: '/destek', label: 'Destek' },
 ];
 

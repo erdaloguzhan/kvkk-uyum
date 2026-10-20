@@ -62,12 +62,17 @@ Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister.
 | `GET /organizations/current` | `org.read` |
 | `PATCH /organizations/current`, `POST /organizations/current/complete-setup` | `org.manage` |
 | `GET /members`, `GET /roles` | `users.read` |
-| `GET /audit-logs` | `audit.read` |
+| `GET /audit-logs` (`?module=`, `?userId=`, `?from=&to=` gün, `?before=` sayfalama) | `audit.read` |
 | `GET /document-templates`, `GET /documents`, `GET /documents/:id`, `GET /documents/:id/versions/:versionId/file` | `documents.read` (taslakları yalnızca `documents.write` veya `documents.approve` sahipleri görür); `PATCH /documents/:id` (`employeeVisible`: çalışanlara portalda gösterilsin mi) `documents.write` |
 | `POST /documents` (şablondan), `POST /documents/setup` (opsiyonel olmayan tüm şablonlar), `POST /documents/:id/regenerate`, `POST /documents/:id/versions` (`.docx` yükleme) | `documents.write` |
 | `POST /documents/:id/versions/:versionId/publish` | `documents.approve` |
 | `GET /inventory`, `GET /inventory/:id`, `GET /inventory/options`, `GET /inventory/summary`, `GET /inventory/export` (TBL-010 Excel) | `inventory.read` |
 | `POST /inventory`, `PATCH /inventory/:id`, `POST /inventory/:id/duplicate`, `DELETE /inventory/:id`, `POST /inventory/import` (TBL-010 Excel; `?dryRun=true` kontrol, `?mode=replace` değiştirme) | `inventory.write` |
+| `GET /inventory/approval` (son onay, bekleyen talep, onaysız değişiklikler), `GET /inventory/approval-requests`, `GET /inventory/approval-requests/:id` | `inventory.read` |
+| `POST /inventory/approval-requests` (değişiklikleri onaya gönderir), `POST /inventory/approval-requests/:id/cancel` | `inventory.write` |
+| `POST /inventory/approval-requests/:id/approve`, `POST /inventory/approval-requests/:id/reject` (gerekçe zorunlu) | `inventory.approve` + seçilen onaylayıcı |
+| `GET /documents/:id/reads` (çalışanların "Okudum, anladım." onayları ve onaylamayanlar) | `documents.read` |
+| `GET /training-portal/documents/:id` (okumak için HTML), `POST /training-portal/documents/:id/read` (`versionId`; okuma onayı) | Eğitim portalı oturumu |
 | `GET /tasks` (`?mine=true`, `?overdue=true`, `?status=`, `?entityType=&entityId=`), `GET /tasks/:id`, `GET /tasks/options`, `POST /tasks/:id/complete` | Kuruluş üyesi (`tasks.read` yoksa yalnızca kendisine atananlar) |
 | `GET /tasks/summary` | `tasks.read` |
 | `POST /tasks`, `PATCH /tasks/:id`, `POST /tasks/:id/cancel` | `tasks.manage` |

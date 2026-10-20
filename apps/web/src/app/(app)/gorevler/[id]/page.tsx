@@ -92,7 +92,17 @@ export default function TaskDetailPage() {
 
       {t.type === 'approval' && t.status === 'open' && link && (
         <Alert kind="info">
-          Bu bir onay görevidir. <Link href={link}>Dokümanı açıp</Link> sürümü onaylayın veya reddedin; görev kendiliğinden kapanır.
+          Bu bir onay görevidir.{' '}
+          {t.entityType === 'inventory_approval' ? (
+            <>
+              <Link href={link}>Envanter değişikliklerini açıp</Link> onaylayın veya reddedin
+            </>
+          ) : (
+            <>
+              <Link href={link}>Dokümanı açıp</Link> sürümü onaylayın veya reddedin
+            </>
+          )}
+          ; görev kendiliğinden kapanır.
         </Alert>
       )}
 

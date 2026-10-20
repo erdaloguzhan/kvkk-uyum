@@ -23,6 +23,7 @@ import {
   OrgContext,
   RequirePermissions,
 } from '../common/request-context';
+import { AuditMode } from '../audit/audit.interceptor';
 import { ZodPipe } from '../common/zod.pipe';
 import { DocumentsService } from './documents.service';
 
@@ -127,6 +128,7 @@ export class DocumentsController {
     return this.docs.publish(org.id, user.id, id, versionId);
   }
 
+  @AuditMode('access')
   @Get('documents/:id/versions/:versionId/file')
   @RequirePermissions(PERMISSIONS.DOCUMENTS_READ)
   async download(

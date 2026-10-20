@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PlatformAdminGuard } from '../admin/platform-admin.guard';
 import { AuthModule } from '../auth/auth.module';
+import { DocumentReadsController } from './document-reads.controller';
 import { EmployeesController } from './employees.controller';
 import { EmployeesService } from './employees.service';
 import { ExportController } from './export.controller';
@@ -19,7 +20,7 @@ import { TrainingsService } from './trainings.service';
 /** Uzaktan eğitim: çalışanlar, eğitimciler, eğitim içerikleri, gruplar, sınavlar, sertifika ve katılımcı portalı. */
 @Module({
   imports: [AuthModule],
-  controllers: [EmployeesController, TrainingAdminController, TrainingPortalController, TrainingMediaController, ExportController],
+  controllers: [EmployeesController, TrainingAdminController, TrainingPortalController, TrainingMediaController, ExportController, DocumentReadsController],
   providers: [
     EmployeesService,
     TrainersService,

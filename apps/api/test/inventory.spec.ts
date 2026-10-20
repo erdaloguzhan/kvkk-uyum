@@ -238,15 +238,131 @@ describe('Kişisel Veri Envanteri', () => {
     const listB = await request(server).get('/api/v1/inventory').set(b.as(b.admin.accessToken)).expect(200);
     expect(listB.body.items).toEqual([]);
 
-    // Yönetici yalnızca dokümanları görür; envantere erişemez.
+    // Yönetici envanteri görür ve onaylar ama değiştiremez.
     const approver = await addMember(app, a.orgId, 'approver');
-    await request(server).get('/api/v1/inventory').set(a.as(approver.accessToken)).expect(403);
-    await request(server).get('/api/v1/inventory/export').set(a.as(approver.accessToken)).expect(403);
+    await request(server).get('/api/v1/inventory').set(a.as(approver.accessToken)).expect(200);
+    await request(server).get('/api/v1/inventory/export').set(a.as(approver.accessToken)).expect(200);
+    await request(server)
+      .patch(`/api/v1/inventory/${entry.body.id}`)
+      .set(a.as(approver.accessToken))
+      .send({ retentionPeriod: '1 yıl' })
+      .expect(403);
     const officer = await addMember(app, a.orgId, 'kvkk_officer');
     await request(server).get('/api/v1/inventory/export').set(a.as(officer.accessToken)).expect(200);
     await request(server).post('/api/v1/inventory').set(a.as(officer.accessToken)).send(ENTRY).expect(201);
     await request(server).post('/api/v1/inventory').set(a.as(approver.accessToken)).send(ENTRY).expect(403);
     await request(server).delete(`/api/v1/inventory/${entry.body.id}`).set(a.as(approver.accessToken)).expect(403);
+  });
+
+  it('değişiklikleri Yönetici onayına gönderir; Yönetici onaylar veya gerekçeyle reddeder', async () => {
+    const { admin, orgId, as } = await setupOrg();
+    const officer = await addMember(app, orgId, 'kvkk_officer', 'Selin Sorumlu');
+    const yonetici = await addMember(app, orgId, 'approver', 'Zeynep Yönetici');
+    const o = as(officer.accessToken);
+    const y = as(yonetici.accessToken);
+
+    const first = await request(server).post('/api/v1/inventory').set(o).send(ENTRY).expect(201);
+    const second = await request(server)
+      .post('/api/v1/inventory')
+      .set(o)
+      .send({ department: 'İnsan Kaynakları', activity: 'İşe Alım', dataCategory: 'İletişim' })
+      .expect(201);
+    let status = await request(server).get('/api/v1/inventory/approval').set(o).expect(200);
+    expect(status.body).toMatchObject({ lastApproved: null, pending: null });
+    expect(status.body.changes.map((c: any) => [c.kind, c.entryId]).sort()).toEqual(
+      [['added', first.body.id], ['added', second.body.id]].sort(),
+    );
+
+    // Onaylayıcı envanter onay yetkisi olan biri olmalı; Sorumlu onaylayamaz.
+    await request(server).post('/api/v1/inventory/approval-requests').set(o).send({ approverId: officer.user.id }).expect(400);
+    await request(server).post('/api/v1/inventory/approval-requests').set(y).send({ approverId: yonetici.user.id }).expect(403);
+    const req1 = await request(server)
+      .post('/api/v1/inventory/approval-requests')
+      .set(o)
+      .send({ approverId: yonetici.user.id, note: 'İlk envanter' })
+      .expect(201);
+    expect(req1.body).toMatchObject({
+      status: 'pending',
+      note: 'İlk envanter',
+      approver: { id: yonetici.user.id },
+      requestedBy: { id: officer.user.id },
+    });
+    expect(req1.body.changes).toHaveLength(2);
+    await request(server).post('/api/v1/inventory/approval-requests').set(o).send({ approverId: yonetici.user.id }).expect(409);
+    expect(lastMailTo(app, yonetici.email).subject).toBe('Onay talebi: Veri envanteri değişiklikleri');
+    const tasks = await request(server).get('/api/v1/tasks?mine=true').set(y).expect(200);
+    expect(tasks.body.items).toEqual([
+      expect.objectContaining({ type: 'approval', entityType: 'inventory_approval', entityId: req1.body.id, status: 'open' }),
+    ]);
+
+    // Kararı yalnızca seçilen Yönetici verir.
+    await request(server).post(`/api/v1/inventory/approval-requests/${req1.body.id}/approve`).set(o).send({}).expect(403);
+    await request(server)
+      .post(`/api/v1/inventory/approval-requests/${req1.body.id}/approve`)
+      .set(as(admin.accessToken))
+      .send({})
+      .expect(403);
+    const approved = await request(server)
+      .post(`/api/v1/inventory/approval-requests/${req1.body.id}/approve`)
+      .set(y)
+      .send({ note: 'Uygundur' })
+      .expect(200);
+    expect(approved.body).toMatchObject({ status: 'approved', decisionNote: 'Uygundur', decidedBy: { id: yonetici.user.id } });
+    expect(lastMailTo(app, officer.email).subject).toBe('Veri envanteri değişiklikleri onaylandı');
+    const task = await request(server).get(`/api/v1/tasks/${tasks.body.items[0].id}`).set(y).expect(200);
+    expect(task.body.status).toBe('done');
+    status = await request(server).get('/api/v1/inventory/approval').set(o).expect(200);
+    expect(status.body).toMatchObject({ lastApproved: { id: req1.body.id }, pending: null, changes: [] });
+    await request(server).post('/api/v1/inventory/approval-requests').set(o).send({ approverId: yonetici.user.id }).expect(409);
+
+    // Onaydan sonraki değişiklikler: önceki ve yeni değerleriyle listelenir.
+    await request(server).patch(`/api/v1/inventory/${first.body.id}`).set(o).send({ retentionPeriod: '10 yıl' }).expect(200);
+    await request(server).delete(`/api/v1/inventory/${second.body.id}`).set(o).expect(204);
+    status = await request(server).get('/api/v1/inventory/approval').set(y).expect(200);
+    expect(status.body.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'updated',
+          entryId: first.body.id,
+          fields: [{ field: 'retentionPeriod', before: '15 yıl', after: '10 yıl' }],
+        }),
+        expect.objectContaining({ kind: 'deleted', entryId: second.body.id, department: 'İnsan Kaynakları' }),
+      ]),
+    );
+    const req2 = await request(server).post('/api/v1/inventory/approval-requests').set(o).send({ approverId: yonetici.user.id }).expect(201);
+    await request(server).post(`/api/v1/inventory/approval-requests/${req2.body.id}/reject`).set(y).send({}).expect(400);
+    const rejected = await request(server)
+      .post(`/api/v1/inventory/approval-requests/${req2.body.id}/reject`)
+      .set(y)
+      .send({ note: 'Saklama süresi mevzuata uymuyor' })
+      .expect(200);
+    expect(rejected.body.status).toBe('rejected');
+    expect(lastMailTo(app, officer.email).text).toContain('Saklama süresi mevzuata uymuyor');
+    // Reddedilen değişiklikler onaysız kalır; Sorumlu düzeltip yeniden gönderir veya talebi iptal eder.
+    status = await request(server).get('/api/v1/inventory/approval').set(o).expect(200);
+    expect(status.body.lastApproved.id).toBe(req1.body.id);
+    expect(status.body.changes).toHaveLength(2);
+    const req3 = await request(server).post('/api/v1/inventory/approval-requests').set(o).send({ approverId: yonetici.user.id }).expect(201);
+    await request(server).post(`/api/v1/inventory/approval-requests/${req3.body.id}/cancel`).set(y).expect(403);
+    await request(server).post(`/api/v1/inventory/approval-requests/${req3.body.id}/cancel`).set(o).expect(200);
+    await request(server).post(`/api/v1/inventory/approval-requests/${req3.body.id}/approve`).set(y).send({}).expect(409);
+
+    const list = await request(server).get('/api/v1/inventory/approval-requests').set(y).expect(200);
+    expect(list.body.items.map((r: any) => [r.status, r.changeCount])).toEqual([
+      ['cancelled', 2],
+      ['rejected', 2],
+      ['approved', 2],
+    ]);
+    const logs = await request(server).get('/api/v1/audit-logs').set(as(admin.accessToken)).expect(200);
+    const actions = logs.body.items.map((l: any) => l.action);
+    for (const action of [
+      'inventory.approval_requested',
+      'inventory.approval_approved',
+      'inventory.approval_rejected',
+      'inventory.approval_cancelled',
+    ]) {
+      expect(actions).toContain(action);
+    }
   });
 
   describe('Excel içe aktarma', () => {
