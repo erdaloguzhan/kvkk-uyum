@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ACCESS_COOKIE, API_URL, apiUnavailable, forwardHeaders } from '@/lib/server/backend';
+import { ACCESS_COOKIE, API_URL, apiPath, apiUnavailable, forwardHeaders, RESPONSE_HEADERS } from '@/lib/server/backend';
 
 /** Belirteç döndüren veya alan uç noktalar yalnızca /api/session üzerinden kullanılır. */
 const SESSION_PATHS = new Set(['auth/verify', 'auth/refresh', 'auth/logout', 'auth/change-password']);
 
-/** Yanıttan tarayıcıya iletilecek başlıklar. */
-const RESPONSE_HEADERS = ['content-type', 'content-disposition'];
-
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
-  const joined = path.map(encodeURIComponent).join('/');
-  if (SESSION_PATHS.has(joined)) return NextResponse.json({ message: 'Bulunamadı' }, { status: 404 });
+  const joined = apiPath(path);
+  if (joined === null || SESSION_PATHS.has(joined)) return NextResponse.json({ message: 'Bulunamadı' }, { status: 404 });
 
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
   let upstream: Response;

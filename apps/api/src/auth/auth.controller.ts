@@ -9,12 +9,6 @@ import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { PasswordResetService } from './password-reset.service';
 
-const registerBody = z.object({
-  email: z.email().max(254),
-  password: passwordSchema,
-  fullName: z.string().trim().min(2).max(200),
-  captchaToken: z.string().optional(),
-});
 const loginBody = z.object({
   email: z.email().max(254),
   password: z.string().min(1).max(128),
@@ -41,15 +35,6 @@ export class AuthController {
     private readonly captcha: CaptchaService,
     private readonly passwordReset: PasswordResetService,
   ) {}
-
-  @Public()
-  @Throttle(AUTH_THROTTLE)
-  @Post('register')
-  async register(@Req() req: AppRequest, @Body(new ZodPipe(registerBody)) body: z.infer<typeof registerBody>) {
-    const client = clientInfo(req);
-    await this.captcha.verify(body.captchaToken, client.ip);
-    return this.auth.register(body, client);
-  }
 
   @Public()
   @Throttle(AUTH_THROTTLE)

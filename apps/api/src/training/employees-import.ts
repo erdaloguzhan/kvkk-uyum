@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { zipWithinLimits } from '../common/zip-limits';
 import { EmployeeInput, employeeBody } from './training.schema';
 
 export const MAX_EMPLOYEE_IMPORT_ROWS = 5000;
@@ -52,6 +53,7 @@ function textValue(cell: ExcelJS.Cell): string {
 
 /** Çalışan listesini Excel'den okur. Sütunlar başlıklarına göre bulunur; her satır ayrı doğrulanır. */
 export async function parseEmployeesXlsx(file: Buffer): Promise<{ rows: { row: number; data: EmployeeInput }[]; errors: EmployeeImportError[] }> {
+  if (!zipWithinLimits(file)) throw new EmployeeImportFileError('Dosya okunamadı; geçerli bir Excel (.xlsx) dosyası olmalı');
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.load(file as unknown as ArrayBuffer);

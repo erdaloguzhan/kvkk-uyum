@@ -11,6 +11,9 @@ export async function hashPassword(password: string): Promise<string> {
   return `scrypt$${salt.toString('base64')}$${hash.toString('base64')}`;
 }
 
+/** Kayıtsız adreslerle girişte karşılaştırılan, hiçbir şifreye karşılık gelmeyen hash (yanıt süresi eşitlenir). */
+export const DUMMY_PASSWORD_HASH = `scrypt$${Buffer.alloc(16).toString('base64')}$${Buffer.alloc(KEY_LEN).toString('base64')}`;
+
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [algo, saltB64, hashB64] = stored.split('$');
   if (algo !== 'scrypt' || !saltB64 || !hashB64) return false;

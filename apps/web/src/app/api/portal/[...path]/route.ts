@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_URL, apiUnavailable, forwardHeaders } from '@/lib/server/backend';
+import { API_URL, apiPath, apiUnavailable, forwardHeaders, RESPONSE_HEADERS } from '@/lib/server/backend';
 
 /**
  * Eğitim Portalı (katılımcı) için aracı. Portal oturumu yönetim/müşteri oturumundan ayrı bir httpOnly çerezde
@@ -16,7 +16,8 @@ function cookieOptions(req: NextRequest, maxAge: number) {
 
 async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const { path } = await ctx.params;
-  const joined = path.map(encodeURIComponent).join('/');
+  const joined = apiPath(path);
+  if (joined === null) return NextResponse.json({ message: 'Bulunamadı' }, { status: 404 });
 
   if (joined === 'logout' && req.method === 'POST') {
     const res = new NextResponse(null, { status: 204 });
@@ -45,11 +46,10 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   }
 
   const headers = new Headers({ 'cache-control': 'no-store' });
-  const type = upstream.headers.get('content-type');
-  if (type) headers.set('content-type', type);
-  // Doküman indirmelerinde dosya adı.
-  const disposition = upstream.headers.get('content-disposition');
-  if (disposition) headers.set('content-disposition', disposition);
+  for (const name of RESPONSE_HEADERS) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
   return new NextResponse(upstream.status === 204 ? null : upstream.body, { status: upstream.status, headers });
 }
 
