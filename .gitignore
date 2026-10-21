@@ -2,6 +2,7 @@ node_modules
 dist
 .env
 offsite.env
+deploy/caddy-ek/
 coverage
 *.log
 .next
