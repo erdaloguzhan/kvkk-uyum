@@ -42,3 +42,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -q --spider http://127.0.0.1:3000/giris || exit 1
 CMD ["node", "--require", "./apps/web/peer-address.cjs", "apps/web/server.js"]
+
+# Sunucu dışı yedek için araçlar (betik docker-compose.offsite.yml'de bağlanır).
+FROM alpine:3.20 AS offsite
+RUN apk add --no-cache bash coreutils findutils curl gnupg rclone tzdata

@@ -1,6 +1,7 @@
 node_modules
 dist
 .env
+offsite.env
 coverage
 *.log
 .next
