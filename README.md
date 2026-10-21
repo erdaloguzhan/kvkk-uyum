@@ -19,6 +19,8 @@ KVKK uyum yönetimi için web, iOS ve Android uygulaması. Mimari ve modül sır
 
 **En kolay yol (programlama bilgisi gerekmez):** [docs/YEREL-KURULUM.md](docs/YEREL-KURULUM.md). Docker Desktop kuruluysa depo klasöründe `docker compose up --build` her şeyi başlatır: web arayüzü http://localhost:3000, gelen e-postalar (giriş kodları) http://localhost:8025.
 
+**Canlı ortam (gerçek kullanıcılar):** [docs/CANLI-KURULUM.md](docs/CANLI-KURULUM.md). `docker-compose.prod.yml` HTTPS (Caddy), kapalı veritabanı portu ve günlük yedekle çalışır; ayarlar `deploy/.env.prod.example` içindedir.
+
 ### Geliştirme
 
 Gerekenler: Node 22, pnpm 10, PostgreSQL 16 (veya `docker compose up -d postgres`).

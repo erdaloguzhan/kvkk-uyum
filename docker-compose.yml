@@ -9,8 +9,9 @@ services:
       POSTGRES_USER: kvkk
       POSTGRES_PASSWORD: kvkk
       POSTGRES_DB: kvkk
+    # Yalnızca bu bilgisayardan erişilebilir; canlı ortamda port hiç açılmaz (docker-compose.prod.yml).
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -33,6 +34,8 @@ services:
       DATABASE_URL: postgres://kvkk:kvkk@postgres:5432/kvkk
       # Yalnızca yerel deneme için; gerçek kurulumda uzun ve rastgele bir değer kullanılmalı.
       JWT_SECRET: yerel-deneme-icin-gizli-anahtar-degistirin-0123456789
+      # T.C. kimlik no şifreleme anahtarı. Yalnızca yerel deneme için; canlıda openssl rand -base64 32 ile üretilir.
+      DATA_ENCRYPTION_KEY: eWVyZWwtZGVuZW1lLWljaW4tYW5haHRhci0wMTIzNDU=
       SMTP_URL: smtp://mailpit:1025
       MAIL_FROM: KVK Yönetim Sistemi <no-reply@kvkk.local>
       ALARM_INTERVAL_MINUTES: "60"

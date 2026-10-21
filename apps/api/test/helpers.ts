@@ -17,6 +17,7 @@ export async function createApp(): Promise<INestApplication> {
   process.env.NODE_ENV = 'test';
   process.env.DATABASE_URL ??= process.env.TEST_DATABASE_URL ?? 'postgres://postgres@localhost:5433/kvkk_test';
   process.env.JWT_SECRET = 'test-secret-test-secret-test-secret-123';
+  process.env.DATA_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString('base64');
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication();
   setupApp(app);

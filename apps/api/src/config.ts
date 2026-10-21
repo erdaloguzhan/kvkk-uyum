@@ -5,6 +5,11 @@ import { z } from 'zod';
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET en az 32 karakter olmalı'),
+  // T.C. kimlik no gibi alanların şifreleme anahtarı; common/field-crypto bunu doğrudan ortamdan okur.
+  DATA_ENCRYPTION_KEY: z.string().refine(
+    (v) => Buffer.from(v, 'base64').length === 32,
+    'DATA_ENCRYPTION_KEY 32 baytlık base64 bir değer olmalı (openssl rand -base64 32)',
+  ),
   PORT: z.coerce.number().default(3000),
   CAPTCHA_SECRET: z.string().optional(),
   TRIAL_DAYS: z.coerce.number().int().positive().default(30),

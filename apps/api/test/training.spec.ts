@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import ExcelJS from 'exceljs';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { Database, DB } from '../src/db/db.module';
 import { trainingParticipants } from '../src/db/schema';
@@ -64,6 +64,23 @@ describe('Uzaktan eğitim', () => {
     expect(isValidNationalId('10000000147')).toBe(false);
     expect(isValidNationalId('01234567890')).toBe(false);
     expect(isValidNationalId(nationalId())).toBe(true);
+  });
+
+  it('T.C. kimlik noyu veritabanında şifreli saklar, API düz metin döner', async () => {
+    const tc = nationalId();
+    const otherOrg = await createOrg(app, await registerAndLogin(app), { name: 'Şifreleme Deneme A.Ş.' });
+    const res = await asAdmin(request(server).post(`/api/v1/admin/organizations/${otherOrg}/employees`))
+      .send({ nationalId: tc, firstName: 'Gizli', lastName: 'Kişi' })
+      .expect(201);
+    expect(res.body.nationalId).toBe(tc);
+    const { rows } = await db.execute<{ national_id: string; national_id_hash: string }>(
+      sql`select national_id, national_id_hash from employees where id = ${res.body.id}`,
+    );
+    expect(rows[0].national_id).toMatch(/^enc:v1:/);
+    expect(rows[0].national_id).not.toContain(tc);
+    expect(rows[0].national_id_hash).toHaveLength(64);
+    const list = await asAdmin(request(server).get(`/api/v1/admin/organizations/${otherOrg}/employees`)).expect(200);
+    expect(list.body.items[0].nationalId).toBe(tc);
   });
 
   it('çalışanları ekler, Excel ile içe aktarır ve hatalı dosyada hiçbir kaydı değiştirmez', async () => {
@@ -336,13 +353,10 @@ describe('Uzaktan eğitim', () => {
       await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: 'YeniSifre12345' }).expect(200);
     });
 
-    it('katılımcı kaydını sınav sonuçlarıyla birlikte siler (geçici test özelliği)', async () => {
-      await asAdmin(request(server).delete(`/api/v1/training-admin/participants/${participantId}`)).expect(204);
+    it('gönderilmiş katılımcının kaydı sınav sonuçlarıyla silinemez', async () => {
+      await asAdmin(request(server).delete(`/api/v1/training-admin/participants/${participantId}`)).expect(404);
       const results = await asAdmin(request(server).get('/api/v1/training-admin/results').query({ groupId })).expect(200);
-      expect(results.body.items.find((r: any) => r.id === participantId)).toBeUndefined();
-      const list = await asAdmin(request(server).get(`/api/v1/admin/organizations/${orgId}/employees`)).expect(200);
-      const can = list.body.items.find((e: any) => e.email === employeeEmail);
-      await asAdmin(request(server).delete(`/api/v1/admin/organizations/${orgId}/employees/${can.id}`)).expect(204);
+      expect(results.body.items.find((r: any) => r.id === participantId)).toBeDefined();
     });
   });
 

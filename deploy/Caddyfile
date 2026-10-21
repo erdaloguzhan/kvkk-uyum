@@ -1,0 +1,19 @@
+# Ek site tanımları (ör. deneme ortamı, docker-compose.staging.yml). Klasör boşsa hiçbir şey eklenmez.
+import /etc/caddy/ek/*.caddy
+
+# Alan adı .env dosyasındaki DOMAIN değeridir. Caddy HTTP'yi HTTPS'e yönlendirir ve sertifikayı yeniler.
+{$DOMAIN} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+	# Doküman ve Excel yüklemeleri için üst sınır.
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy web:3000
+}
