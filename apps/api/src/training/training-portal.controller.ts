@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Logger, Param, ParseUUIDPipe, Post, Re
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
+import { CaptchaService } from '../auth/captcha.service';
 import { passwordSchema } from '../common/password-policy';
 import { AppRequest, clientInfo, Public } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
@@ -12,9 +13,9 @@ import { PortalService } from './portal.service';
 import { AllowPendingPasswordChange, CurrentTrainee, TraineeGuard } from './trainee.guard';
 import { answersBody } from './training.schema';
 
-const loginBody = z.object({ email: z.email().max(254), password: z.string().min(1).max(128) });
+const loginBody = z.object({ email: z.email().max(254), password: z.string().min(1).max(128), captchaToken: z.string().max(2000).optional() });
 const changePasswordBody = z.object({ currentPassword: z.string().min(1).max(128), newPassword: passwordSchema });
-const resetRequestBody = z.object({ email: z.email().max(254) });
+const resetRequestBody = z.object({ email: z.email().max(254), captchaToken: z.string().max(2000).optional() });
 const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
 const nextBody = z.object({ topicIndex: z.number().int().min(0) });
 const readBody = z.object({ versionId: z.uuid() });
@@ -31,6 +32,7 @@ export class TrainingPortalController {
 
   constructor(
     private readonly auth: PortalAuthService,
+    private readonly captcha: CaptchaService,
     private readonly portal: PortalService,
     private readonly documents: PortalDocumentsService,
   ) {}
@@ -38,14 +40,17 @@ export class TrainingPortalController {
   @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(200)
-  login(@Req() req: AppRequest, @Body(new ZodPipe(loginBody)) body: z.infer<typeof loginBody>) {
-    return this.auth.login(body, clientInfo(req));
+  async login(@Req() req: AppRequest, @Body(new ZodPipe(loginBody)) body: z.infer<typeof loginBody>) {
+    const client = clientInfo(req);
+    await this.captcha.verify(body.captchaToken, client.ip);
+    return this.auth.login(body, client);
   }
 
   @Throttle(AUTH_THROTTLE)
   @Post('password-reset/request')
   @HttpCode(202)
-  requestReset(@Req() req: AppRequest, @Body(new ZodPipe(resetRequestBody)) body: z.infer<typeof resetRequestBody>) {
+  async requestReset(@Req() req: AppRequest, @Body(new ZodPipe(resetRequestBody)) body: z.infer<typeof resetRequestBody>) {
+    await this.captcha.verify(body.captchaToken, req.ip ?? null);
     // Yanıt e-postayı beklemez; yanıt süresinden adresin kayıtlı olup olmadığı anlaşılamaz.
     void this.auth.requestReset(body.email, clientInfo(req)).catch((err) => this.logger.error(`Portal şifre sıfırlama e-postası gönderilemedi: ${err}`));
   }

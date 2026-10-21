@@ -7,6 +7,7 @@ import { AuthCard } from '@/components/auth-card';
 import { PORTAL_BRAND } from '@/components/portal-shell';
 import { ErrorAlert, Field } from '@/components/ui';
 import { errorText } from '@/lib/api';
+import { solveCaptcha } from '@/lib/captcha';
 import { portalApi } from '@/lib/portal-api';
 
 type Account = { email: string; mustChangePassword: boolean };
@@ -32,7 +33,7 @@ export default function PortalLoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await portalApi<{ account: Account }>('login', { method: 'POST', body: { email, password }, redirect: false });
+      const res = await portalApi<{ account: Account }>('login', { method: 'POST', body: { email, password, captchaToken: await solveCaptcha() }, redirect: false });
       go(res.account);
     } catch (err) {
       setError(errorText(err));

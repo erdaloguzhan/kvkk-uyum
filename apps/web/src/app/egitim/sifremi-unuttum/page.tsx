@@ -6,6 +6,7 @@ import { AuthCard } from '@/components/auth-card';
 import { PORTAL_BRAND } from '@/components/portal-shell';
 import { Alert, ErrorAlert, Field } from '@/components/ui';
 import { errorText } from '@/lib/api';
+import { solveCaptcha } from '@/lib/captcha';
 import { portalApi } from '@/lib/portal-api';
 
 export default function PortalForgotPasswordPage() {
@@ -19,7 +20,7 @@ export default function PortalForgotPasswordPage() {
     setBusy(true);
     setError(null);
     try {
-      await portalApi('password-reset/request', { method: 'POST', body: { email }, redirect: false });
+      await portalApi('password-reset/request', { method: 'POST', body: { email, captchaToken: await solveCaptcha() }, redirect: false });
       setSent(true);
     } catch (err) {
       setError(errorText(err));

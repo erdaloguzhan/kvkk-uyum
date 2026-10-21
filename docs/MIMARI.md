@@ -81,7 +81,7 @@ audit_logs       id, organization_id, user_id, action, entity_type, entity_id,
 
 - Şifreler `scrypt` ile tuzlanmış hash; şifre politikası en az 10 karakter, harf + rakam (önerilen; netleştirilecek).
 - Giriş iki adımlı: şifre doğruysa e‑postaya 6 haneli kod gönderilir (10 dk geçerli, 5 deneme). Sonraki adımda TOTP (Authenticator) seçeneği eklenecek.
-- CAPTCHA: Cloudflare Turnstile doğrulaması, ortam değişkeniyle açılır (geliştirmede kapalı).
+- CAPTCHA: giriş ve şifre sıfırlamada sunucunun kendi iş kanıtı (proof-of-work, ALTCHA biçimi) doğrulaması; tarayıcı arka planda imzalı bir soruyu çözer, dış servise veri gitmez. `CAPTCHA_SECRET` verilirse Cloudflare Turnstile kullanılır.
 - Hız sınırı (rate limit) ve 5 hatalı denemede 15 dk hesap kilidi.
 - Erişim belirteci (JWT, 15 dk) + dönen yenileme belirteci (veritabanında hash'li, 30 gün).
 - Tüm trafik TLS (yalnızca girişte değil, **her yerde**; HSTS). Gereksinimdeki "SSL/TLS nerede?" sorusuna öneri budur.

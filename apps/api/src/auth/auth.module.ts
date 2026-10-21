@@ -8,6 +8,6 @@ import { PasswordResetService } from './password-reset.service';
 @Module({
   controllers: [AuthController],
   providers: [AuthService, CaptchaService, MailerService, PasswordResetService],
-  exports: [MailerService, PasswordResetService],
+  exports: [CaptchaService, MailerService, PasswordResetService],
 })
 export class AuthModule {}

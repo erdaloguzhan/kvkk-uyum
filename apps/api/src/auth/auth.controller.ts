@@ -12,11 +12,11 @@ import { PasswordResetService } from './password-reset.service';
 const loginBody = z.object({
   email: z.email().max(254),
   password: z.string().min(1).max(128),
-  captchaToken: z.string().optional(),
+  captchaToken: z.string().max(2000).optional(),
 });
 const verifyBody = z.object({ challengeId: z.uuid(), code: z.string().regex(/^\d{6}$/) });
 const refreshBody = z.object({ refreshToken: z.string().min(1).max(200) });
-const resetRequestBody = z.object({ email: z.email().max(254), captchaToken: z.string().optional() });
+const resetRequestBody = z.object({ email: z.email().max(254), captchaToken: z.string().max(2000).optional() });
 const changePasswordBody = z.object({
   currentPassword: z.string().min(1).max(128),
   newPassword: passwordSchema,
@@ -35,6 +35,15 @@ export class AuthController {
     private readonly captcha: CaptchaService,
     private readonly passwordReset: PasswordResetService,
   ) {}
+
+  /** Giriş ve şifre sıfırlama formları için bot koruması sorusu (iş kanıtı). */
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @AuditMode('skip')
+  @Get('captcha')
+  captchaChallenge() {
+    return this.captcha.createChallenge();
+  }
 
   @Public()
   @Throttle(AUTH_THROTTLE)
