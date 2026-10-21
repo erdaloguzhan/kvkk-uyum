@@ -1,3 +1,6 @@
+# Ek site tanımları (ör. deneme ortamı, docker-compose.staging.yml). Klasör boşsa hiçbir şey eklenmez.
+import /etc/caddy/ek/*.caddy
+
 # Alan adı .env dosyasındaki DOMAIN değeridir. Caddy HTTP'yi HTTPS'e yönlendirir ve sertifikayı yeniler.
 {$DOMAIN} {
 	encode gzip
