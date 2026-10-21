@@ -4,6 +4,7 @@ import { AuditService } from '../audit/audit.service';
 import { MailerService } from '../auth/mailer.service';
 import { PasswordResetService } from '../auth/password-reset.service';
 import { generateToken, hashPassword } from '../common/crypto';
+import { blindIndex } from '../common/field-crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { memberships, trainers, users } from '../db/schema';
@@ -74,7 +75,7 @@ export class TrainersService {
     }
     const [trainer] = await this.db
       .insert(trainers)
-      .values({ ...profile, userId: user.id })
+      .values({ ...profile, nationalIdHash: blindIndex(profile.nationalId), userId: user.id })
       .returning({ id: trainers.id });
 
     const intro = 'KVK Yönetim Sistemi eğitim yönetimi için eğitimci hesabınız oluşturuldu.';
@@ -117,7 +118,7 @@ export class TrainersService {
     if (Object.keys(profile).length) {
       await this.db
         .update(trainers)
-        .set({ ...profile, updatedAt: new Date() })
+        .set({ ...profile, ...(profile.nationalId && { nationalIdHash: blindIndex(profile.nationalId) }), updatedAt: new Date() })
         .where(eq(trainers.id, id));
     }
     if (input.firstName || input.lastName) {
@@ -178,7 +179,7 @@ export class TrainersService {
   }
 
   private async ensureNationalIdFree(nationalId: string) {
-    const [dup] = await this.db.select({ id: trainers.id }).from(trainers).where(eq(trainers.nationalId, nationalId));
+    const [dup] = await this.db.select({ id: trainers.id }).from(trainers).where(eq(trainers.nationalIdHash, blindIndex(nationalId)));
     if (dup) throw new ConflictException('Bu T.C. kimlik no ile kayıtlı bir eğitimci var');
   }
 }

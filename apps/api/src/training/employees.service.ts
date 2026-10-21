@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { and, count, eq, inArray } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
+import { blindIndex } from '../common/field-crypto';
 import { Database, InjectDb } from '../db/db.module';
 import { employees, organizations, trainingParticipants } from '../db/schema';
 import { EmployeeImportFileError, parseEmployeesXlsx } from './employees-import';
@@ -42,7 +43,7 @@ export class EmployeesService {
     await this.ensureNationalIdFree(orgId, input.nationalId);
     const [row] = await this.db
       .insert(employees)
-      .values({ ...input, organizationId: orgId })
+      .values({ ...input, nationalIdHash: blindIndex(input.nationalId), organizationId: orgId })
       .returning();
     await this.audit.record({
       action: 'training.employee_created',
@@ -60,7 +61,7 @@ export class EmployeesService {
     if (input.nationalId && input.nationalId !== current.nationalId) await this.ensureNationalIdFree(orgId, input.nationalId);
     const [row] = await this.db
       .update(employees)
-      .set({ ...input, updatedAt: new Date() })
+      .set({ ...input, ...(input.nationalId && { nationalIdHash: blindIndex(input.nationalId) }), updatedAt: new Date() })
       .where(eq(employees.id, id))
       .returning();
     await this.audit.record({
@@ -117,19 +118,19 @@ export class EmployeesService {
     }
     if (rows.length === 0) throw new BadRequestException('Dosyada çalışan satırı yok');
 
-    const ids = rows.map((r) => r.data.nationalId);
+    const hashed = rows.map((r) => ({ ...r.data, nationalIdHash: blindIndex(r.data.nationalId) }));
     const existing = await this.db
-      .select({ id: employees.id, nationalId: employees.nationalId })
+      .select({ id: employees.id, nationalIdHash: employees.nationalIdHash })
       .from(employees)
-      .where(and(eq(employees.organizationId, orgId), inArray(employees.nationalId, ids)));
-    const existingBy = new Map(existing.map((e) => [e.nationalId, e.id]));
-    const created = rows.filter((r) => !existingBy.has(r.data.nationalId)).length;
+      .where(and(eq(employees.organizationId, orgId), inArray(employees.nationalIdHash, hashed.map((d) => d.nationalIdHash))));
+    const existingBy = new Map(existing.map((e) => [e.nationalIdHash, e.id]));
+    const created = hashed.filter((d) => !existingBy.has(d.nationalIdHash)).length;
     const updated = rows.length - created;
     if (dryRun) return { dryRun: true, created, updated };
 
     await this.db.transaction(async (tx) => {
-      for (const { data } of rows) {
-        const id = existingBy.get(data.nationalId);
+      for (const data of hashed) {
+        const id = existingBy.get(data.nationalIdHash);
         if (id) {
           await tx.update(employees).set({ ...data, updatedAt: new Date() }).where(eq(employees.id, id));
         } else {
@@ -164,7 +165,7 @@ export class EmployeesService {
     const [dup] = await this.db
       .select({ id: employees.id })
       .from(employees)
-      .where(and(eq(employees.organizationId, orgId), eq(employees.nationalId, nationalId)));
+      .where(and(eq(employees.organizationId, orgId), eq(employees.nationalIdHash, blindIndex(nationalId))));
     if (dup) throw new ConflictException('Bu T.C. kimlik no ile kayıtlı bir çalışan var');
   }
 }

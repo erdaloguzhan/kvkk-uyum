@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { decryptField, encryptField } from '../common/field-crypto';
 import {
   AnyPgColumn,
   boolean,
@@ -18,6 +19,12 @@ import {
 const id = () => uuid('id').primaryKey().defaultRandom();
 const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
 const textList = (name: string) => text(name).array().notNull().default(sql`'{}'::text[]`);
+/** Uygulamada düz metin, veritabanında AES-256-GCM ile şifreli tutulan alan (bkz. common/field-crypto). */
+const encryptedText = customType<{ data: string; driverData: string }>({
+  dataType: () => 'text',
+  toDriver: (value) => encryptField(value),
+  fromDriver: (value) => decryptField(value),
+});
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 export const users = pgTable(
@@ -502,7 +509,9 @@ export const employees = pgTable(
     organizationId: uuid('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
-    nationalId: text('national_id').notNull(),
+    /** Şifreli. Arama ve tekillik `nationalIdHash` ile yapılır. */
+    nationalId: encryptedText('national_id').notNull(),
+    nationalIdHash: text('national_id_hash').notNull(),
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),
     hireDate: date('hire_date', { mode: 'string' }),
@@ -513,7 +522,7 @@ export const employees = pgTable(
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('employees_org_national_id_unique').on(t.organizationId, t.nationalId)],
+  (t) => [uniqueIndex('employees_org_national_id_hash_unique').on(t.organizationId, t.nationalIdHash)],
 );
 
 /**
@@ -527,7 +536,9 @@ export const trainers = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    nationalId: text('national_id').notNull(),
+    /** Şifreli. Arama ve tekillik `nationalIdHash` ile yapılır. */
+    nationalId: encryptedText('national_id').notNull(),
+    nationalIdHash: text('national_id_hash').notNull(),
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),
     hireDate: date('hire_date', { mode: 'string' }),
@@ -537,7 +548,7 @@ export const trainers = pgTable(
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('trainers_user_unique').on(t.userId), uniqueIndex('trainers_national_id_unique').on(t.nationalId)],
+  (t) => [uniqueIndex('trainers_user_unique').on(t.userId), uniqueIndex('trainers_national_id_hash_unique').on(t.nationalIdHash)],
 );
 
 /** Eğitim (ör. "KVKK Farkındalık Eğitimi"). Alt konular, ön test ve son test soruları buna bağlıdır. */

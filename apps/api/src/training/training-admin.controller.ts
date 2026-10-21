@@ -266,14 +266,6 @@ export class TrainingAdminController {
     return { items: await this.groups.results(query) };
   }
 
-  /** GEÇİCİ: deneme dönemi için katılımcı kaydını sonuçlarıyla siler (bkz. GroupsService.deleteParticipantRecord). */
-  @Delete('participants/:id')
-  @PlatformAdminOnly()
-  @HttpCode(204)
-  async deleteParticipantRecord(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
-    await this.groups.deleteParticipantRecord(user.id, id);
-  }
-
   @AuditMode('access')
   @Get('participants/:id/certificate')
   async certificate(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {

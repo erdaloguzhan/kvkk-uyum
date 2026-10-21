@@ -11,13 +11,11 @@ import { api, errorText } from '@/lib/api';
 import { formatDateTime } from '@/lib/labels';
 import type { PickableEmployee, TrainingGroupDetail, TrainingResult } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
-import { useSession } from '@/lib/session';
 
 /** Eğitim grubu: katılımcılar, eğitimi başlatma (gönderme) ve sonuçlar. */
 export default function GroupPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { me } = useSession();
   const group = useApi<TrainingGroupDetail>(`training-admin/groups/${id}`);
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -76,13 +74,6 @@ export default function GroupPage() {
   async function removeParticipant(r: TrainingResult) {
     if (!confirm(`${r.fullName} gruptan çıkarılsın mı?`)) return;
     await run(() => api(`training-admin/groups/${id}/participants/${r.id}`, { method: 'DELETE' }));
-    await group.reload();
-  }
-
-  // GEÇİCİ (deneme dönemi): gönderilmiş katılımcının kaydını sonuçlarıyla siler. Testler bitince kaldırılacak.
-  async function deleteRecord(r: TrainingResult) {
-    if (!confirm(`${r.fullName} katılımcı kaydı sınav sonuçlarıyla birlikte silinsin mi? Bu işlem geri alınamaz.`)) return;
-    await run(() => api(`training-admin/participants/${r.id}`, { method: 'DELETE' }));
     await group.reload();
   }
 
@@ -155,18 +146,11 @@ export default function GroupPage() {
                 Çıkar
               </button>
             ) : (
-              <>
-                {!r.completedAt && (
-                  <button className="btn btn-small" disabled={busy || !r.email} onClick={() => send([r.id])}>
-                    Yeniden gönder
-                  </button>
-                )}{' '}
-                {me?.isPlatformAdmin && (
-                  <button className="btn btn-small btn-danger" disabled={busy} onClick={() => deleteRecord(r)} title="Geçici: deneme dönemi için">
-                    Kaydı sil
-                  </button>
-                )}
-              </>
+              !r.completedAt && (
+                <button className="btn btn-small" disabled={busy || !r.email} onClick={() => send([r.id])}>
+                  Yeniden gönder
+                </button>
+              )
             )
           }
         />

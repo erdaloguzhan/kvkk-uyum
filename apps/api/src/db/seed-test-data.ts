@@ -51,6 +51,10 @@ const opt = (field: keyof typeof INVENTORY_TEMPLATE_OPTIONS, ...indexes: number[
 
 async function main() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL tanımlı değil');
+  // Test hesaplarının şifresi herkesçe bilinir; canlı ortama (https adresli kuruluma) yüklenmez.
+  if (process.env.APP_URL?.startsWith('https://')) {
+    throw new Error('Test verisi canlı ortama yüklenemez (APP_URL https ile başlıyor)');
+  }
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
     await seed(app.get(DB), app);

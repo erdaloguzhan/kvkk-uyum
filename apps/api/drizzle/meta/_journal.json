@@ -99,6 +99,13 @@
       "when": 1792489933522,
       "tag": "0013_inventory_approval_document_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792566919938,
+      "tag": "0014_national_id_encryption",
+      "breakpoints": true
     }
   ]
 }
