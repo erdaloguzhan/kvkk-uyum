@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -9,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import {
+  DUMMY_PASSWORD_HASH,
   generateNumericCode,
   generateToken,
   hashPassword,
@@ -43,26 +43,12 @@ export class AuthService {
     private readonly audit: AuditService,
   ) {}
 
-  async register(input: { email: string; password: string; fullName: string }, client: ClientInfo) {
-    const existing = await this.findUserByEmail(input.email);
-    if (existing) throw new ConflictException('Bu e-posta ile kayıtlı bir kullanıcı var');
-
-    const [user] = await this.db
-      .insert(users)
-      .values({
-        email: input.email.trim(),
-        fullName: input.fullName.trim(),
-        passwordHash: await hashPassword(input.password),
-      })
-      .returning({ id: users.id, email: users.email, fullName: users.fullName });
-    await this.audit.record({ action: 'auth.register', userId: user.id, ...client });
-    return user;
-  }
-
   /** 1. adım: şifre doğrulanır, e-postaya doğrulama kodu gönderilir. */
   async login(input: { email: string; password: string }, client: ClientInfo) {
     const user = await this.findUserByEmail(input.email);
     if (!user || !user.isActive) {
+      // Kayıtlı olmayan adres de şifre doğrulaması kadar sürer; yanıt süresinden adresin sistemde olup olmadığı anlaşılamaz.
+      await verifyPassword(input.password, DUMMY_PASSWORD_HASH);
       await this.audit.record({ action: 'auth.login_failed', metadata: { email: input.email }, ...client });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
@@ -89,6 +75,11 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
 
+    // Önceki kodlar geçersiz olur: aynı anda birden çok kod üzerinde deneme yapılamaz.
+    await this.db
+      .update(loginChallenges)
+      .set({ consumedAt: new Date() })
+      .where(and(eq(loginChallenges.userId, user.id), isNull(loginChallenges.consumedAt)));
     const code = generateNumericCode();
     const [challenge] = await this.db
       .insert(loginChallenges)

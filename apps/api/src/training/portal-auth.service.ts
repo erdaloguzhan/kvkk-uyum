@@ -4,7 +4,7 @@ import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { randomInt } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { MailerService } from '../auth/mailer.service';
-import { generateToken, hashPassword, sha256, verifyPassword } from '../common/crypto';
+import { DUMMY_PASSWORD_HASH, generateToken, hashPassword, sha256, verifyPassword } from '../common/crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { trainingAccounts, trainingAccountTokens } from '../db/schema';
@@ -84,6 +84,7 @@ export class PortalAuthService {
   async login(input: { email: string; password: string }, client: ClientInfo) {
     const account = await this.findByEmail(input.email);
     if (!account) {
+      await verifyPassword(input.password, DUMMY_PASSWORD_HASH);
       await this.audit.record({ action: 'training.portal_login_failed', metadata: { email: input.email }, ...client });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }

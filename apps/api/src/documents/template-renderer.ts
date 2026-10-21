@@ -1,6 +1,7 @@
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
 import { OPTIONAL_PLACEHOLDERS } from '@kvkk/shared';
+import { zipWithinLimits } from '../common/zip-limits';
 
 /** Şablonlarda geçen ama henüz desteklenmeyen yer tutucular; boş bırakılır ve sürümde not edilir. */
 export const UNSUPPORTED_PLACEHOLDERS = ['kurum.logo'];
@@ -51,6 +52,7 @@ export function renderTemplate(template: Buffer, values: Record<string, string |
 
 /** Yüklenen dosyanın açılabilir bir Word (.docx) dokümanı olup olmadığını kontrol eder. */
 export function isDocx(file: Buffer): boolean {
+  if (!zipWithinLimits(file)) return false;
   try {
     return new PizZip(file).file('word/document.xml') != null;
   } catch {

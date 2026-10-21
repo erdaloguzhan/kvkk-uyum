@@ -1,0 +1,82 @@
+# Deneme (staging) ortamı: canlıyla aynı sunucuda, ayrı veritabanıyla çalışır. Değişiklikler canlıya
+# gitmeden önce burada denenir; aylık yedek geri yükleme denemesi de burada yapılır.
+# E-postalar gerçekten gönderilmez, Mailpit'te toplanır (müşterilere yanlışlıkla e-posta gitmez).
+#
+#   cd /opt/kvkk-staging
+#   cp deploy/staging.env.example .env    # değerleri doldurun
+#   docker compose -f docker-compose.staging.yml up -d --build
+#
+# Dışarıya port açmaz: canlıdaki Caddy, deneme adresini şifre korumalı olarak buraya yönlendirir
+# (deploy/Caddyfile.staging). Ayrıntılar: docs/STAGING.md
+name: kvkk-staging
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kvkk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env dosyasında tanımlı olmalı}
+      POSTGRES_DB: kvkk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Yedek geri yükleme denemesi için canlının yedek klasörü (salt okunur).
+      - ${PROD_BACKUP_DIR:-/opt/kvkk/yedekler}:/backups:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kvkk -d kvkk"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    environment:
+      MP_WEBROOT: /posta/
+    networks:
+      default:
+      canli:
+        aliases: [kvkk-staging-mail]
+
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://kvkk:${POSTGRES_PASSWORD}@postgres:5432/kvkk
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env dosyasında tanımlı olmalı}
+      # Canlı yedeği geri yüklenecekse canlıyla aynı anahtar gerekir; yoksa farklı bir anahtar kullanın.
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?DATA_ENCRYPTION_KEY .env dosyasında tanımlı olmalı}
+      SMTP_URL: smtp://mailpit:1025
+      MAIL_FROM: KVK Yönetim Sistemi (DENEME) <no-reply@${STAGING_DOMAIN}>
+      APP_URL: https://${STAGING_DOMAIN:?STAGING_DOMAIN .env dosyasında tanımlı olmalı}
+      PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:?PLATFORM_ADMIN_EMAILS .env dosyasında tanımlı olmalı}
+      ALARM_INTERVAL_MINUTES: "60"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:3000
+      TRUSTED_PROXY_HOPS: "1"
+    networks:
+      default:
+      canli:
+        aliases: [kvkk-staging-web]
+    depends_on:
+      - api
+
+networks:
+  # Canlı kurulumun ağı (docker-compose.prod.yml, proje adı kvkk): Caddy staging'e buradan ulaşır.
+  canli:
+    name: kvkk_default
+    external: true
+
+volumes:
+  pgdata:

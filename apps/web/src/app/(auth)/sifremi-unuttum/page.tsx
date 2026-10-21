@@ -5,6 +5,7 @@ import { FormEvent, useState } from 'react';
 import { AuthCard } from '@/components/auth-card';
 import { Alert, ErrorAlert, Field } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
+import { solveCaptcha } from '@/lib/captcha';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -17,7 +18,7 @@ export default function ForgotPasswordPage() {
     setBusy(true);
     setError(null);
     try {
-      await api('auth/password-reset/request', { method: 'POST', body: { email }, auth: false });
+      await api('auth/password-reset/request', { method: 'POST', body: { email, captchaToken: await solveCaptcha() }, auth: false });
       setSent(true);
     } catch (err) {
       setError(errorText(err));

@@ -1,0 +1,18 @@
+# Sunucu dışı yedek. Canlı kurulumla birlikte çalıştırılır:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.offsite.yml up -d --build
+# Ayarlar proje klasöründeki offsite.env dosyasındadır (örnek: deploy/offsite.env.example).
+# Ayrıntılar: docs/FELAKET-KURTARMA.md
+services:
+  offsite:
+    build:
+      context: .
+      target: offsite
+    restart: unless-stopped
+    # Yalnızca yedekleme ayarları verilir; .env'deki uygulama şifreleri bu servise geçmez.
+    env_file: offsite.env
+    environment:
+      TZ: Europe/Istanbul
+    volumes:
+      - ./deploy/offsite-backup.sh:/offsite-backup.sh:ro
+      - ./yedekler:/backups
+    entrypoint: ["bash", "/offsite-backup.sh"]

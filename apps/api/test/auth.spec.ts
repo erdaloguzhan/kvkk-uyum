@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import {
   createApp,
+  createUser,
   extractCode,
   lastMailTo,
   login,
@@ -34,20 +35,11 @@ describe('Kimlik doğrulama', () => {
     expect(me.body.organizations).toEqual([]);
   });
 
-  it('zayıf şifreyi ve aynı e-postayla ikinci kaydı reddeder', async () => {
-    const email = uniqueEmail();
+  it('açık kayıt yoktur: hesaplar yalnızca yönetim panelinden açılır', async () => {
     await request(server)
       .post('/api/v1/auth/register')
-      .send({ email, password: 'kisa', fullName: 'A B' })
-      .expect(400);
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send({ email, password: PASSWORD, fullName: 'A B' })
-      .expect(201);
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send({ email: email.toUpperCase(), password: PASSWORD, fullName: 'A B' })
-      .expect(409);
+      .send({ email: uniqueEmail(), password: PASSWORD, fullName: 'A B' })
+      .expect(404);
   });
 
   it('korumalı uç noktalar belirteç olmadan 401 döner', async () => {
@@ -57,10 +49,7 @@ describe('Kimlik doğrulama', () => {
 
   it('yanlış kodu reddeder, kod tek kullanımlıktır', async () => {
     const email = uniqueEmail();
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send({ email, password: PASSWORD, fullName: 'A B' })
-      .expect(201);
+    await createUser(app, email);
     const res = await request(server).post('/api/v1/auth/login').send({ email, password: PASSWORD }).expect(200);
     const code = extractCode(lastMailTo(app, email).text);
     const wrong = code === '000000' ? '111111' : '000000';
@@ -79,12 +68,21 @@ describe('Kimlik doğrulama', () => {
       .expect(401);
   });
 
+  it('yeni giriş kodu istenince önceki kod geçersiz olur', async () => {
+    const email = uniqueEmail();
+    await createUser(app, email);
+    const first = await request(server).post('/api/v1/auth/login').send({ email, password: PASSWORD }).expect(200);
+    const firstCode = extractCode(lastMailTo(app, email).text);
+    await request(server).post('/api/v1/auth/login').send({ email, password: PASSWORD }).expect(200);
+    await request(server)
+      .post('/api/v1/auth/verify')
+      .send({ challengeId: first.body.challengeId, code: firstCode })
+      .expect(401);
+  });
+
   it('5 hatalı şifreden sonra hesabı kilitler', async () => {
     const email = uniqueEmail();
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send({ email, password: PASSWORD, fullName: 'A B' })
-      .expect(201);
+    await createUser(app, email);
     for (let i = 0; i < 5; i++) {
       await request(server).post('/api/v1/auth/login').send({ email, password: 'YanlisSifre99' }).expect(401);
     }

@@ -9,20 +9,14 @@ import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
 import { PasswordResetService } from './password-reset.service';
 
-const registerBody = z.object({
-  email: z.email().max(254),
-  password: passwordSchema,
-  fullName: z.string().trim().min(2).max(200),
-  captchaToken: z.string().optional(),
-});
 const loginBody = z.object({
   email: z.email().max(254),
   password: z.string().min(1).max(128),
-  captchaToken: z.string().optional(),
+  captchaToken: z.string().max(2000).optional(),
 });
 const verifyBody = z.object({ challengeId: z.uuid(), code: z.string().regex(/^\d{6}$/) });
 const refreshBody = z.object({ refreshToken: z.string().min(1).max(200) });
-const resetRequestBody = z.object({ email: z.email().max(254), captchaToken: z.string().optional() });
+const resetRequestBody = z.object({ email: z.email().max(254), captchaToken: z.string().max(2000).optional() });
 const changePasswordBody = z.object({
   currentPassword: z.string().min(1).max(128),
   newPassword: passwordSchema,
@@ -42,13 +36,13 @@ export class AuthController {
     private readonly passwordReset: PasswordResetService,
   ) {}
 
+  /** Giriş ve şifre sıfırlama formları için bot koruması sorusu (iş kanıtı). */
   @Public()
-  @Throttle(AUTH_THROTTLE)
-  @Post('register')
-  async register(@Req() req: AppRequest, @Body(new ZodPipe(registerBody)) body: z.infer<typeof registerBody>) {
-    const client = clientInfo(req);
-    await this.captcha.verify(body.captchaToken, client.ip);
-    return this.auth.register(body, client);
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @AuditMode('skip')
+  @Get('captcha')
+  captchaChallenge() {
+    return this.captcha.createChallenge();
   }
 
   @Public()

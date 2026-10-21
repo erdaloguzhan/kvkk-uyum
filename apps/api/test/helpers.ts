@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { MailerService } from '../src/auth/mailer.service';
+import { hashPassword } from '../src/common/crypto';
 import { setupApp } from '../src/setup-app';
 import { Database, DB } from '../src/db/db.module';
 import { users } from '../src/db/schema';
@@ -63,13 +64,19 @@ export function extractCode(text: string) {
   return /: (\S+)\n/.exec(text)![1];
 }
 
-/** Kayıt + şifre + e-posta kodu ile giriş yapar. */
+/** Kullanıcıyı doğrudan oluşturur (gerçekte hesaplar yönetim panelinden açılır; açık kayıt yoktur). */
+export async function createUser(app: INestApplication, email = uniqueEmail(), password = PASSWORD) {
+  const db = app.get<Database>(DB);
+  const [user] = await db
+    .insert(users)
+    .values({ email, fullName: 'Test Kullanıcı', passwordHash: await hashPassword(password) })
+    .returning({ id: users.id });
+  return user;
+}
+
+/** Kullanıcı oluşturur, şifre + e-posta kodu ile giriş yapar. */
 export async function registerAndLogin(app: INestApplication, email = uniqueEmail()) {
-  const server = app.getHttpServer();
-  await request(server)
-    .post('/api/v1/auth/register')
-    .send({ email, password: PASSWORD, fullName: 'Test Kullanıcı' })
-    .expect(201);
+  await createUser(app, email);
   return login(app, email);
 }
 

@@ -1,0 +1,22 @@
+# Deneme ortamı için Caddy ayarı. Canlı sunucuda bu dosyayı deploy/caddy-ek/staging.caddy adıyla kopyalayıp
+# DENEME-ALAN-ADI ve SIFRE-OZETI yerlerini doldurun (docs/STAGING.md). Şifre özeti için:
+#   docker compose -f docker-compose.prod.yml exec caddy caddy hash-password
+DENEME-ALAN-ADI {
+	encode gzip
+	basic_auth {
+		deneme SIFRE-OZETI
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	request_body {
+		max_size 25MB
+	}
+	# Deneme ortamının e-postaları (giriş kodları vb.): https://DENEME-ALAN-ADI/posta/
+	handle /posta/* {
+		reverse_proxy kvkk-staging-mail:8025
+	}
+	reverse_proxy kvkk-staging-web:3000
+}

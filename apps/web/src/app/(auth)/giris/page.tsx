@@ -6,6 +6,7 @@ import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { AuthCard } from '@/components/auth-card';
 import { ErrorAlert, Field } from '@/components/ui';
 import { api, ApiError, errorText } from '@/lib/api';
+import { solveCaptcha } from '@/lib/captcha';
 import { useSession } from '@/lib/session';
 
 function safeNext(value: string | null): string {
@@ -36,7 +37,7 @@ function LoginForm() {
     try {
       const res = await api<{ challengeId: string }>('auth/login', {
         method: 'POST',
-        body: { email, password },
+        body: { email, password, captchaToken: await solveCaptcha() },
         auth: false,
       });
       setChallengeId(res.challengeId);

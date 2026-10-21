@@ -1,5 +1,6 @@
 import { INVENTORY_COLUMNS, InventoryField, STORAGE_MEDIA, StorageMedium } from '@kvkk/shared';
 import ExcelJS from 'exceljs';
+import { zipWithinLimits } from '../common/zip-limits';
 import { createBody } from './inventory.schema';
 
 /** İçe aktarılabilecek en fazla satır sayısı. */
@@ -64,6 +65,7 @@ function splitList(field: InventoryField, text: string): string[] {
  * eksik sütunlar boş kabul edilir. Her satır ayrı doğrulanır, hatalar satır numarasıyla döner.
  */
 export async function parseInventoryXlsx(file: Buffer): Promise<{ rows: ImportedRow[]; errors: ImportError[] }> {
+  if (!zipWithinLimits(file)) throw new ImportFileError('Dosya okunamadı; geçerli bir Excel (.xlsx) dosyası olmalı');
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.load(file as unknown as ArrayBuffer);

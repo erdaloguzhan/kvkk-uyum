@@ -78,6 +78,18 @@ export function clearSessionCookies(req: NextRequest, res: NextResponse) {
   res.cookies.set(REFRESH_COOKIE, '', cookieOptions(req, 0));
 }
 
+/**
+ * Yol parçalarını API adresine ekler. "." ve ".." parçaları (ör. %2e%2e) reddedilir: aksi halde istek
+ * aracının izin verdiği yolun dışına (ör. /api/session'a ayrılmış uç noktalara) çıkabilir.
+ */
+export function apiPath(segments: string[]): string | null {
+  if (segments.some((s) => s === '.' || s === '..')) return null;
+  return segments.map(encodeURIComponent).join('/');
+}
+
+/** API yanıtından tarayıcıya iletilecek başlıklar (ek dosyalarındaki CSP ve nosniff korunur). */
+export const RESPONSE_HEADERS = ['content-type', 'content-disposition', 'content-security-policy', 'x-content-type-options'];
+
 /** API'ye ulaşılamadığında Türkçe hata. */
 export function apiUnavailable() {
   return Response.json({ message: 'Sunucuya ulaşılamıyor. Lütfen biraz sonra tekrar deneyin.' }, { status: 502 });
