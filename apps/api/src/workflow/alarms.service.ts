@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdo
 import { and, eq, lte } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
+import { ErrorAlertsService } from '../monitoring/error-alerts.service';
 import { memberships, tasks } from '../db/schema';
 import { addDays, dateIn, daysBetween, formatDate } from './dates';
 import { findActiveMember } from './members';
@@ -29,13 +30,17 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
     @InjectDb() private readonly db: Database,
     @Inject(CONFIG) private readonly config: AppConfig,
     private readonly notifications: NotificationsService,
+    private readonly alerts: ErrorAlertsService,
   ) {}
 
   onApplicationBootstrap() {
     const minutes = this.config.alarmIntervalMinutes;
     if (process.env.NODE_ENV === 'test' || minutes <= 0) return;
     const tick = () =>
-      this.run().catch((err) => this.logger.error('Alarm taraması başarısız', err as Error));
+      this.run().catch((err) => {
+        this.logger.error('Alarm taraması başarısız', err as Error);
+        this.alerts.reportError('Hatırlatma ve alarm taraması', err);
+      });
     this.timer = setInterval(tick, minutes * 60_000);
     this.timer.unref();
     void tick();

@@ -14,6 +14,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { HealthController } from './health.controller';
 import { InventoryModule } from './inventory/inventory.module';
 import { MembersModule } from './members/members.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { RolesModule } from './roles/roles.module';
 import { SupportModule } from './support/support.module';
@@ -36,6 +37,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     }),
     AuditModule,
     AuthModule,
+    MonitoringModule,
     OrganizationsModule,
     MembersModule,
     RolesModule,
