@@ -6,5 +6,10 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "pnpm -r lint"
+  },
+  "pnpm": {
+    "overrides": {
+      "multer": "^2.5.0"
+    }
   }
 }
