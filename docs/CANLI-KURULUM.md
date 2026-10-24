@@ -40,11 +40,16 @@ chmod 600 .env
 nano .env
 ```
 
-`.env` dosyasındaki her değeri doldurun. Şifre ve anahtarları şu komutla üretin (her biri için ayrı çalıştırın):
+`.env` dosyasındaki her değeri doldurun. Şifre ve anahtarları şu komutlarla üretin:
 
 ```
-openssl rand -base64 32
+openssl rand -hex 24      # POSTGRES_PASSWORD (base64 kullanmayın: / + = veritabanı adresini bozar)
+openssl rand -hex 48      # JWT_SECRET
+openssl rand -base64 32   # DATA_ENCRYPTION_KEY (tam 32 bayt base64 olmalı)
 ```
+
+`SMTP_URL` içindeki kullanıcı adında `@` varsa `%40` yazılır; şifrede `@ : / ? #` gibi karakterler varsa
+onlar da kodlanmalıdır (ör. `smtp://info%40ornek.com.tr:SIFRE@mail.ornek.com.tr:587`).
 
 > **DATA_ENCRYPTION_KEY çok önemlidir.** T.C. kimlik numaraları bu anahtarla şifrelenir. Anahtar kaybolursa
 > yedekler dahil hiçbir yerden kimlik numaraları geri okunamaz. `.env` dosyasının bir kopyasını sunucu dışında,
