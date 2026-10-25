@@ -140,26 +140,26 @@ export default function AdminOrganizationPage() {
             gönderilecek çalışanın e-posta adresi olmalıdır.
           </>
         }
-        actions={
-          <>
-            <button className="btn btn-primary" onClick={() => open('new')}>
-              + Çalışan ekle
-            </button>
-            <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy}>
-              Excel&apos;den içe aktar
-            </button>
-            <button className="btn" onClick={() => sendPortalAccess()} disabled={busy}>
-              Tümüne portal erişimi gönder
-            </button>
-            <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={pickFile} />
-            <button className="btn btn-link" onClick={() => download(`admin/organizations/${id}/employees/import-template`, 'Çalışan listesi şablonu.xlsx')}>
-              Boş şablonu indir
-            </button>
-          </>
-        }
       />
       <OrgUsers orgId={id} />
-      <h2>Çalışanlar</h2>
+      <div className="card-header" style={{ marginTop: 24 }}>
+        <h2>Çalışanlar</h2>
+        <div className="actions">
+          <button className="btn btn-primary" onClick={() => open('new')}>
+            + Çalışan ekle
+          </button>
+          <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy}>
+            Excel&apos;den içe aktar
+          </button>
+          <button className="btn" onClick={() => sendPortalAccess()} disabled={busy}>
+            Tümüne portal erişimi gönder
+          </button>
+          <input ref={fileRef} type="file" accept=".xlsx" hidden onChange={pickFile} />
+          <button className="btn btn-link" onClick={() => download(`admin/organizations/${id}/employees/import-template`, 'Çalışan listesi şablonu.xlsx')}>
+            Boş şablonu indir
+          </button>
+        </div>
+      </div>
       <ErrorAlert error={list.error ?? error} />
       {importErrors.length > 0 && (
         <Alert kind="error">

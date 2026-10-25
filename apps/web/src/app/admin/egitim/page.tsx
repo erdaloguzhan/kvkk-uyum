@@ -19,9 +19,21 @@ export default function TrainingsPage() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   if (list.loading && !list.data) return <Loading />;
   const items = list.data?.items ?? [];
+
+  async function remove(t: TrainingSummary) {
+    if (!confirm(`"${t.name}" eğitimi silinsin mi? Alt konular ve sorular da silinir.`)) return;
+    setRemoveError(null);
+    try {
+      await api(`training-admin/trainings/${t.id}`, { method: 'DELETE' });
+      await list.reload();
+    } catch (err) {
+      setRemoveError(errorText(err));
+    }
+  }
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -61,7 +73,7 @@ export default function TrainingsPage() {
           </>
         }
       />
-      <ErrorAlert error={list.error} />
+      <ErrorAlert error={list.error ?? removeError} />
       <div className="card" style={{ padding: 0 }}>
         {items.length === 0 ? (
           <Empty title="Henüz eğitim yok">Yukarıdaki düğmeyle ilk eğitimi oluşturun.</Empty>
@@ -76,6 +88,7 @@ export default function TrainingsPage() {
                   <th>Grup</th>
                   <th>Durum</th>
                   <th>Güncellendi</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -91,6 +104,19 @@ export default function TrainingsPage() {
                       <Badge kind={TRAINING_STATUS[t.status].kind}>{TRAINING_STATUS[t.status].label}</Badge>
                     </td>
                     <td className="nowrap">{formatDate(t.updatedAt)}</td>
+                    <td className="nowrap">
+                      <Link href={`/admin/egitim/${t.id}`} className="btn btn-small">
+                        Düzenle
+                      </Link>{' '}
+                      <button
+                        className="btn btn-small btn-danger"
+                        onClick={() => remove(t)}
+                        disabled={t.groupCount > 0}
+                        title={t.groupCount > 0 ? 'Gruplara atanmış eğitim silinemez' : undefined}
+                      >
+                        Sil
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -107,7 +107,19 @@ function NewGroup({ onCancel }: { onCancel: () => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const active = (trainings.data?.items ?? []).filter((t) => t.status === 'active');
+  // Taslak eğitimler de listelenir ama seçilemez; yalnızca yayındaki eğitim gruba atanabilir.
+  const all = trainings.data?.items ?? [];
+  const active = all.filter((t) => t.status === 'active');
+  const trainingHint =
+    trainings.loading && !trainings.data
+      ? 'Eğitimler yükleniyor…'
+      : all.length === 0
+        ? 'Henüz eğitim yok; önce Eğitimler sayfasından bir eğitim oluşturup yayına alın.'
+        : active.length === 0
+          ? 'Yayında eğitim yok; taslak eğitimi gruba atamak için önce eğitim sayfasından yayına alın.'
+          : active.length < all.length
+            ? 'Taslak eğitimler gruba atanamaz; önce yayına alınmalı.'
+            : undefined;
 
   useEffect(() => {
     setSelected([]);
@@ -146,12 +158,12 @@ function NewGroup({ onCancel }: { onCancel: () => void }) {
             ))}
           </select>
         </Field>
-        <Field label="Eğitim" required htmlFor="g-training" hint={active.length === 0 ? 'Yayında eğitim yok; önce bir eğitimi yayına alın.' : undefined}>
+        <Field label="Eğitim" required htmlFor="g-training" hint={trainingHint}>
           <select id="g-training" value={trainingId} onChange={(e) => setTrainingId(e.target.value)} required>
             <option value="">Seçin</option>
-            {active.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
+            {all.map((t) => (
+              <option key={t.id} value={t.id} disabled={t.status !== 'active'}>
+                {t.status === 'active' ? t.name : `${t.name} (taslak)`}
               </option>
             ))}
           </select>
