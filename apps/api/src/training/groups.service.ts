@@ -10,6 +10,7 @@ import {
   trainingExamAttempts,
   trainingGroups,
   trainingParticipants,
+  trainingTopics,
   trainings,
 } from '../db/schema';
 import { certificatePdf } from './certificate';
@@ -336,6 +337,7 @@ export class GroupsService {
         nationalId: employees.nationalId,
         organizationId: organizations.id,
         organizationName: organizations.name,
+        trainingId: trainings.id,
         trainingName: trainings.name,
         trainerFirstName: trainers.firstName,
         trainerLastName: trainers.lastName,
@@ -350,26 +352,19 @@ export class GroupsService {
       .where(eq(trainingParticipants.id, participantId));
     if (!row) throw new NotFoundException('Katılımcı bulunamadı');
     if (!row.completedAt) throw new BadRequestException('Katılımcı eğitimi başarıyla tamamlamadı; sertifika oluşturulamaz');
-    const [passed] = await this.db
-      .select({ score: trainingExamAttempts.score })
-      .from(trainingExamAttempts)
-      .where(
-        and(
-          eq(trainingExamAttempts.participantId, participantId),
-          eq(trainingExamAttempts.testType, 'post'),
-          eq(trainingExamAttempts.passed, true),
-        ),
-      )
-      .orderBy(desc(trainingExamAttempts.completedAt))
-      .limit(1);
+    const topics = await this.db
+      .select({ title: trainingTopics.title })
+      .from(trainingTopics)
+      .where(eq(trainingTopics.trainingId, row.trainingId))
+      .orderBy(asc(trainingTopics.sortOrder));
     const pdf = await certificatePdf({
       fullName: fullName(row),
       nationalId: row.nationalId,
       organizationName: row.organizationName,
       trainingName: row.trainingName,
+      topics: topics.map((t) => t.title),
       trainerName: row.trainerFirstName ? `${row.trainerFirstName} ${row.trainerLastName}` : null,
       completedAt: row.completedAt,
-      score: passed?.score ?? 0,
     });
     await this.audit.record({
       action: 'training.certificate_created',
