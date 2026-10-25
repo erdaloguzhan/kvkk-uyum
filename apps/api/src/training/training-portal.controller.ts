@@ -11,11 +11,11 @@ import { PortalAuthService, TraineeToken } from './portal-auth.service';
 import { PortalDocumentsService } from './portal-documents.service';
 import { PortalService } from './portal.service';
 import { AllowPendingPasswordChange, CurrentTrainee, TraineeGuard } from './trainee.guard';
-import { answersBody } from './training.schema';
+import { answersBody, mobileLogin } from './training.schema';
 
-const loginBody = z.object({ email: z.email().max(254), password: z.string().min(1).max(128), captchaToken: z.string().max(2000).optional() });
+const loginBody = z.object({ phone: mobileLogin, password: z.string().min(1).max(128), captchaToken: z.string().max(2000).optional() });
 const changePasswordBody = z.object({ currentPassword: z.string().min(1).max(128), newPassword: passwordSchema });
-const resetRequestBody = z.object({ email: z.email().max(254), captchaToken: z.string().max(2000).optional() });
+const resetRequestBody = z.object({ phone: mobileLogin, captchaToken: z.string().max(2000).optional() });
 const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
 const nextBody = z.object({ topicIndex: z.number().int().min(0) });
 const readBody = z.object({ versionId: z.uuid() });
@@ -51,8 +51,8 @@ export class TrainingPortalController {
   @HttpCode(202)
   async requestReset(@Req() req: AppRequest, @Body(new ZodPipe(resetRequestBody)) body: z.infer<typeof resetRequestBody>) {
     await this.captcha.verify(body.captchaToken, req.ip ?? null);
-    // Yanıt e-postayı beklemez; yanıt süresinden adresin kayıtlı olup olmadığı anlaşılamaz.
-    void this.auth.requestReset(body.email, clientInfo(req)).catch((err) => this.logger.error(`Portal şifre sıfırlama e-postası gönderilemedi: ${err}`));
+    // Yanıt e-postayı beklemez; yanıt süresinden telefonun kayıtlı olup olmadığı anlaşılamaz.
+    void this.auth.requestReset(body.phone, clientInfo(req)).catch((err) => this.logger.error(`Portal şifre sıfırlama e-postası gönderilemedi: ${err}`));
   }
 
   @Throttle(AUTH_THROTTLE)

@@ -7,14 +7,14 @@ import { MailerService } from '../auth/mailer.service';
 import { DUMMY_PASSWORD_HASH, generateToken, hashPassword, sha256, verifyPassword } from '../common/crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
-import { trainingAccounts, trainingAccountTokens } from '../db/schema';
+import { employees, trainingAccounts, trainingAccountTokens } from '../db/schema';
 
 /** Eğitim portalı oturumu; yenileme yoktur, süre dolunca yeniden giriş yapılır. */
 export const PORTAL_TOKEN_TTL_SECONDS = 4 * 60 * 60;
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MS = 15 * 60 * 1000;
 const RESET_TTL_MS = 60 * 60 * 1000;
-const INVALID_CREDENTIALS = 'Kullanıcı adı veya şifre hatalı';
+const INVALID_CREDENTIALS = 'Cep telefonu veya şifre hatalı';
 
 interface ClientInfo {
   ip: string | null;
@@ -81,18 +81,30 @@ export class PortalAuthService {
     return { accountId: row.id, temporaryPassword: password };
   }
 
-  async login(input: { email: string; password: string }, client: ClientInfo) {
-    const account = await this.findByEmail(input.email);
-    if (!account) {
+  /**
+   * Kullanıcı adı cep telefonudur. Hesaplar e-postaya bağlı olduğundan telefon, çalışan kayıtlarından e-postaya
+   * çevrilir. Aynı telefon farklı e-postalı kayıtlarda varsa (eski veri) şifresi tutan hesap seçilir.
+   */
+  async login(input: { phone: string; password: string }, client: ClientInfo) {
+    const accounts = await this.findByPhone(input.phone);
+    if (accounts.length === 0) {
       await verifyPassword(input.password, DUMMY_PASSWORD_HASH);
-      await this.audit.record({ action: 'training.portal_login_failed', metadata: { email: input.email }, ...client });
+      await this.audit.record({ action: 'training.portal_login_failed', metadata: { phone: input.phone }, ...client });
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
-    if (account.lockedUntil && account.lockedUntil > new Date()) {
-      throw new UnauthorizedException('Hesap geçici olarak kilitlendi. Lütfen daha sonra tekrar deneyin.');
+    let account: (typeof accounts)[number] | undefined;
+    for (const candidate of accounts) {
+      if (candidate.lockedUntil && candidate.lockedUntil > new Date()) {
+        if (accounts.length === 1) throw new UnauthorizedException('Hesap geçici olarak kilitlendi. Lütfen daha sonra tekrar deneyin.');
+        continue;
+      }
+      if (await verifyPassword(input.password, candidate.passwordHash)) {
+        account = candidate;
+        break;
+      }
     }
-    if (!(await verifyPassword(input.password, account.passwordHash))) {
-      await this.recordFailure(account, client);
+    if (!account) {
+      for (const candidate of accounts) await this.recordFailure(candidate, client);
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
     await this.db
@@ -121,10 +133,12 @@ export class PortalAuthService {
     return this.issueToken({ ...account, mustChangePassword: false }, token.sid);
   }
 
-  /** Hesap yoksa da aynı yanıt döner (e-posta adresi sızdırılmaz). */
-  async requestReset(email: string, client: ClientInfo) {
-    const account = await this.findByEmail(email);
-    if (!account) return;
+  /** Bağlantı hesabın e-postasına gider. Hesap yoksa da aynı yanıt döner (telefonun kayıtlı olduğu sızdırılmaz). */
+  async requestReset(phone: string, client: ClientInfo) {
+    for (const account of await this.findByPhone(phone)) await this.sendReset(account, client);
+  }
+
+  private async sendReset(account: typeof trainingAccounts.$inferSelect, client: ClientInfo) {
     const token = generateToken();
     await this.db.insert(trainingAccountTokens).values({
       accountId: account.id,
@@ -195,6 +209,16 @@ export class PortalAuthService {
       expiresInSeconds: PORTAL_TOKEN_TTL_SECONDS,
       account: { email: account.email, mustChangePassword: account.mustChangePassword },
     };
+  }
+
+  /** Bu cep telefonuyla kayıtlı çalışanların e-postalarına ait portal hesapları. */
+  private async findByPhone(phone: string) {
+    const rows = await this.db
+      .selectDistinct({ account: trainingAccounts })
+      .from(employees)
+      .innerJoin(trainingAccounts, sql`lower(${trainingAccounts.email}) = lower(${employees.email})`)
+      .where(eq(employees.phone, phone));
+    return rows.map((r) => r.account);
   }
 
   private async findByEmail(email: string) {

@@ -288,7 +288,7 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
 
   console.log(`Test verisi yüklendi. Tüm test hesaplarının şifresi: ${TEST_PASSWORD}`);
   console.log('Müşteri ekranı (http://localhost:3000): sorumlu.a@test.local (KVKK Sorumlusu), yonetici.a@test.local (Yönetici), tek.b@test.local (Sorumlu + Yönetici)');
-  console.log('Eğitimci: egitimci@test.local · Eğitim Portalı (http://localhost:3000/egitim): ayse.yilmaz@test.local, gul.aydin@test.local, deniz.arslan@test.local (işten çıkmış)');
+  console.log('Eğitimci: egitimci@test.local · Eğitim Portalı (http://localhost:3000/egitim) cep telefonuyla: 05325550010 (Ayşe), 05325550017 (Gül), 05325550016 (Deniz, işten çıkmış)');
 }
 
 main().catch((err) => {

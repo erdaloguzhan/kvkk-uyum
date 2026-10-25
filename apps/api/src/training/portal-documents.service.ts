@@ -232,15 +232,19 @@ export class PortalDocumentsService {
         skipped.push({ name, reason: 'E-posta adresi yok' });
         continue;
       }
+      if (!e.phone) {
+        skipped.push({ name, reason: 'Cep telefonu yok (portal kullanıcı adı)' });
+        continue;
+      }
       if (e.terminationDate && e.terminationDate < today) {
         skipped.push({ name, reason: 'İşten çıkmış' });
         continue;
       }
       const creds = await this.portalAuth.issueCredentials(e.email);
       const login = creds.temporaryPassword
-        ? `Kullanıcı adınız: ${e.email}\nGeçici şifreniz: ${creds.temporaryPassword}\n\n` +
+        ? `Kullanıcı adınız (cep telefonunuz): ${e.phone}\nGeçici şifreniz: ${creds.temporaryPassword}\n\n` +
           'İlk girişte şifrenizi değiştirmeniz istenecektir.\n'
-        : `Kullanıcı adınız: ${e.email}\nMevcut Eğitim Portalı şifrenizle giriş yapabilirsiniz. ` +
+        : `Kullanıcı adınız (cep telefonunuz): ${e.phone}\nMevcut Eğitim Portalı şifrenizle giriş yapabilirsiniz. ` +
           'Şifrenizi hatırlamıyorsanız giriş sayfasındaki "Şifremi unuttum" bağlantısını kullanın.\n';
       await this.mailer.send({
         to: e.email,

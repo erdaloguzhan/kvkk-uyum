@@ -25,12 +25,14 @@ export function PersonFields({
   emailRequired,
   emailHint,
   emailReadOnly,
+  phoneHint,
 }: {
   value: PersonForm;
   onChange: (v: PersonForm) => void;
   emailRequired?: boolean;
   emailHint?: string;
   emailReadOnly?: boolean;
+  phoneHint?: string;
 }) {
   const set = (k: keyof PersonForm) => (e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...value, [k]: e.target.value });
   return (
@@ -55,8 +57,8 @@ export function PersonFields({
         </Field>
       </div>
       <div className="form-row">
-        <Field label="Cep telefonu" htmlFor="p-tel">
-          <input id="p-tel" type="tel" value={value.phone} onChange={set('phone')} />
+        <Field label="Cep telefonu" htmlFor="p-tel" hint={phoneHint}>
+          <input id="p-tel" type="tel" placeholder="05XX XXX XX XX" value={value.phone} onChange={set('phone')} />
         </Field>
         <Field label="E-posta adresi" required={emailRequired} htmlFor="p-eposta" hint={emailHint}>
           <input

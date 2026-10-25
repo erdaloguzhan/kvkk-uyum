@@ -98,9 +98,9 @@ Tüm test hesaplarının şifresi **Deneme12345**. Müşteri ekranına giriştek
 | yonetici.a@test.local | http://localhost:3000 | Test Ticaret A.Ş. - Yönetici (bir doküman onayını bekliyor) |
 | tek.b@test.local | http://localhost:3000 | Örnek Danışmanlık Ltd. Şti. - KVKK Sorumlusu + Yönetici |
 | egitimci@test.local | http://localhost:3000 | Eğitimci |
-| ayse.yilmaz@test.local, mehmet.kaya@test.local, zeynep.demir@test.local, can.ozturk@test.local | http://localhost:3000/egitim | Çalışan; "KVKK Temel Farkındalık Eğitimi (test)" atanmış |
-| elif.sahin@test.local, gul.aydin@test.local | http://localhost:3000/egitim | Çalışan; yalnızca KVKK dokümanlarını görür |
-| deniz.arslan@test.local | http://localhost:3000/egitim | İşten çıkmış çalışan; dokümanları göremez |
+| Cep telefonu 05325550010 (Ayşe), 05325550011 (Mehmet), 05325550012 (Zeynep), 05325550013 (Can) | http://localhost:3000/egitim | Çalışan; "KVKK Temel Farkındalık Eğitimi (test)" atanmış |
+| Cep telefonu 05325550014 (Elif), 05325550017 (Gül) | http://localhost:3000/egitim | Çalışan; yalnızca KVKK dokümanlarını görür |
+| Cep telefonu 05325550016 (Deniz) | http://localhost:3000/egitim | İşten çıkmış çalışan; dokümanları göremez |
 
 Test Ticaret A.Ş.'de ayrıca şunlar hazırdır: tüm dokümanlar (4'ü yayında, biri çalışanlardan gizli, biri Yönetici onayında), 6 envanter satırı (biri eksik), 5 sözleşme (biri 20 gün içinde bitiyor, birinin süresi geçmiş), 2 görev ve 8 çalışan (biri e-postasız, biri işten çıkmış). Yönetim paneline yine kendi platform yöneticisi hesabınızla girersiniz.
 

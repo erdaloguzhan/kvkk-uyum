@@ -12,10 +12,10 @@ import { portalApi } from '@/lib/portal-api';
 
 type Account = { email: string; mustChangePassword: boolean };
 
-/** Eğitim Portalı girişi: e-postadaki kullanıcı adı ve şifre. */
+/** Eğitim Portalı girişi: kullanıcı adı cep telefonu, şifre e-postayla gönderilir. */
 export default function PortalLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,7 @@ export default function PortalLoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await portalApi<{ account: Account }>('login', { method: 'POST', body: { email, password, captchaToken: await solveCaptcha() }, redirect: false });
+      const res = await portalApi<{ account: Account }>('login', { method: 'POST', body: { phone, password, captchaToken: await solveCaptcha() }, redirect: false });
       go(res.account);
     } catch (err) {
       setError(errorText(err));
@@ -42,11 +42,21 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <AuthCard brand={PORTAL_BRAND} title="Giriş" subtitle="Size gönderilen e-postadaki kullanıcı adı ve şifreyle giriş yapın.">
+    <AuthCard brand={PORTAL_BRAND} title="Giriş" subtitle="Cep telefonunuz ve size e-postayla gönderilen şifreyle giriş yapın.">
       <form className="form" onSubmit={submit}>
         <ErrorAlert error={error} />
-        <Field label="Kullanıcı adı (e-posta)" htmlFor="email">
-          <input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+        <Field label="Cep telefonu" htmlFor="phone">
+          <input
+            id="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="username"
+            placeholder="05XX XXX XX XX"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            autoFocus
+          />
         </Field>
         <Field label="Şifre" htmlFor="password">
           <input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />

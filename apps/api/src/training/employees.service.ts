@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, count, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray, ne } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { blindIndex } from '../common/field-crypto';
 import { Database, InjectDb } from '../db/db.module';
@@ -7,6 +7,7 @@ import { employees, organizations, trainingParticipants } from '../db/schema';
 import { EmployeeImportFileError, parseEmployeesXlsx } from './employees-import';
 import { EmployeeInput } from './training.schema';
 
+const PHONE_TAKEN = 'Bu cep telefonu başka bir kişinin çalışan kaydında var; portal kullanıcı adı olduğu için kişiye özel olmalı';
 const byTurkish = (a: string, b: string) => a.localeCompare(b, 'tr');
 const fullName = (e: { firstName: string; lastName: string }) => `${e.firstName} ${e.lastName}`;
 
@@ -41,6 +42,7 @@ export class EmployeesService {
     await this.ensureOrg(orgId);
     checkDates(input);
     await this.ensureNationalIdFree(orgId, input.nationalId);
+    if (input.phone) await this.ensurePhoneFree(input.phone, blindIndex(input.nationalId));
     const [row] = await this.db
       .insert(employees)
       .values({ ...input, nationalIdHash: blindIndex(input.nationalId), organizationId: orgId })
@@ -59,6 +61,8 @@ export class EmployeesService {
     const current = await this.find(orgId, id);
     checkDates({ ...current, ...input });
     if (input.nationalId && input.nationalId !== current.nationalId) await this.ensureNationalIdFree(orgId, input.nationalId);
+    const phone = input.phone === undefined ? current.phone : input.phone;
+    if (phone) await this.ensurePhoneFree(phone, input.nationalId ? blindIndex(input.nationalId) : current.nationalIdHash);
     const [row] = await this.db
       .update(employees)
       .set({ ...input, ...(input.nationalId && { nationalIdHash: blindIndex(input.nationalId) }), updatedAt: new Date() })
@@ -113,6 +117,14 @@ export class EmployeesService {
         errors.push({ row: r.row, column: 'İşten Çıkış Tarihi', message: 'İşe giriş tarihinden önce olamaz' });
       }
     }
+    const phoneOwner = new Map<string, string>();
+    for (const r of rows) {
+      if (!r.data.phone) continue;
+      const hash = blindIndex(r.data.nationalId);
+      const owner = phoneOwner.get(r.data.phone) ?? (await this.phoneOwner(r.data.phone, hash));
+      if (owner && owner !== hash) errors.push({ row: r.row, column: 'Cep Telefonu', message: PHONE_TAKEN });
+      else phoneOwner.set(r.data.phone, hash);
+    }
     if (errors.length) {
       throw new BadRequestException({ message: 'Dosyada hatalı satırlar var; hiçbir kayıt değiştirilmedi', errors });
     }
@@ -159,6 +171,23 @@ export class EmployeesService {
   private async ensureOrg(orgId: string) {
     const [org] = await this.db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, orgId));
     if (!org) throw new NotFoundException('Kuruluş bulunamadı');
+  }
+
+  /**
+   * Cep telefonu Eğitim Portalı kullanıcı adıdır; yalnızca bir kişiye ait olabilir. Aynı kişi (T.C. kimlik no)
+   * birden çok kuruluşta aynı telefonla kayıtlı olabilir.
+   */
+  private async ensurePhoneFree(phone: string, nationalIdHash: string) {
+    if (await this.phoneOwner(phone, nationalIdHash)) throw new ConflictException(PHONE_TAKEN);
+  }
+
+  /** Telefon başka bir kişiye aitse o kişinin T.C. no özeti, değilse undefined. */
+  private async phoneOwner(phone: string, nationalIdHash: string) {
+    const [other] = await this.db
+      .select({ hash: employees.nationalIdHash })
+      .from(employees)
+      .where(and(eq(employees.phone, phone), ne(employees.nationalIdHash, nationalIdHash)));
+    return other?.hash;
   }
 
   private async ensureNationalIdFree(orgId: string, nationalId: string) {

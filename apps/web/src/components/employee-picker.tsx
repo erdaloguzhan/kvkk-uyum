@@ -53,6 +53,7 @@ export function EmployeePicker({
                 <span>
                   {e.firstName} {e.lastName} <span className="muted small">· {e.nationalId}</span>{' '}
                   {!e.email && <Badge kind="warning">E-posta yok</Badge>}
+                  {!e.phone && <Badge kind="warning">Cep telefonu yok</Badge>}
                 </span>
               </label>
             ))}

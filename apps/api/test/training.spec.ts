@@ -39,6 +39,10 @@ const question = (testType: 'pre' | 'post', points: number, correctOption = 'B')
 const answersFor = (questions: { id: string }[], correct: boolean) =>
   Object.fromEntries(questions.map((q) => [q.id, correct ? 'B' : 'A']));
 
+let phoneSeq = 100000000 + Math.floor(Math.random() * 800000000);
+/** Her çağrıda farklı bir cep telefonu (05XXXXXXXXX). */
+const uniquePhone = () => `05${phoneSeq++}`;
+
 describe('Uzaktan eğitim', () => {
   let app: INestApplication;
   let server: any;
@@ -82,6 +86,17 @@ describe('Uzaktan eğitim', () => {
       .send({ nationalId: nationalId(), firstName: 'Hatalı', lastName: 'Telefon', phone: '0532 12' })
       .expect(400);
     expect(JSON.stringify(bad.body)).toContain('Cep telefonunu');
+
+    // Telefon portal kullanıcı adıdır: başka kişide kullanılamaz, aynı kişi başka kuruluşta aynı telefonla kayıtlı olabilir.
+    const tc = (await asAdmin(request(server).get(`/api/v1/admin/organizations/${phoneOrg}/employees`)).expect(200)).body.items[0].nationalId;
+    const taken = await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'Başka', lastName: 'Kişi', phone: '05321234567' })
+      .expect(409);
+    expect(taken.body.message).toContain('başka bir kişinin');
+    const secondOrg = await createOrg(app, await registerAndLogin(app), { name: 'Telefon Deneme 2 A.Ş.' });
+    await asAdmin(request(server).post(`/api/v1/admin/organizations/${secondOrg}/employees`))
+      .send({ nationalId: tc, firstName: 'Boşluk', lastName: 'Deneme', phone: '05321234567' })
+      .expect(201);
   });
 
   it('T.C. kimlik noyu veritabanında şifreli saklar, API düz metin döner', async () => {
@@ -182,6 +197,7 @@ describe('Uzaktan eğitim', () => {
     let trainingId: string;
     let groupId: string;
     let employeeEmail: string;
+    let employeePhone: string;
     let participantId: string;
     let portalToken: string;
 
@@ -238,28 +254,39 @@ describe('Uzaktan eğitim', () => {
 
     it('grubu oluşturur, eğitimi başlatır ve katılımcıya giriş bilgileri gönderir', async () => {
       employeeEmail = uniqueEmail('katilimci');
+      employeePhone = uniquePhone();
       const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-        .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Ürün', email: employeeEmail })
+        .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Ürün', email: employeeEmail, phone: employeePhone })
+        .expect(201);
+      const noPhone = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
+        .send({ nationalId: nationalId(), firstName: 'Telefonsuz', lastName: 'Çalışan', email: uniqueEmail('telefonsuz') })
         .expect(201);
       const noEmail = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
         .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan' })
         .expect(201);
 
       const group = await asAdmin(request(server).post('/api/v1/training-admin/groups'))
-        .send({ organizationId: orgId, trainingId, name: 'Eğitim Müşteri çalışanları', employeeIds: [emp.body.id, noEmail.body.id] })
+        .send({ organizationId: orgId, trainingId, name: 'Eğitim Müşteri çalışanları', employeeIds: [emp.body.id, noEmail.body.id, noPhone.body.id] })
         .expect(201);
       groupId = group.body.id;
       participantId = group.body.participants.find((p: any) => p.email === employeeEmail).id;
 
       const sent = await asAdmin(request(server).post(`/api/v1/training-admin/groups/${groupId}/send`)).send({}).expect(200);
-      expect(sent.body).toEqual({ sent: 1, skipped: [{ name: 'E-postasız Çalışan', reason: 'E-posta adresi yok' }] });
+      expect(sent.body).toEqual({
+        sent: 1,
+        skipped: expect.arrayContaining([
+          { name: 'E-postasız Çalışan', reason: 'E-posta adresi yok' },
+          { name: 'Telefonsuz Çalışan', reason: 'Cep telefonu yok (portal kullanıcı adı)' },
+        ]),
+      });
       const mail = lastMailTo(app, employeeEmail).text;
       expect(mail).toContain('/egitim');
+      expect(mail).toContain(`Kullanıcı adınız (cep telefonunuz): ${employeePhone}`);
       const tempPassword = /Geçici şifreniz: (\S+)/.exec(mail)![1];
 
       const loginRes = await request(server)
         .post('/api/v1/training-portal/login')
-        .send({ email: employeeEmail, password: tempPassword })
+        .send({ phone: employeePhone.replace(/^0(\d{3})(\d{3})(\d{2})(\d{2})$/, '0$1 $2 $3 $4'), password: tempPassword })
         .expect(200);
       expect(loginRes.body.account.mustChangePassword).toBe(true);
       const pending = await portal(request(server).get('/api/v1/training-portal/assignments'), loginRes.body.token).expect(403);
@@ -305,7 +332,7 @@ describe('Uzaktan eğitim', () => {
       expect(second.body.topic).toMatchObject({ index: 1, title: 'Temel kavramlar' });
 
       // Yeni oturum (çıkış + yeniden giriş): konular baştan başlar, ön test tekrar sorulmaz.
-      const relogin = await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: PASSWORD }).expect(200);
+      const relogin = await request(server).post('/api/v1/training-portal/login').send({ phone: employeePhone, password: PASSWORD }).expect(200);
       portalToken = relogin.body.token;
       const restarted = await portal(request(server).get(`/api/v1/training-portal/assignments/${participantId}`)).expect(200);
       expect(restarted.body).toMatchObject({ step: 'topic', topic: { index: 0 } });
@@ -364,11 +391,11 @@ describe('Uzaktan eğitim', () => {
       await asAdmin(request(server).delete(`/api/v1/admin/organizations/${orgId}/employees/${can.id}`)).expect(409);
 
       const sent = mailCount(app);
-      await request(server).post('/api/v1/training-portal/password-reset/request').send({ email: employeeEmail }).expect(202);
+      await request(server).post('/api/v1/training-portal/password-reset/request').send({ phone: employeePhone }).expect(202);
       const token = extractCode((await waitForMailTo(app, employeeEmail, sent)).text);
       await request(server).post('/api/v1/training-portal/password-reset/confirm').send({ token, password: 'YeniSifre12345' }).expect(204);
-      await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: PASSWORD }).expect(401);
-      await request(server).post('/api/v1/training-portal/login').send({ email: employeeEmail, password: 'YeniSifre12345' }).expect(200);
+      await request(server).post('/api/v1/training-portal/login').send({ phone: employeePhone, password: PASSWORD }).expect(401);
+      await request(server).post('/api/v1/training-portal/login').send({ phone: employeePhone, password: 'YeniSifre12345' }).expect(200);
     });
 
     it('gönderilmiş katılımcının kaydı sınav sonuçlarıyla silinemez', async () => {
@@ -413,8 +440,9 @@ describe('Uzaktan eğitim', () => {
     expect(toggled.body.employeeVisible).toBe(false);
 
     const email = uniqueEmail('calisan');
+    const phone = uniquePhone();
     const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Er', email })
+      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Er', email, phone })
       .expect(201);
     const noEmail = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
       .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan' })
@@ -433,7 +461,7 @@ describe('Uzaktan eğitim', () => {
     const mail = lastMailTo(app, email).text;
     expect(mail).toContain('Doküman Müşteri A.Ş.');
     const temp = /Geçici şifreniz: (\S+)/.exec(mail)![1];
-    const first = await request(server).post('/api/v1/training-portal/login').send({ email, password: temp }).expect(200);
+    const first = await request(server).post('/api/v1/training-portal/login').send({ phone, password: temp }).expect(200);
     const changed = await request(server)
       .post('/api/v1/training-portal/change-password')
       .set('authorization', `Bearer ${first.body.token}`)
@@ -481,8 +509,9 @@ describe('Uzaktan eğitim', () => {
     await as(request(server).post(`/api/v1/documents/${doc.id}/versions/${v1}/publish`)).expect(200);
 
     const email = uniqueEmail('okuyan');
+    const phone = uniquePhone();
     const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Okur', email })
+      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Okur', email, phone })
       .expect(201);
     const other = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
       .send({ nationalId: nationalId(), firstName: 'Ece', lastName: 'Henüz', email: uniqueEmail('okumayan') })
@@ -491,7 +520,7 @@ describe('Uzaktan eğitim', () => {
       .send({ employeeIds: [emp.body.id] })
       .expect(200);
     const temp = /Geçici şifreniz: (\S+)/.exec(lastMailTo(app, email).text)![1];
-    const first = await request(server).post('/api/v1/training-portal/login').send({ email, password: temp }).expect(200);
+    const first = await request(server).post('/api/v1/training-portal/login').send({ phone, password: temp }).expect(200);
     const changed = await request(server)
       .post('/api/v1/training-portal/change-password')
       .set('authorization', `Bearer ${first.body.token}`)

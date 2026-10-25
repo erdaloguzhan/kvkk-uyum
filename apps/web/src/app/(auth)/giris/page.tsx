@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FormEvent, Suspense, useEffect, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import { AuthCard } from '@/components/auth-card';
 import { ErrorAlert, Field } from '@/components/ui';
 import { api, ApiError, errorText } from '@/lib/api';
 import { solveCaptcha } from '@/lib/captcha';
-import { useSession } from '@/lib/session';
+import { ActiveRole, roleTarget, selectableRoles, useSession } from '@/lib/session';
+import type { Me } from '@/lib/types';
 
 function safeNext(value: string | null): string {
   // Yalnızca site içi adreslere yönlendirilir.
@@ -17,7 +18,9 @@ function safeNext(value: string | null): string {
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { me, reload } = useSession();
+  const { me, role, reload, chooseRole } = useSession();
+  // Kod doğrulanırken yönlendirmeyi submitCode yapar; aşağıdaki etki yalnızca zaten açık oturum içindir.
+  const verifying = useRef(false);
   const [email, setEmail] = useState(params.get('eposta') ?? '');
   const [password, setPassword] = useState('');
   const [challengeId, setChallengeId] = useState<string | null>(null);
@@ -27,8 +30,24 @@ function LoginForm() {
   const next = safeNext(params.get('sonra'));
 
   useEffect(() => {
-    if (me) router.replace(next);
-  }, [me, next, router]);
+    if (me && !verifying.current) router.replace(role ? roleTarget(role, next) : next);
+  }, [me, role, next, router]);
+
+  /**
+   * Birden çok rolü olan kişi rol seçim ekranına gider. Platform yöneticisi rolü seçimde yoktur:
+   * /admin adresinden gelen platform yöneticisi doğrudan o rolle girer.
+   */
+  function enter(user: Me) {
+    if (next.startsWith('/admin') && user.isPlatformAdmin) {
+      chooseRole({ kind: 'admin' });
+      return router.replace(next);
+    }
+    const roles = selectableRoles(user);
+    if (roles.length > 1) return router.replace(`/rol-sec?sonra=${encodeURIComponent(next)}`);
+    const only: ActiveRole | null = roles[0]?.role ?? (user.isPlatformAdmin ? { kind: 'admin' } : null);
+    if (only) chooseRole(only);
+    router.replace(only ? roleTarget(only, next) : next);
+  }
 
   async function submitPassword(e?: FormEvent) {
     e?.preventDefault();
@@ -53,6 +72,7 @@ function LoginForm() {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    verifying.current = true;
     try {
       const res = await fetch('/api/session/verify', {
         method: 'POST',
@@ -61,10 +81,10 @@ function LoginForm() {
       });
       if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => ({})));
       const user = await reload();
-      // Kuruluşu olmayan platform yöneticisi doğrudan yönetim paneline gider.
-      const panel = user?.isPlatformAdmin ? '/admin' : user?.isTrainer ? '/admin/egitim' : null;
-      router.replace(panel && user!.organizations.length === 0 && next === '/' ? panel : next);
+      if (user) enter(user);
+      else router.replace(next);
     } catch (err) {
+      verifying.current = false;
       setError(errorText(err));
       setBusy(false);
     }

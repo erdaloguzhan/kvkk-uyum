@@ -366,6 +366,7 @@ export interface TrainingResult {
   nationalId: string;
   fullName: string;
   email: string | null;
+  phone: string | null;
   sentAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -385,6 +386,7 @@ export interface PickableEmployee {
   firstName: string;
   lastName: string;
   email: string | null;
+  phone: string | null;
   terminationDate: string | null;
 }
 

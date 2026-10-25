@@ -105,7 +105,7 @@ export default function AdminOrganizationPage() {
   async function sendPortalAccess(e?: Employee) {
     const text = e
       ? `${e.firstName} ${e.lastName} için Eğitim Portalı erişimi gönderilsin mi?`
-      : 'E-postası olan ve işten çıkmamış tüm çalışanlara Eğitim Portalı erişimi gönderilsin mi? Hesabı olmayanlara geçici şifre gider.';
+      : 'Cep telefonu ve e-postası olan, işten çıkmamış tüm çalışanlara Eğitim Portalı erişimi gönderilsin mi? Hesabı olmayanlara geçici şifre gider.';
     if (!confirm(text)) return;
     setBusy(true);
     setError(null);
@@ -137,7 +137,7 @@ export default function AdminOrganizationPage() {
         description={
           <>
             <Link href="/admin">← Kuruluşlar</Link> · Sistem kullanıcıları ve çalışanlar. Çalışanlar yayınlanmış KVKK dokümanlarını Eğitim Portalında okur. Eğitim grupları bu listeden oluşturulur; eğitim
-            gönderilecek çalışanın e-posta adresi olmalıdır.
+            gönderilecek çalışanın cep telefonu (portal kullanıcı adı) ve e-posta adresi olmalıdır.
           </>
         }
       />
@@ -242,14 +242,14 @@ export default function AdminOrganizationPage() {
                     </td>
                     <td className="nowrap">{formatDay(e.hireDate)}</td>
                     <td className="nowrap">{formatDay(e.terminationDate)}</td>
-                    <td className="nowrap">{e.phone ?? '—'}</td>
+                    <td className="nowrap">{e.phone ?? <Badge kind="warning">Yok</Badge>}</td>
                     <td>{e.email ?? <Badge kind="warning">Yok</Badge>}</td>
                     <td>{e.trainingCount}</td>
                     <td className="nowrap">
                       <button className="btn btn-small" onClick={() => open(e)}>
                         Düzenle
                       </button>{' '}
-                      {e.email && !e.terminationDate && (
+                      {e.email && e.phone && !e.terminationDate && (
                         <>
                           <button className="btn btn-small" onClick={() => sendPortalAccess(e)} disabled={busy}>
                             Portal erişimi
@@ -270,7 +270,12 @@ export default function AdminOrganizationPage() {
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={editing === 'new' ? 'Yeni çalışan' : 'Çalışanı düzenle'}>
         <form className="form" onSubmit={save}>
           <ErrorAlert error={formError} />
-          <PersonFields value={form} onChange={setForm} emailHint="Eğitim Portalı kullanıcı adı olur." />
+          <PersonFields
+            value={form}
+            onChange={setForm}
+            phoneHint="Eğitim Portalı kullanıcı adı olur; kişiye özel olmalı."
+            emailHint="Portal şifresi ve şifre sıfırlama bağlantısı bu adrese gider."
+          />
           <div className="dialog-actions">
             <button type="button" className="btn" onClick={() => setEditing(null)}>
               Vazgeç
