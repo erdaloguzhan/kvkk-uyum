@@ -219,7 +219,7 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
       lastName,
       hireDate: day(-365 - i * 30),
       terminationDate,
-      phone: `0532 555 00 ${String(i + 10).padStart(2, '0')}`,
+      phone: `05325550${String(i + 10).padStart(3, '0')}`,
       email,
     });
     employeeIds.push(e.id);

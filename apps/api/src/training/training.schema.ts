@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidNationalId } from './national-id';
+import { normalizeMobile } from './phone';
 
 const optionalText = (max: number) =>
   z
@@ -13,6 +14,19 @@ const optionalDate = z
   .nullish()
   .transform((v) => v || null);
 
+/** Boş bırakılabilir cep telefonu; boşluklu vb. yazımlar 05XXXXXXXXX biçiminde saklanır. */
+const optionalMobile = z
+  .string()
+  .trim()
+  .max(30)
+  .nullish()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const phone = normalizeMobile(v);
+    if (!phone) ctx.addIssue({ code: 'custom', message: 'Cep telefonunu 05XX XXX XX XX biçiminde girin' });
+    return phone;
+  });
+
 export const nationalId = z
   .string()
   .trim()
@@ -25,7 +39,7 @@ export const personFields = {
   lastName: z.string().trim().min(1, 'Soyadı girin').max(100),
   hireDate: optionalDate,
   terminationDate: optionalDate,
-  phone: optionalText(30),
+  phone: optionalMobile,
 };
 
 export const employeeBody = z.object({

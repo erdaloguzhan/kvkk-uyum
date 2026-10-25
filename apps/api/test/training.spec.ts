@@ -5,6 +5,7 @@ import request from 'supertest';
 import { Database, DB } from '../src/db/db.module';
 import { trainingParticipants } from '../src/db/schema';
 import { isValidNationalId } from '../src/training/national-id';
+import { normalizeMobile } from '../src/training/phone';
 import { createApp, createOrg, extractCode, lastMailTo, login, makePlatformAdmin, PASSWORD, registerAndLogin, mailCount, uniqueEmail, waitForMailTo } from './helpers';
 
 /** Rastgele geçerli T.C. kimlik no. */
@@ -64,6 +65,23 @@ describe('Uzaktan eğitim', () => {
     expect(isValidNationalId('10000000147')).toBe(false);
     expect(isValidNationalId('01234567890')).toBe(false);
     expect(isValidNationalId(nationalId())).toBe(true);
+  });
+
+  it('cep telefonunu boşluklu/ön ekli yazımlarda tek biçime getirir', async () => {
+    for (const v of ['0532 123 45 67', '0532-123-45-67', '(0532) 123 45 67', '+90 532 123 45 67', '905321234567', '5321234567']) {
+      expect(normalizeMobile(v)).toBe('05321234567');
+    }
+    expect(normalizeMobile('0312 000 00 00')).toBeNull();
+    expect(normalizeMobile('0532 123 45')).toBeNull();
+    const phoneOrg = await createOrg(app, await registerAndLogin(app), { name: 'Telefon Deneme A.Ş.' });
+    const res = await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'Boşluk', lastName: 'Deneme', phone: ' 0532 123 45 67 ' })
+      .expect(201);
+    expect(res.body.phone).toBe('05321234567');
+    const bad = await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'Hatalı', lastName: 'Telefon', phone: '0532 12' })
+      .expect(400);
+    expect(JSON.stringify(bad.body)).toContain('Cep telefonunu');
   });
 
   it('T.C. kimlik noyu veritabanında şifreli saklar, API düz metin döner', async () => {
@@ -144,7 +162,7 @@ describe('Uzaktan eğitim', () => {
     // Platform yöneticisi e-postayı (kullanıcı adı) ve bilgileri değiştirir, sonra eğitimciyi siler.
     const newEmail = uniqueEmail('egitimci-yeni');
     const edited = await asAdmin(request(server).patch(`/api/v1/training-admin/trainers/${created.body.id}`))
-      .send({ email: newEmail, phone: '05551112233', hireDate: null })
+      .send({ email: newEmail, phone: '0555 111 22 33', hireDate: null })
       .expect(200);
     expect(edited.body).toMatchObject({ email: newEmail, phone: '05551112233' });
     await asAdmin(request(server).patch(`/api/v1/training-admin/trainers/${created.body.id}`))
