@@ -265,9 +265,16 @@ describe('Uzaktan eğitim', () => {
         .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan' })
         .expect(201);
 
-      const group = await asAdmin(request(server).post('/api/v1/training-admin/groups'))
-        .send({ organizationId: orgId, trainingId, name: 'Eğitim Müşteri çalışanları', employeeIds: [emp.body.id, noEmail.body.id, noPhone.body.id] })
+      // Eğitimci grupta seçilir (zorunlu); sertifikada grubun eğitimcisi yazar.
+      const groupTrainer = await asAdmin(request(server).post('/api/v1/training-admin/trainers'))
+        .send({ nationalId: nationalId(), firstName: 'Grup', lastName: 'Eğitimcisi', email: uniqueEmail('grup-egitimci') })
         .expect(201);
+      const body = { organizationId: orgId, trainingId, name: 'Eğitim Müşteri çalışanları', employeeIds: [emp.body.id, noEmail.body.id, noPhone.body.id] };
+      await asAdmin(request(server).post('/api/v1/training-admin/groups')).send(body).expect(400);
+      const group = await asAdmin(request(server).post('/api/v1/training-admin/groups'))
+        .send({ ...body, trainerId: groupTrainer.body.id })
+        .expect(201);
+      expect(group.body).toMatchObject({ trainerId: groupTrainer.body.id, trainerName: 'Grup Eğitimcisi' });
       groupId = group.body.id;
       participantId = group.body.participants.find((p: any) => p.email === employeeEmail).id;
 

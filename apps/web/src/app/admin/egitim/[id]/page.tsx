@@ -7,7 +7,7 @@ import { TopicDraft, TopicEditor } from '@/components/topic-editor';
 import { Alert, Badge, Empty, ErrorAlert, Field, Loading, Modal, PageHeader } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { durationText, TEST_LABELS, TRAINING_STATUS } from '@/lib/training-labels';
-import type { OptionKey, TestType, Trainer, TrainingDetail, TrainingQuestion, TrainingTopic } from '@/lib/types';
+import type { OptionKey, TestType, TrainingDetail, TrainingQuestion, TrainingTopic } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 type Tab = 'info' | 'topics' | TestType;
@@ -62,10 +62,8 @@ export default function TrainingPage() {
 
 function InfoTab({ training: t, onChange }: { training: TrainingDetail; onChange: () => Promise<void> }) {
   const router = useRouter();
-  const trainers = useApi<{ items: Trainer[] }>('training-admin/trainers');
   const [name, setName] = useState(t.name);
   const [description, setDescription] = useState(t.description ?? '');
-  const [trainerId, setTrainerId] = useState(t.trainerId ?? '');
   const [passScore, setPassScore] = useState(String(t.passScore));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +131,7 @@ function InfoTab({ training: t, onChange }: { training: TrainingDetail; onChange
         className="card form"
         onSubmit={(e: FormEvent) => {
           e.preventDefault();
-          patch({ name, description: description || null, trainerId: trainerId || null, passScore: Number(passScore) });
+          patch({ name, description: description || null, passScore: Number(passScore) });
         }}
       >
         <h2>Bilgiler</h2>
@@ -144,17 +142,6 @@ function InfoTab({ training: t, onChange }: { training: TrainingDetail; onChange
           <textarea id="i-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
         <div className="form-row">
-          <Field label="Eğitimci" htmlFor="i-trainer" hint="Sertifikada eğitimci olarak görünür.">
-            <select id="i-trainer" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
-              <option value="">Seçilmedi</option>
-              {trainers.data?.items.map((tr) => (
-                <option key={tr.id} value={tr.id}>
-                  {tr.firstName} {tr.lastName}
-                  {tr.isActive ? '' : ' (pasif)'}
-                </option>
-              ))}
-            </select>
-          </Field>
           <Field label="Geçme notu" htmlFor="i-pass" hint="Son testte bu not ve üzeri başarılı sayılır.">
             <input id="i-pass" type="number" min={1} max={100} value={passScore} onChange={(e) => setPassScore(e.target.value)} required />
           </Field>

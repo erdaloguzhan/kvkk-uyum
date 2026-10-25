@@ -249,7 +249,6 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
   const training = await trainings.create(admin.id, {
     name: 'KVKK Temel Farkındalık Eğitimi (test)',
     description: 'Test verisi: deneme amaçlı kısa bir eğitim.',
-    trainerId: trainer.id,
     passScore: 70,
   });
   for (const [title, content] of [
@@ -270,7 +269,7 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
     }
   }
   await trainings.update(admin.id, training.id, { status: 'active' });
-  const group = await groups.create(admin.id, { organizationId: orgA, trainingId: training.id, name: 'Merkez ofis - Ekim', employeeIds: employeeIds.slice(0, 4) });
+  const group = await groups.create(admin.id, { organizationId: orgA, trainingId: training.id, trainerId: trainer.id, name: 'Merkez ofis - Ekim', employeeIds: employeeIds.slice(0, 4) });
   await groups.send(admin.id, group.id);
   // Gruba girmeyen çalışanlara yalnızca doküman okuması için portal erişimi.
   await portalDocs.sendAccess(admin.id, orgA);

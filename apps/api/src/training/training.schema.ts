@@ -73,14 +73,12 @@ export const trainerUpdateBody = z
 export const trainingCreateBody = z.object({
   name: z.string().trim().min(2, 'Eğitim adını girin').max(300),
   description: optionalText(2000),
-  trainerId: z.uuid().nullish(),
   passScore: z.number().int().min(1).max(100).default(70),
 });
 export const trainingUpdateBody = z
   .object({
     name: z.string().trim().min(2).max(300),
     description: optionalText(2000),
-    trainerId: z.uuid().nullable(),
     passScore: z.number().int().min(1).max(100),
     status: z.enum(['draft', 'active']),
   })
@@ -118,9 +116,13 @@ export const groupCreateBody = z.object({
   organizationId: z.uuid(),
   trainingId: z.uuid(),
   name: z.string().trim().min(2, 'Grup adını girin').max(300),
+  trainerId: z.uuid('Eğitimci seçin'),
   employeeIds: z.array(z.uuid()).max(5000).default([]),
 });
-export const groupUpdateBody = z.object({ name: z.string().trim().min(2).max(300) });
+export const groupUpdateBody = z
+  .object({ name: z.string().trim().min(2, 'Grup adını girin').max(300), trainerId: z.uuid('Eğitimci seçin') })
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, { message: 'Güncellenecek alan yok' });
 export const employeeIdsBody = z.object({ employeeIds: z.array(z.uuid()).min(1).max(5000) });
 export const sendBody = z
   .object({

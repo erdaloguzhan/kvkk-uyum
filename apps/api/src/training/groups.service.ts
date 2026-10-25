@@ -71,10 +71,14 @@ export class GroupsService {
         organizationName: organizations.name,
         trainingId: trainingGroups.trainingId,
         trainingName: trainings.name,
+        trainerId: trainingGroups.trainerId,
+        trainerFirstName: trainers.firstName,
+        trainerLastName: trainers.lastName,
       })
       .from(trainingGroups)
       .innerJoin(organizations, eq(organizations.id, trainingGroups.organizationId))
       .innerJoin(trainings, eq(trainings.id, trainingGroups.trainingId))
+      .leftJoin(trainers, eq(trainers.id, trainingGroups.trainerId))
       .where(and(...conditions))
       .orderBy(desc(trainingGroups.createdAt));
     const participants = groups.length
@@ -83,10 +87,11 @@ export class GroupsService {
           .from(trainingParticipants)
           .where(inArray(trainingParticipants.groupId, groups.map((g) => g.id)))
       : [];
-    return groups.map((g) => {
+    return groups.map(({ trainerFirstName, trainerLastName, ...g }) => {
       const mine = participants.filter((p) => p.groupId === g.id);
       return {
         ...g,
+        trainerName: trainerFirstName ? `${trainerFirstName} ${trainerLastName}` : null,
         participantCount: mine.length,
         sentCount: mine.filter((p) => p.sentAt).length,
         completedCount: mine.filter((p) => p.completedAt).length,
@@ -101,7 +106,7 @@ export class GroupsService {
     return { ...group, participants };
   }
 
-  async create(userId: string, input: { organizationId: string; trainingId: string; name: string; employeeIds: string[] }) {
+  async create(userId: string, input: { organizationId: string; trainingId: string; trainerId: string; name: string; employeeIds: string[] }) {
     const [org] = await this.db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, input.organizationId));
     if (!org) throw new BadRequestException('Kuruluş bulunamadı');
     const [training] = await this.db
@@ -112,9 +117,10 @@ export class GroupsService {
     if (training.status !== 'active') {
       throw new BadRequestException('Eğitim henüz yayında değil; önce içerik ve soruları tamamlayıp yayına alın');
     }
+    await this.ensureActiveTrainer(input.trainerId);
     const [group] = await this.db
       .insert(trainingGroups)
-      .values({ organizationId: input.organizationId, trainingId: input.trainingId, name: input.name, createdBy: userId })
+      .values({ organizationId: input.organizationId, trainingId: input.trainingId, trainerId: input.trainerId, name: input.name, createdBy: userId })
       .returning({ id: trainingGroups.id });
     if (input.employeeIds.length) await this.insertParticipants(group.id, input.organizationId, input.employeeIds);
     await this.audit.record({
@@ -128,11 +134,26 @@ export class GroupsService {
     return this.get(group.id);
   }
 
-  async rename(userId: string, id: string, name: string) {
+  /** Grup adı ve eğitimcisi değiştirilebilir; eğitimci sonradan oluşturulan sertifikalarda yazar. */
+  async update(userId: string, id: string, input: { name?: string; trainerId?: string }) {
     const group = await this.find(id);
-    await this.db.update(trainingGroups).set({ name }).where(eq(trainingGroups.id, id));
-    await this.audit.record({ action: 'training.group_updated', organizationId: group.organizationId, userId, entityType: 'training_group', entityId: id });
+    if (input.trainerId) await this.ensureActiveTrainer(input.trainerId);
+    await this.db.update(trainingGroups).set(input).where(eq(trainingGroups.id, id));
+    await this.audit.record({
+      action: 'training.group_updated',
+      organizationId: group.organizationId,
+      userId,
+      entityType: 'training_group',
+      entityId: id,
+      metadata: { fields: Object.keys(input) },
+    });
     return this.get(id);
+  }
+
+  private async ensureActiveTrainer(id: string) {
+    const [row] = await this.db.select({ isActive: trainers.isActive }).from(trainers).where(eq(trainers.id, id));
+    if (!row) throw new BadRequestException('Eğitimci bulunamadı');
+    if (!row.isActive) throw new BadRequestException('Pasif eğitimci gruba atanamaz');
   }
 
   async remove(userId: string, id: string) {
@@ -324,7 +345,7 @@ export class GroupsService {
       .innerJoin(trainingGroups, eq(trainingGroups.id, trainingParticipants.groupId))
       .innerJoin(organizations, eq(organizations.id, trainingGroups.organizationId))
       .innerJoin(trainings, eq(trainings.id, trainingGroups.trainingId))
-      .leftJoin(trainers, eq(trainers.id, trainings.trainerId))
+      .leftJoin(trainers, eq(trainers.id, trainingGroups.trainerId))
       .innerJoin(employees, eq(employees.id, trainingParticipants.employeeId))
       .where(eq(trainingParticipants.id, participantId));
     if (!row) throw new NotFoundException('Katılımcı bulunamadı');

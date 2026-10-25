@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { EmployeePicker } from '@/components/employee-picker';
 import { ExportButton } from '@/components/export-button';
 import { RESULT_EXPORT_COLUMNS, ResultsTable } from '@/components/results-table';
-import { Alert, ErrorAlert, Loading, Modal, PageHeader, Stat } from '@/components/ui';
+import { TrainerSelect } from '@/components/trainer-select';
+import { Alert, ErrorAlert, Field, Loading, Modal, PageHeader, Stat } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { formatDateTime } from '@/lib/labels';
-import type { PickableEmployee, TrainingGroupDetail, TrainingResult } from '@/lib/types';
+import type { PickableEmployee, Trainer, TrainingGroupDetail, TrainingResult } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 /** Eğitim grubu: katılımcılar, eğitimi başlatma (gönderme) ve sonuçlar. */
@@ -22,6 +23,8 @@ export default function GroupPage() {
   const employees = useApi<{ items: PickableEmployee[] }>(
     adding && group.data ? `training-admin/organizations/${group.data.organizationId}/employees` : null,
   );
+  const [editing, setEditing] = useState<{ name: string; trainerId: string } | null>(null);
+  const trainers = useApi<{ items: Trainer[] }>(editing ? 'training-admin/trainers' : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: 'success' | 'warning'; text: string } | null>(null);
@@ -77,10 +80,12 @@ export default function GroupPage() {
     await group.reload();
   }
 
-  async function rename() {
-    const name = prompt('Grup adı', g.name)?.trim();
-    if (!name || name === g.name) return;
-    await run(() => api(`training-admin/groups/${id}`, { method: 'PATCH', body: { name } }));
+  async function saveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    const ok = await run(() => api(`training-admin/groups/${id}`, { method: 'PATCH', body: editing }).then(() => true));
+    if (!ok) return;
+    setEditing(null);
     await group.reload();
   }
 
@@ -99,7 +104,7 @@ export default function GroupPage() {
         title={g.name}
         description={
           <>
-            {g.organizationName} · {g.trainingName} ·{' '}
+            {g.organizationName} · {g.trainingName} · Eğitimci: {g.trainerName ?? 'seçilmedi'} ·{' '}
             {g.assignedAt ? `Eğitim atama tarihi: ${formatDateTime(g.assignedAt)}` : 'Eğitim henüz başlatılmadı'}
           </>
         }
@@ -113,8 +118,8 @@ export default function GroupPage() {
             <button className="btn" onClick={() => setAdding(true)}>
               + Katılımcı ekle
             </button>
-            <button className="btn" onClick={rename}>
-              Adını değiştir
+            <button className="btn" onClick={() => setEditing({ name: g.name, trainerId: g.trainerId ?? '' })}>
+              Düzenle
             </button>
             {!g.assignedAt && (
               <button className="btn btn-danger" onClick={remove}>
@@ -155,6 +160,25 @@ export default function GroupPage() {
           }
         />
       </div>
+      <Modal open={editing !== null} onClose={() => setEditing(null)} title="Eğitim grubunu düzenle">
+        {editing && (
+          <form className="form" onSubmit={saveEdit}>
+            <ErrorAlert error={error ?? trainers.error} />
+            <Field label="Grup adı" required htmlFor="e-name">
+              <input id="e-name" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} required />
+            </Field>
+            <TrainerSelect trainers={trainers.data?.items} value={editing.trainerId} onChange={(trainerId) => setEditing({ ...editing, trainerId })} />
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setEditing(null)}>
+                Vazgeç
+              </button>
+              <button className="btn btn-primary" disabled={busy || !editing.trainerId}>
+                Kaydet
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
       <Modal open={adding} onClose={() => setAdding(false)} title="Katılımcı ekle">
         {employees.loading && !employees.data ? (
           <Loading />

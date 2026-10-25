@@ -218,12 +218,12 @@ export class TrainingAdminController {
   }
 
   @Patch('groups/:id')
-  renameGroup(
+  updateGroup(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodPipe(groupUpdateBody)) body: z.infer<typeof groupUpdateBody>,
   ) {
-    return this.groups.rename(user.id, id, body.name);
+    return this.groups.update(user.id, id, body);
   }
 
   @Delete('groups/:id')

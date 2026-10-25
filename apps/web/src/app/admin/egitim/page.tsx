@@ -60,7 +60,6 @@ export default function TrainingsPage() {
               rows={items}
               columns={[
                 { label: 'Eğitim adı', value: (t) => t.name },
-                { label: 'Eğitimci', value: (t) => t.trainerName },
                 { label: 'Alt konu sayısı', value: (t) => t.topicCount },
                 { label: 'Grup sayısı', value: (t) => t.groupCount },
                 { label: 'Geçme notu', value: (t) => t.passScore },
@@ -83,7 +82,6 @@ export default function TrainingsPage() {
               <thead>
                 <tr>
                   <th>Eğitim</th>
-                  <th>Eğitimci</th>
                   <th>Alt konu</th>
                   <th>Grup</th>
                   <th>Durum</th>
@@ -97,7 +95,6 @@ export default function TrainingsPage() {
                     <td>
                       <Link href={`/admin/egitim/${t.id}`}>{t.name}</Link>
                     </td>
-                    <td>{t.trainerName ?? '—'}</td>
                     <td>{t.topicCount}</td>
                     <td>{t.groupCount}</td>
                     <td>

@@ -560,7 +560,6 @@ export const trainings = pgTable('trainings', {
   id: id(),
   name: text('name').notNull(),
   description: text('description'),
-  trainerId: uuid('trainer_id').references(() => trainers.id, { onDelete: 'set null' }),
   /** Son testte başarılı sayılmak için gereken en düşük not. */
   passScore: integer('pass_score').notNull().default(70),
   /** draft: hazırlanıyor; active: içerik ve sorular tamam, gruplara atanabilir. */
@@ -639,6 +638,8 @@ export const trainingGroups = pgTable(
       .notNull()
       .references(() => trainings.id),
     name: text('name').notNull(),
+    /** Grubun eğitimcisi; sertifikada imza yerinde yazar (25.10.2026: eğitimden gruba taşındı). */
+    trainerId: uuid('trainer_id').references(() => trainers.id, { onDelete: 'set null' }),
     /** Eğitimin başlatıldığı (katılımcılara ilk bildirimin gönderildiği) an. Boşsa henüz başlatılmadı. */
     assignedAt: timestamp('assigned_at', { withTimezone: true }),
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
