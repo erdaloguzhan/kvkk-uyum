@@ -30,7 +30,7 @@ export default function GroupPage() {
   if (!group.data) return <ErrorAlert error={group.error} />;
   const g = group.data;
   // E-postası olmayan çalışana gönderilemez; düğme yalnızca gönderilebilecekleri sayar.
-  const unsent = g.participants.filter((p) => !p.sentAt && p.email);
+  const unsent = g.participants.filter((p) => !p.sentAt && p.email && p.phone);
 
   async function run<T>(fn: () => Promise<T>) {
     setBusy(true);
@@ -147,7 +147,7 @@ export default function GroupPage() {
               </button>
             ) : (
               !r.completedAt && (
-                <button className="btn btn-small" disabled={busy || !r.email} onClick={() => send([r.id])}>
+                <button className="btn btn-small" disabled={busy || !r.email || !r.phone} onClick={() => send([r.id])}>
                   Yeniden gönder
                 </button>
               )

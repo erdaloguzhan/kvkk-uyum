@@ -274,3 +274,12 @@ dl.details dd { margin: 0; }
 .document-body td, .document-body th { border: 1px solid var(--border); padding: 6px 8px; vertical-align: top; }
 .document-body td p, .document-body th p { margin: 0; }
 .document-body h1 { font-size: 1.15rem; margin: 20px 0 8px; }
+
+/* Rol seçimi */
+.role-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.role-option {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; cursor: pointer;
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit;
+}
+.role-option:hover { border-color: var(--primary); background: var(--primary-soft); }
+.role-option.current { border-color: var(--primary); }

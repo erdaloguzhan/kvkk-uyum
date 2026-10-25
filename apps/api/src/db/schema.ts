@@ -516,13 +516,17 @@ export const employees = pgTable(
     lastName: text('last_name').notNull(),
     hireDate: date('hire_date', { mode: 'string' }),
     terminationDate: date('termination_date', { mode: 'string' }),
+    /** 05XXXXXXXXX biçiminde. Eğitim Portalı kullanıcı adıdır; yalnızca bir kişiye (T.C. no) ait olabilir. */
     phone: text('phone'),
-    /** Eğitim portalına giriş bu adresle yapılır; eğitim gönderilecek çalışanda zorunludur. */
+    /** Portal hesabı ve e-postalar (geçici şifre, şifre sıfırlama) bu adrese bağlıdır. */
     email: text('email'),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('employees_org_national_id_hash_unique').on(t.organizationId, t.nationalIdHash)],
+  (t) => [
+    uniqueIndex('employees_org_national_id_hash_unique').on(t.organizationId, t.nationalIdHash),
+    index('employees_phone_idx').on(t.phone),
+  ],
 );
 
 /**

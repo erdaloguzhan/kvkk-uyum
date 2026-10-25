@@ -49,6 +49,7 @@ export class GroupsService {
         firstName: employees.firstName,
         lastName: employees.lastName,
         email: employees.email,
+        phone: employees.phone,
         terminationDate: employees.terminationDate,
       })
       .from(employees)
@@ -209,15 +210,19 @@ export class GroupsService {
         skipped.push({ name, reason: 'E-posta adresi yok' });
         continue;
       }
+      if (!t.employee.phone) {
+        skipped.push({ name, reason: 'Cep telefonu yok (portal kullanıcı adı)' });
+        continue;
+      }
       if (t.completedAt) {
         skipped.push({ name, reason: 'Eğitimi tamamlamış' });
         continue;
       }
       const creds = await this.portalAuth.issueCredentials(t.employee.email);
       const login = creds.temporaryPassword
-        ? `Kullanıcı adınız: ${t.employee.email}\nGeçici şifreniz: ${creds.temporaryPassword}\n\n` +
+        ? `Kullanıcı adınız (cep telefonunuz): ${t.employee.phone}\nGeçici şifreniz: ${creds.temporaryPassword}\n\n` +
           'İlk girişte şifrenizi değiştirmeniz istenecektir.\n'
-        : `Kullanıcı adınız: ${t.employee.email}\nMevcut Eğitim Portalı şifrenizle giriş yapabilirsiniz. ` +
+        : `Kullanıcı adınız (cep telefonunuz): ${t.employee.phone}\nMevcut Eğitim Portalı şifrenizle giriş yapabilirsiniz. ` +
           'Şifrenizi hatırlamıyorsanız giriş sayfasındaki "Şifremi unuttum" bağlantısını kullanın.\n';
       await this.mailer.send({
         to: t.employee.email,
@@ -264,6 +269,7 @@ export class GroupsService {
         firstName: employees.firstName,
         lastName: employees.lastName,
         email: employees.email,
+        phone: employees.phone,
         sentAt: trainingParticipants.sentAt,
         startedAt: trainingParticipants.startedAt,
         completedAt: trainingParticipants.completedAt,

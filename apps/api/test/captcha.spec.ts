@@ -31,7 +31,7 @@ describe('Bot koruması (iş kanıtı)', () => {
     await createUser(app, email);
     await request(server).post('/api/v1/auth/login').send({ email, password: PASSWORD }).expect(400);
     await request(server).post('/api/v1/auth/password-reset/request').send({ email }).expect(400);
-    await request(server).post('/api/v1/training-portal/login').send({ email, password: PASSWORD }).expect(400);
+    await request(server).post('/api/v1/training-portal/login').send({ phone: '05321234567', password: PASSWORD }).expect(400);
 
     const c = await challenge();
     const wrong = Buffer.from(JSON.stringify({ ...c, number: -1 })).toString('base64');

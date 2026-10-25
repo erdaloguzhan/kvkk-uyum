@@ -10,7 +10,7 @@ import { solveCaptcha } from '@/lib/captcha';
 import { portalApi } from '@/lib/portal-api';
 
 export default function PortalForgotPasswordPage() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -20,7 +20,7 @@ export default function PortalForgotPasswordPage() {
     setBusy(true);
     setError(null);
     try {
-      await portalApi('password-reset/request', { method: 'POST', body: { email, captchaToken: await solveCaptcha() }, redirect: false });
+      await portalApi('password-reset/request', { method: 'POST', body: { phone, captchaToken: await solveCaptcha() }, redirect: false });
       setSent(true);
     } catch (err) {
       setError(errorText(err));
@@ -30,14 +30,14 @@ export default function PortalForgotPasswordPage() {
   }
 
   return (
-    <AuthCard brand={PORTAL_BRAND} title="Şifremi unuttum" subtitle="E-posta adresinize şifre sıfırlama bağlantısı gönderelim.">
+    <AuthCard brand={PORTAL_BRAND} title="Şifremi unuttum" subtitle="Cep telefonunuzu yazın; kayıtlı e-posta adresinize şifre sıfırlama bağlantısı gönderelim.">
       {sent ? (
-        <Alert kind="success">Bu adresle kayıtlı bir hesap varsa sıfırlama bağlantısı gönderildi. Bağlantı 1 saat geçerlidir.</Alert>
+        <Alert kind="success">Bu telefonla kayıtlı bir hesap varsa kayıtlı e-posta adresinize sıfırlama bağlantısı gönderildi. Bağlantı 1 saat geçerlidir.</Alert>
       ) : (
         <form className="form" onSubmit={submit}>
           <ErrorAlert error={error} />
-          <Field label="E-posta" htmlFor="email">
-            <input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <Field label="Cep telefonu" htmlFor="phone">
+            <input id="phone" type="tel" inputMode="tel" autoComplete="username" placeholder="05XX XXX XX XX" value={phone} onChange={(e) => setPhone(e.target.value)} required autoFocus />
           </Field>
           <button className="btn btn-primary" disabled={busy}>
             {busy ? 'Gönderiliyor…' : 'Bağlantı gönder'}

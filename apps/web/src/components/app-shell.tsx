@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { useSession } from '@/lib/session';
+import { roleHome, selectableRoles, useSession } from '@/lib/session';
 import { Empty, Loading } from './ui';
 
 interface NavItem {
@@ -30,19 +30,19 @@ const NAV: NavItem[] = [
 const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { me, loading, org, selectOrg, can, logout } = useSession();
+  const { me, loading, org, role, can, logout } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  // Kuruluşu olmayan platform yöneticisi ve eğitimci yönetim paneline yönlendirilir.
-  const toAdmin = !!me && !org && (me.isPlatformAdmin || me.isTrainer);
+  // Eğitmen veya platform yöneticisi rolündeki kişi yönetim paneline yönlendirilir (profil sayfası hariç).
+  const toAdmin = !!me && !org && pathname !== '/profil' && (role?.kind === 'admin' || role?.kind === 'trainer');
 
   useEffect(() => {
     if (loading) return;
     if (!me) router.replace(`/giris?sonra=${encodeURIComponent(pathname)}`);
-    else if (toAdmin) router.replace('/admin');
-  }, [loading, me, toAdmin, pathname, router]);
+    else if (toAdmin && role) router.replace(roleHome(role));
+  }, [loading, me, toAdmin, role, pathname, router]);
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
@@ -85,23 +85,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           KVK Yönetim Sistemi
           <small>KVKK uyum yönetimi</small>
         </div>
-        {me.organizations.length > 1 && org && (
-          <select
-            className="org-select"
-            aria-label="Kuruluş"
-            value={org.id}
-            onChange={(e) => {
-              selectOrg(e.target.value);
-              router.push('/');
-            }}
-          >
-            {me.organizations.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-        )}
         {org &&
           items.map((n) => (
             <Link key={n.href} href={n.href} className={`nav-link${isActive(pathname, n.href) ? ' active' : ''}`}>
@@ -109,14 +92,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               {n.href === '/bildirimler' && unread > 0 && <span className="nav-badge">{unread}</span>}
             </Link>
           ))}
-        {(me.isPlatformAdmin || me.isTrainer) && (
-          <Link href={me.isPlatformAdmin ? '/admin' : '/admin/egitim'} className="nav-link">
-            Yönetim paneli →
+        {selectableRoles(me).length > 1 && (
+          <Link href="/rol-sec" className="nav-link">
+            Rol değiştir
           </Link>
         )}
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
-          {org && <div>{org.role.name}</div>}
+          {org && (
+            <div>
+              {org.role.name} · {org.name}
+            </div>
+          )}
           <div className="sidebar-actions">
             <Link href="/profil" className={pathname === '/profil' ? 'active' : undefined}>
               Profilim / şifre değiştir

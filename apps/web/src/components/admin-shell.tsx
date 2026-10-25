@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { useSession } from '@/lib/session';
+import { selectableRoles, useSession } from '@/lib/session';
 import { Empty, Loading } from './ui';
 
 interface NavItem {
@@ -46,7 +46,7 @@ const trainerAllowed = (pathname: string) =>
  * yalnızca eğitim bölümünü görür.
  */
 export function AdminShell({ children }: { children: ReactNode }) {
-  const { me, loading, logout } = useSession();
+  const { me, loading, role, chooseRole, logout } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -58,8 +58,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   useEffect(() => setMenuOpen(false), [pathname]);
 
+  // Yönetim panelinde rol: eğitmen rolündeki kişi eğitim sayfalarında eğitmen kalır; platform yöneticisi
+  // /admin adresinden (eğitim dışı bir sayfadan) girince platform yöneticisi rolüne geçer.
+  const panelRole: 'admin' | 'trainer' | null = !me
+    ? null
+    : me.isPlatformAdmin && (role?.kind !== 'trainer' || !me.isTrainer || !trainerAllowed(pathname))
+      ? 'admin'
+      : me.isTrainer
+        ? 'trainer'
+        : null;
+  useEffect(() => {
+    if (panelRole && role?.kind !== panelRole) chooseRole({ kind: panelRole });
+  }, [panelRole, role, chooseRole]);
+
   // Yanıt bekleyen destek talebi sayısı dakikada bir yenilenir.
-  const isAdmin = !!me?.isPlatformAdmin;
+  const isAdmin = panelRole === 'admin';
   useEffect(() => {
     if (!isAdmin) return;
     let stopped = false;
@@ -78,13 +91,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }, [isAdmin]);
 
   // Eğitimcinin açılış sayfası eğitimlerdir.
-  const trainerHome = !!me && !me.isPlatformAdmin && me.isTrainer && pathname === '/admin';
+  const trainerHome = panelRole === 'trainer' && pathname === '/admin';
   useEffect(() => {
     if (trainerHome) router.replace('/admin/egitim');
   }, [trainerHome, router]);
 
   if (loading || !me || trainerHome) return <Loading />;
-  const allowed = me.isPlatformAdmin || (me.isTrainer && trainerAllowed(pathname)) || pathname === '/admin/profil';
+  const allowed = isAdmin || (panelRole === 'trainer' && trainerAllowed(pathname)) || pathname === '/admin/profil';
+  const otherRoles = selectableRoles(me).length > (panelRole === 'trainer' ? 1 : 0);
   const link = (n: NavItem) => (
     <Link key={n.href} href={n.href} className={`nav-link${isActive(pathname, n.href) ? ' active' : ''}`}>
       {n.label}
@@ -106,21 +120,21 @@ export function AdminShell({ children }: { children: ReactNode }) {
           KVK Yönetim Sistemi
           <small>Yönetim paneli</small>
         </div>
-        {me.isPlatformAdmin && NAV.map(link)}
-        {(me.isPlatformAdmin || me.isTrainer) && (
+        {isAdmin && NAV.map(link)}
+        {panelRole && (
           <>
             <div className="nav-section">Uzaktan eğitim</div>
-            {TRAINING_NAV.filter((n) => me.isPlatformAdmin || n.trainer).map(link)}
+            {TRAINING_NAV.filter((n) => isAdmin || n.trainer).map(link)}
           </>
         )}
-        {me.organizations.length > 0 && (
-          <Link href="/" className="nav-link">
-            ← Müşteri ekranı
+        {otherRoles && (
+          <Link href="/rol-sec" className="nav-link">
+            Rol değiştir
           </Link>
         )}
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
-          <div>{me.isPlatformAdmin ? 'Platform yöneticisi' : me.isTrainer ? 'Eğitimci' : ''}</div>
+          <div>{isAdmin ? 'Platform yöneticisi' : panelRole === 'trainer' ? 'Eğitmen' : ''}</div>
           <div className="sidebar-actions">
             <Link href="/admin/profil" className={pathname === '/admin/profil' ? 'active' : undefined}>
               Profilim / şifre değiştir

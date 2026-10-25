@@ -9,7 +9,7 @@ olan noktalar ve nedenleri:
 | Ayrı "Sınavlar" tablosu (sınav ID + soru ID) | Yok: bir eğitimin bir test türündeki soruları o testin sınavıdır | Sınav ID'nin taşıdığı bilgi zaten eğitim + test türü. Puan toplamı 100 kuralı korunuyor. |
 | Kayıtlar T.C. kimlik no ile birbirine bağlı | Kayıtlar iç kimliklerle (uuid) bağlı; T.C. no çalışan ve eğitimci kaydında | Aynı kişi birden çok kuruluşta çalışan olabilir; T.C. no düzeltilirse geçmiş kayıtlar kopmaz. |
 | Şifre "encrypted" | Tuzlanmış scrypt özeti (geri çözülemez) | Mevcut sistemle aynı ve daha güvenli: şifre veri tabanı ele geçse de okunamaz. |
-| Çalışan tablosunda şifre | `training_accounts`: kullanıcı adı e-posta, şifre özeti, ilk girişte şifre değiştirme | Birden çok kuruluşta kayıtlı kişi tek hesapla tüm eğitimlerini görür. |
+| Çalışan tablosunda şifre | `training_accounts`: e-postaya bağlı hesap, şifre özeti, ilk girişte şifre değiştirme. Kullanıcı adı çalışanın cep telefonudur (25.10.2026, Erdal) | Birden çok kuruluşta kayıtlı kişi tek hesapla tüm eğitimlerini görür. |
 | Eğitimcide e-posta ve şifre | Eğitimci `users` tablosundaki hesabıyla girer (doğrulama kodu dahil) | Eğitimci yönetim paneline giriyor; ayrı bir giriş sistemi gerekmiyor. |
 | Alt konuda okuma süresi alanı yok | `training_topics.min_read_seconds` | Dokümandaki "süre dolmadan geçilemez" kuralı için gerekli. |
 | Geçme notu 70 sabit | `trainings.pass_score` (varsayılan 70) | Eğitim bazında değiştirilebilir. |
@@ -26,7 +26,12 @@ olan noktalar ve nedenleri:
 - Son testte geçme notunun altında kalan katılımcı konuları yeniden okuyup son testi tekrar çözer. Sonuç ekranında
   başarılı denemenin notu (yoksa son denemenin notu) ve deneme sayısı görünür. *(Dokümanda başarısızlık sonrası
   belirtilmediği için seçilen varsayılan.)*
-- Eğitim, e-postası olmayan çalışana gönderilemez; gönderimde atlanır ve bildirilir.
+- Eğitim Portalı kullanıcı adı cep telefonudur. Telefon `05XXXXXXXXX` biçiminde saklanır (boşluklu, tireli, +90'lı
+  yazımlar çevrilir) ve yalnızca bir kişiye (T.C. kimlik no) ait olabilir; aynı kişi başka kuruluşta aynı telefonla
+  kayıtlı olabilir. Girişte telefon, çalışan kaydındaki e-postadan portal hesabına bağlanır.
+- SMS altyapısı olmadığından geçici şifre ve şifre sıfırlama bağlantısı e-postayla gider ("Şifremi unuttum" telefonla
+  istenir, bağlantı kayıtlı e-postaya gelir).
+- Eğitim ve portal erişimi, cep telefonu veya e-postası olmayan çalışana gönderilemez; gönderimde atlanır ve bildirilir.
 - Katılımcının portal oturumu 4 saattir; yönetim ve müşteri ekranı oturumlarından tamamen ayrıdır.
 
 ## Yetkiler

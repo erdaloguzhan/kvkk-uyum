@@ -27,6 +27,16 @@ const optionalMobile = z
     return phone;
   });
 
+/** Eğitim Portalı kullanıcı adı: cep telefonu, kayıttaki biçime (05XXXXXXXXX) çevrilir. */
+export const mobileLogin = z
+  .string()
+  .max(30)
+  .transform((v, ctx) => {
+    const phone = normalizeMobile(v.trim());
+    if (!phone) ctx.addIssue({ code: 'custom', message: 'Cep telefonunu 05XX XXX XX XX biçiminde girin' });
+    return phone ?? '';
+  });
+
 export const nationalId = z
   .string()
   .trim()
