@@ -17,6 +17,9 @@ olan noktalar ve nedenleri:
 
 ## Kurallar (sunucuda uygulanır)
 
+- Eğitimci eğitimde değil, **eğitim grubunda** seçilir (zorunlu, yalnızca aktif eğitimci; 25.10.2026, Erdal). Sertifikada
+  grubun eğitimcisi yazar; grup sayfasındaki "Düzenle" ile değiştirilebilir.
+
 - Eğitim **yayına** alınmadan gruba atanamaz: en az bir alt konu, ön test ve son test puanları toplamı 100.
 - Katılımcı sınavı çözdükten sonra o eğitimin soruları değiştirilemez (sonuçlar sorulara bağlı).
 - Ön test bir kez çözülür, notu kaydedilir, sonucu etkilemez.

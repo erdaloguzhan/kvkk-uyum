@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { AuditService } from '../audit/audit.service';
 import { Database, InjectDb } from '../db/db.module';
 import {
-  trainers,
   trainingExamAnswers,
   trainingGroups,
   trainingMedia,
@@ -40,17 +39,14 @@ export class TrainingsService {
     const rows = await this.db
       .select({
         training: trainings,
-        trainerFirstName: trainers.firstName,
-        trainerLastName: trainers.lastName,
-        topicCount: sql<number>`(select count(*)::int from ${trainingTopics} where ${trainingTopics.trainingId} = ${trainings.id})`,
-        groupCount: sql<number>`(select count(*)::int from ${trainingGroups} where ${trainingGroups.trainingId} = ${trainings.id})`,
+        // Sütunlar tablo adıyla yazılır; tek tablolu sorguda Drizzle adları niteliksiz üretir ve "id" alt sorgunun tablosuna bağlanır.
+        topicCount: sql<number>`(select count(*)::int from "training_topics" tt where tt."training_id" = "trainings"."id")`,
+        groupCount: sql<number>`(select count(*)::int from "training_groups" tg where tg."training_id" = "trainings"."id")`,
       })
-      .from(trainings)
-      .leftJoin(trainers, eq(trainers.id, trainings.trainerId));
+      .from(trainings);
     return rows
       .map((r) => ({
         ...r.training,
-        trainerName: r.trainerFirstName ? `${r.trainerFirstName} ${r.trainerLastName}` : null,
         topicCount: r.topicCount,
         groupCount: r.groupCount,
       }))
@@ -83,7 +79,6 @@ export class TrainingsService {
   }
 
   async create(userId: string, input: z.infer<typeof trainingCreateBody>) {
-    if (input.trainerId) await this.ensureTrainer(input.trainerId);
     const [row] = await this.db
       .insert(trainings)
       .values({ ...input, createdBy: userId })
@@ -94,7 +89,6 @@ export class TrainingsService {
 
   async update(userId: string, id: string, input: z.infer<typeof trainingUpdateBody>) {
     const current = await this.get(id);
-    if (input.trainerId) await this.ensureTrainer(input.trainerId);
     if (input.status === 'active' && current.problems.length) {
       throw new BadRequestException(`Eğitim yayına alınamaz: ${current.problems.join('; ')}`);
     }
@@ -295,11 +289,6 @@ export class TrainingsService {
   private async ensureTraining(id: string) {
     const [row] = await this.db.select({ id: trainings.id }).from(trainings).where(eq(trainings.id, id));
     if (!row) throw new NotFoundException('Eğitim bulunamadı');
-  }
-
-  private async ensureTrainer(id: string) {
-    const [row] = await this.db.select({ id: trainers.id }).from(trainers).where(eq(trainers.id, id));
-    if (!row) throw new BadRequestException('Eğitimci bulunamadı');
   }
 
   private async findTopic(id: string) {

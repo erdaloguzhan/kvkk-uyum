@@ -303,8 +303,6 @@ export interface TrainingSummary {
   id: string;
   name: string;
   description: string | null;
-  trainerId: string | null;
-  trainerName: string | null;
   passScore: number;
   status: 'draft' | 'active';
   topicCount: number;
@@ -350,6 +348,9 @@ export interface TrainingGroup {
   organizationName: string;
   trainingId: string;
   trainingName: string;
+  /** Grubun eğitimcisi; sertifikada yazar. */
+  trainerId: string | null;
+  trainerName: string | null;
   participantCount: number;
   sentCount: number;
   completedCount: number;

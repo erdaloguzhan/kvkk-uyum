@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import { EmployeePicker } from '@/components/employee-picker';
+import { TrainerSelect } from '@/components/trainer-select';
 import { ExportButton } from '@/components/export-button';
 import { Badge, Empty, ErrorAlert, Field, Loading, PageHeader } from '@/components/ui';
 import { api, errorText } from '@/lib/api';
 import { formatDate } from '@/lib/labels';
-import type { PickableEmployee, TrainingGroup, TrainingSummary } from '@/lib/types';
+import type { PickableEmployee, Trainer, TrainingGroup, TrainingSummary } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 /** Eğitim grupları: kuruluş seçilip çalışanlardan katılımcılar seçilerek oluşturulur. */
@@ -33,6 +34,7 @@ export default function GroupsPage() {
                 { label: 'Grup adı', value: (g) => g.name },
                 { label: 'Kuruluş', value: (g) => g.organizationName },
                 { label: 'Eğitim', value: (g) => g.trainingName },
+                { label: 'Eğitimci', value: (g) => g.trainerName },
                 { label: 'Katılımcı', value: (g) => g.participantCount },
                 { label: 'Gönderilen', value: (g) => g.sentCount },
                 { label: 'Tamamlayan', value: (g) => g.completedCount },
@@ -60,6 +62,7 @@ export default function GroupsPage() {
                   <th>Grup</th>
                   <th>Kuruluş</th>
                   <th>Eğitim</th>
+                  <th>Eğitimci</th>
                   <th>Katılımcı</th>
                   <th>Tamamlayan</th>
                   <th>Eğitim atama tarihi</th>
@@ -73,6 +76,7 @@ export default function GroupsPage() {
                     </td>
                     <td>{g.organizationName}</td>
                     <td>{g.trainingName}</td>
+                    <td>{g.trainerName ?? <Badge kind="warning">Seçilmedi</Badge>}</td>
                     <td>
                       {g.participantCount}
                       {g.sentCount < g.participantCount && (
@@ -100,6 +104,8 @@ function NewGroup({ onCancel }: { onCancel: () => void }) {
   const router = useRouter();
   const orgs = useApi<{ items: { id: string; name: string }[] }>('training-admin/organizations');
   const trainings = useApi<{ items: TrainingSummary[] }>('training-admin/trainings');
+  const trainers = useApi<{ items: Trainer[] }>('training-admin/trainers');
+  const [trainerId, setTrainerId] = useState('');
   const [orgId, setOrgId] = useState('');
   const employees = useApi<{ items: PickableEmployee[] }>(orgId ? `training-admin/organizations/${orgId}/employees` : null);
   const [trainingId, setTrainingId] = useState('');
@@ -134,7 +140,7 @@ function NewGroup({ onCancel }: { onCancel: () => void }) {
     try {
       const g = await api<{ id: string }>('training-admin/groups', {
         method: 'POST',
-        body: { organizationId: orgId, trainingId, name, employeeIds: selected },
+        body: { organizationId: orgId, trainingId, trainerId, name, employeeIds: selected },
       });
       router.push(`/admin/egitim/gruplar/${g.id}`);
     } catch (err) {
@@ -146,7 +152,7 @@ function NewGroup({ onCancel }: { onCancel: () => void }) {
   return (
     <form className="card form" onSubmit={submit}>
       <h2>Yeni eğitim grubu</h2>
-      <ErrorAlert error={error ?? orgs.error ?? trainings.error ?? employees.error} />
+      <ErrorAlert error={error ?? orgs.error ?? trainings.error ?? trainers.error ?? employees.error} />
       <div className="form-row">
         <Field label="Kuruluş" required htmlFor="g-org">
           <select id="g-org" value={orgId} onChange={(e) => setOrgId(e.target.value)} required>
@@ -169,9 +175,12 @@ function NewGroup({ onCancel }: { onCancel: () => void }) {
           </select>
         </Field>
       </div>
-      <Field label="Grup adı" required htmlFor="g-name" hint='Örnek: "X firması çalışanları eğitimi"'>
-        <input id="g-name" value={name} onChange={(e) => setName(e.target.value)} required />
-      </Field>
+      <div className="form-row">
+        <Field label="Grup adı" required htmlFor="g-name" hint='Örnek: "X firması çalışanları eğitimi"'>
+          <input id="g-name" value={name} onChange={(e) => setName(e.target.value)} required />
+        </Field>
+        <TrainerSelect trainers={trainers.data?.items} value={trainerId} onChange={setTrainerId} />
+      </div>
       {orgId &&
         (employees.loading && !employees.data ? (
           <Loading />
@@ -191,7 +200,7 @@ function NewGroup({ onCancel }: { onCancel: () => void }) {
         <button type="button" className="btn" onClick={onCancel}>
           Vazgeç
         </button>
-        <button className="btn btn-primary" disabled={busy || !orgId || !trainingId}>
+        <button className="btn btn-primary" disabled={busy || !orgId || !trainingId || !trainerId}>
           {busy ? 'Oluşturuluyor…' : 'Grubu oluştur'}
         </button>
       </div>

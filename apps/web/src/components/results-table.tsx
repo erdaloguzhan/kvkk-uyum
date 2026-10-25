@@ -22,6 +22,7 @@ export const RESULT_EXPORT_COLUMNS: ExportColumn<TrainingResult>[] = [
   { label: 'Eğitim', value: (r) => r.trainingName },
   { label: 'T.C. Kimlik No', value: (r) => r.nationalId },
   { label: 'Adı Soyadı', value: (r) => r.fullName },
+  { label: 'Eğitim gönderim tarihi', value: (r) => (r.sentAt ? formatDateTime(r.sentAt) : null) },
   { label: 'Eğitime başlama', value: (r) => (r.startedAt ? formatDateTime(r.startedAt) : null) },
   { label: 'Eğitimi bitirme', value: (r) => (r.completedAt ? formatDateTime(r.completedAt) : null) },
   { label: 'Ön test notu', value: (r) => r.preTestScore },
@@ -62,6 +63,7 @@ export function ResultsTable({
             {showGroup && <th>Eğitim grubu</th>}
             <th>T.C. Kimlik No</th>
             <th>Adı Soyadı</th>
+            <th>Eğitim gönderim tarihi</th>
             <th>Eğitime başlama</th>
             <th>Eğitimi bitirme</th>
             <th>Ön test</th>
@@ -90,6 +92,7 @@ export function ResultsTable({
                     </div>
                   )}
                 </td>
+                <td className="nowrap">{r.sentAt ? formatDateTime(r.sentAt) : <Badge>Gönderilmedi</Badge>}</td>
                 <td className="nowrap">{formatDateTime(r.startedAt)}</td>
                 <td className="nowrap">{formatDateTime(r.completedAt)}</td>
                 <td>{r.preTestScore ?? '—'}</td>
@@ -102,8 +105,10 @@ export function ResultsTable({
                     <button className="btn btn-small btn-primary" disabled={busy === r.id} onClick={() => certificate(r)}>
                       {busy === r.id ? 'Hazırlanıyor…' : 'Sertifika oluştur'}
                     </button>
-                  ) : (
+                  ) : r.passed === false || r.startedAt ? (
                     <Badge kind={status.kind}>{status.label}</Badge>
+                  ) : (
+                    '—'
                   )}
                 </td>
                 {actions && <td className="nowrap">{actions(r)}</td>}

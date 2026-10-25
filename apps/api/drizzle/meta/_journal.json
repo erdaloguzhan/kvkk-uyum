@@ -113,6 +113,13 @@
       "when": 1792930718458,
       "tag": "0015_employee_phone_login",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792955560382,
+      "tag": "0016_group_trainer",
+      "breakpoints": true
     }
   ]
 }
