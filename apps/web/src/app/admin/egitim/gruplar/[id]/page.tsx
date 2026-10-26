@@ -32,8 +32,8 @@ export default function GroupPage() {
   if (group.loading && !group.data) return <Loading />;
   if (!group.data) return <ErrorAlert error={group.error} />;
   const g = group.data;
-  // E-postası olmayan çalışana gönderilemez; düğme yalnızca gönderilebilecekleri sayar.
-  const unsent = g.participants.filter((p) => !p.sentAt && p.email && p.phone);
+  // Cep telefonu olmayan çalışana gönderilemez; düğme yalnızca gönderilebilecekleri sayar.
+  const unsent = g.participants.filter((p) => !p.sentAt && p.phone);
 
   async function run<T>(fn: () => Promise<T>) {
     setBusy(true);
@@ -50,7 +50,7 @@ export default function GroupPage() {
 
   async function send(participantIds?: string[]) {
     const who = participantIds ? 'Seçilen katılımcıya' : `${unsent.length} katılımcıya`;
-    if (!confirm(`${who} eğitim bağlantısı ve giriş bilgileri e-postayla gönderilsin mi?`)) return;
+    if (!confirm(`${who} eğitim bağlantısı SMS ile gönderilsin mi? (E-postası olana ayrıca e-posta gider.)`)) return;
     const r = await run(() =>
       api<{ sent: number; skipped: { name: string; reason: string }[] }>(`training-admin/groups/${id}/send`, {
         method: 'POST',

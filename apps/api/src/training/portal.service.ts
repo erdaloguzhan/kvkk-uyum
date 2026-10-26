@@ -30,7 +30,7 @@ const READ_TOLERANCE_SECONDS = 2;
 export class PortalService {
   constructor(@InjectDb() private readonly db: Database) {}
 
-  /** Katılımcıya gönderilmiş eğitimler (aynı e-postayla kayıtlı tüm kuruluşlardaki). */
+  /** Katılımcıya gönderilmiş eğitimler (aynı cep telefonuyla kayıtlı tüm kuruluşlardaki). */
   async assignments(token: TraineeToken) {
     const rows = await this.db
       .select({
@@ -47,7 +47,7 @@ export class PortalService {
       .innerJoin(trainingGroups, eq(trainingGroups.id, trainingParticipants.groupId))
       .innerJoin(trainings, eq(trainings.id, trainingGroups.trainingId))
       .innerJoin(organizations, eq(organizations.id, trainingGroups.organizationId))
-      .where(and(sql`lower(${employees.email}) = lower(${token.email})`, isNotNull(trainingParticipants.sentAt)))
+      .where(and(eq(employees.phone, token.sub), isNotNull(trainingParticipants.sentAt)))
       .orderBy(desc(trainingParticipants.sentAt));
     return rows;
   }
@@ -142,13 +142,13 @@ export class PortalService {
   /** Katılımcı kaydını kilitleyerek yükler ve adımı belirler (gerekirse ilerlemeyi bu oturum için sıfırlar). */
   private async load(tx: Tx, token: TraineeToken, participantId: string) {
     const [row] = await tx
-      .select({ participant: trainingParticipants, email: employees.email, trainingId: trainingGroups.trainingId })
+      .select({ participant: trainingParticipants, phone: employees.phone, trainingId: trainingGroups.trainingId })
       .from(trainingParticipants)
       .innerJoin(employees, eq(employees.id, trainingParticipants.employeeId))
       .innerJoin(trainingGroups, eq(trainingGroups.id, trainingParticipants.groupId))
       .where(eq(trainingParticipants.id, participantId))
       .for('update', { of: trainingParticipants });
-    if (!row || !row.participant.sentAt || row.email?.toLowerCase() !== token.email.toLowerCase()) {
+    if (!row || !row.participant.sentAt || row.phone !== token.sub) {
       throw new NotFoundException('Eğitim bulunamadı');
     }
     const [training] = await tx

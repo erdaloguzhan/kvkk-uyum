@@ -19,6 +19,9 @@ const envSchema = z.object({
   MAIL_FROM: z.string().default('KVK Yönetim Sistemi <no-reply@localhost>'),
   APP_URL: z.string().default('http://localhost:3000'),
   PLATFORM_ADMIN_EMAILS: z.string().optional(),
+  VERIMOR_USERNAME: z.string().optional(),
+  VERIMOR_PASSWORD: z.string().optional(),
+  SMS_HEADER: z.string().default('KVK UYUM'),
 });
 
 export interface AppConfig {
@@ -38,6 +41,10 @@ export interface AppConfig {
   appUrl: string;
   /** Açılışta platform yöneticisi yapılacak e-posta adresleri (yoksa hesap açılıp davet gönderilir). */
   platformAdminEmails: string[];
+  /** Verimor SMS hesabı (kullanıcı adı 90850... biçiminde, API şifresi). Yoksa SMS'ler yalnızca loglanır. */
+  verimor?: { username: string; password: string };
+  /** SMS başlığı (gönderici adı); Verimor'da kayıtlı olmalı. */
+  smsHeader: string;
 }
 
 export const CONFIG = Symbol('CONFIG');
@@ -59,6 +66,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       .split(',')
       .map((x) => x.trim())
       .filter(Boolean),
+    verimor: e.VERIMOR_USERNAME && e.VERIMOR_PASSWORD ? { username: e.VERIMOR_USERNAME, password: e.VERIMOR_PASSWORD } : undefined,
+    smsHeader: e.SMS_HEADER,
   };
 }
 

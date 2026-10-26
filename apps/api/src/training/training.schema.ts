@@ -15,7 +15,7 @@ const optionalDate = z
   .transform((v) => v || null);
 
 /** Boş bırakılabilir cep telefonu; boşluklu vb. yazımlar 05XXXXXXXXX biçiminde saklanır. */
-const optionalMobile = z
+export const optionalMobile = z
   .string()
   .trim()
   .max(30)

@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { ApiError, ApiErrorBody, errorText, redirectToLogin } from '@/lib/api';
+import { api, ApiError, ApiErrorBody, errorText, redirectToLogin } from '@/lib/api';
+import { useSession } from '@/lib/session';
 import { PASSWORD_HINT, passwordProblem } from '@/lib/password';
 import { Alert, ErrorAlert, Field, PageHeader } from './ui';
 
@@ -110,7 +111,51 @@ export function ChangePasswordForm() {
 }
 
 /** Profil sayfası: hesap bilgileri ve şifre değiştirme (müşteri ekranı ve yönetim panelinde ortak). */
-export function ProfilePage({ fullName, email, role }: { fullName: string; email: string; role?: string }) {
+/** Giriş doğrulama kodunun SMS ile gideceği cep telefonu. */
+function PhoneForm({ phone }: { phone: string | null }) {
+  const { reload } = useSession();
+  const [value, setValue] = useState(phone ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await api('auth/me/phone', { method: 'PATCH', body: { phone: value.trim() || null } });
+      await reload();
+      setSaved(true);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="form" onSubmit={save}>
+      <ErrorAlert error={error} />
+      {saved && <Alert kind="success">Cep telefonu kaydedildi. E-posta adresinize bilgilendirme gönderildi.</Alert>}
+      <Field
+        label="Cep telefonu"
+        htmlFor="profile-phone"
+        hint="Girişte doğrulama kodu bu numaraya SMS ile gider. Boş bırakırsanız kod e-posta adresinize gider."
+      >
+        <input id="profile-phone" type="tel" placeholder="05XX XXX XX XX" value={value} onChange={(e) => setValue(e.target.value)} />
+      </Field>
+      <div>
+        <button className="btn btn-primary" disabled={busy}>
+          {busy ? 'Kaydediliyor…' : 'Kaydet'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function ProfilePage({ fullName, email, phone, role }: { fullName: string; email: string; phone: string | null; role?: string }) {
   return (
     <>
       <PageHeader title="Profilim" description="Hesap bilgileriniz ve şifreniz." />
@@ -128,6 +173,10 @@ export function ProfilePage({ fullName, email, role }: { fullName: string; email
             </>
           )}
         </dl>
+      </div>
+      <div className="card">
+        <h2>Cep telefonu</h2>
+        <PhoneForm phone={phone} />
       </div>
       <div className="card">
         <h2>Şifre değiştir</h2>

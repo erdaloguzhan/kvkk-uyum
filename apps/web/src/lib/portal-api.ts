@@ -15,14 +15,8 @@ export async function portalApi<T = unknown>(path: string, opts: { method?: stri
     throw new ApiError(0, { message: 'Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edin.' });
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as ApiErrorBody & { code?: string };
-    if (opts.redirect !== false && typeof window !== 'undefined') {
-      if (res.status === 401) {
-        window.location.href = '/egitim';
-      } else if (res.status === 403 && body.code === 'PASSWORD_CHANGE_REQUIRED') {
-        window.location.href = '/egitim/sifre-degistir';
-      }
-    }
+    const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
+    if (opts.redirect !== false && typeof window !== 'undefined' && res.status === 401) window.location.href = '/egitim';
     throw new ApiError(res.status, body);
   }
   if (res.status === 204 || res.status === 202) return undefined as T;

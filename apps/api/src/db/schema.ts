@@ -34,6 +34,8 @@ export const users = pgTable(
     email: text('email').notNull(),
     fullName: text('full_name').notNull(),
     passwordHash: text('password_hash').notNull(),
+    /** Cep telefonu (05XXXXXXXXX); giriş doğrulama kodu buna SMS ile gider, yoksa e-postaya. */
+    phone: text('phone'),
     isActive: boolean('is_active').notNull().default(true),
     isPlatformAdmin: boolean('is_platform_admin').notNull().default(false),
     failedLoginCount: integer('failed_login_count').notNull().default(0),
@@ -654,39 +656,21 @@ export const trainingGroups = pgTable(
 );
 
 /**
- * Eğitim portalı hesabı. Kullanıcı adı e-posta adresidir; aynı kişi birden çok kuruluşta çalışan olarak
- * kayıtlıysa tek hesapla hepsindeki eğitimlerini görür.
+ * Eğitim portalı giriş kodları. Portalda şifre yoktur: çalışan cep telefonunu yazar, SMS ile gelen kodla girer.
+ * Telefon, çalışan kayıtlarındaki cep telefonudur (kişi başına tekil).
  */
-export const trainingAccounts = pgTable(
-  'training_accounts',
+export const portalLoginCodes = pgTable(
+  'portal_login_codes',
   {
     id: id(),
-    email: text('email').notNull(),
-    passwordHash: text('password_hash').notNull(),
-    /** Geçici şifreyle açılan hesapta ilk girişte şifre değiştirilmeden eğitime geçilemez. */
-    mustChangePassword: boolean('must_change_password').notNull().default(true),
-    failedLoginCount: integer('failed_login_count').notNull().default(0),
-    lockedUntil: timestamp('locked_until', { withTimezone: true }),
-    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
-    createdAt: createdAt(),
-  },
-  (t) => [uniqueIndex('training_accounts_email_unique').on(sql`lower(${t.email})`)],
-);
-
-/** Eğitim portalı "şifremi unuttum" bağlantıları. */
-export const trainingAccountTokens = pgTable(
-  'training_account_tokens',
-  {
-    id: id(),
-    accountId: uuid('account_id')
-      .notNull()
-      .references(() => trainingAccounts.id, { onDelete: 'cascade' }),
-    tokenHash: text('token_hash').notNull(),
+    phone: text('phone').notNull(),
+    codeHash: text('code_hash').notNull(),
+    attempts: integer('attempts').notNull().default(0),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    usedAt: timestamp('used_at', { withTimezone: true }),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('training_account_tokens_hash_unique').on(t.tokenHash)],
+  (t) => [index('portal_login_codes_phone_idx').on(t.phone, t.createdAt)],
 );
 
 /** Eğitim grubundaki katılımcı ve eğitimdeki ilerlemesi. */

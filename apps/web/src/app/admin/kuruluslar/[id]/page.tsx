@@ -105,7 +105,7 @@ export default function AdminOrganizationPage() {
   async function sendPortalAccess(e?: Employee) {
     const text = e
       ? `${e.firstName} ${e.lastName} için Eğitim Portalı erişimi gönderilsin mi?`
-      : 'Cep telefonu ve e-postası olan, işten çıkmamış tüm çalışanlara Eğitim Portalı erişimi gönderilsin mi? Hesabı olmayanlara geçici şifre gider.';
+      : 'Cep telefonu olan, işten çıkmamış tüm çalışanlara Eğitim Portalı bağlantısı SMS ile gönderilsin mi? Çalışan portala cep telefonu ve SMS koduyla girer.';
     if (!confirm(text)) return;
     setBusy(true);
     setError(null);
@@ -273,8 +273,8 @@ export default function AdminOrganizationPage() {
           <PersonFields
             value={form}
             onChange={setForm}
-            phoneHint="Eğitim Portalı kullanıcı adı olur; kişiye özel olmalı."
-            emailHint="Portal şifresi ve şifre sıfırlama bağlantısı bu adrese gider."
+            phoneHint="Eğitim Portalına bu numara ve SMS koduyla girilir; kişiye özel olmalı."
+            emailHint="Zorunlu değil. Varsa eğitim ve doküman bildirimleri ayrıca bu adrese de gider."
           />
           <div className="dialog-actions">
             <button type="button" className="btn" onClick={() => setEditing(null)}>

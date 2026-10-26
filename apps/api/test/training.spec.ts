@@ -6,7 +6,8 @@ import { Database, DB } from '../src/db/db.module';
 import { trainingParticipants } from '../src/db/schema';
 import { isValidNationalId } from '../src/training/national-id';
 import { normalizeMobile } from '../src/training/phone';
-import { createApp, createOrg, extractCode, lastMailTo, login, makePlatformAdmin, PASSWORD, registerAndLogin, mailCount, uniqueEmail, waitForMailTo } from './helpers';
+import { SmsService } from '../src/auth/sms.service';
+import { createApp, createOrg, extractCode, lastMailTo, lastSmsTo, login, makePlatformAdmin, PASSWORD, portalLogin, registerAndLogin, mailCount, uniqueEmail, waitForMailTo } from './helpers';
 
 /** Rastgele geçerli T.C. kimlik no. */
 function nationalId() {
@@ -265,7 +266,7 @@ describe('Uzaktan eğitim', () => {
         .send({ nationalId: nationalId(), firstName: 'Telefonsuz', lastName: 'Çalışan', email: uniqueEmail('telefonsuz') })
         .expect(201);
       const noEmail = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-        .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan' })
+        .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan', phone: uniquePhone() })
         .expect(201);
 
       // Eğitimci grupta seçilir (zorunlu); sertifikada grubun eğitimcisi yazar.
@@ -291,30 +292,23 @@ describe('Uzaktan eğitim', () => {
       participantId = group.body.participants.find((p: any) => p.email === employeeEmail).id;
 
       const sent = await asAdmin(request(server).post(`/api/v1/training-admin/groups/${groupId}/send`)).send({}).expect(200);
-      expect(sent.body).toEqual({
-        sent: 1,
-        skipped: expect.arrayContaining([
-          { name: 'E-postasız Çalışan', reason: 'E-posta adresi yok' },
-          { name: 'Telefonsuz Çalışan', reason: 'Cep telefonu yok (portal kullanıcı adı)' },
-        ]),
-      });
-      const mail = lastMailTo(app, employeeEmail).text;
-      expect(mail).toContain('/egitim');
-      expect(mail).toContain(`Kullanıcı adınız (cep telefonunuz): ${employeePhone}`);
-      const tempPassword = /Geçici şifreniz: (\S+)/.exec(mail)![1];
+      // E-postası olmayan çalışana da SMS gider; cep telefonu olmayan atlanır.
+      expect(sent.body).toEqual({ sent: 2, skipped: [{ name: 'Telefonsuz Çalışan', reason: 'Cep telefonu yok' }] });
+      const sms = lastSmsTo(app, employeePhone).text;
+      expect(sms).toContain('/egitim');
+      expect(sms).toContain('KVKK Farkındalık Eğitimi');
+      expect(lastMailTo(app, employeeEmail).text).toContain(`Giriş için cep telefonunuzu (${employeePhone}) yazın`);
 
-      const loginRes = await request(server)
-        .post('/api/v1/training-portal/login')
-        .send({ phone: employeePhone.replace(/^0(\d{3})(\d{3})(\d{2})(\d{2})$/, '0$1 $2 $3 $4'), password: tempPassword })
-        .expect(200);
-      expect(loginRes.body.account.mustChangePassword).toBe(true);
-      const pending = await portal(request(server).get('/api/v1/training-portal/assignments'), loginRes.body.token).expect(403);
-      expect(pending.body.code).toBe('PASSWORD_CHANGE_REQUIRED');
-
-      const changed = await portal(request(server).post('/api/v1/training-portal/change-password'), loginRes.body.token)
-        .send({ currentPassword: tempPassword, newPassword: PASSWORD })
-        .expect(200);
-      portalToken = changed.body.token;
+      // Portal şifresizdir: telefon (boşluklu yazılsa da) + SMS kodu. Yanlış kod ve kayıtsız telefon girişi açmaz.
+      const spaced = employeePhone.replace(/^0(\d{3})(\d{3})(\d{2})(\d{2})$/, '0$1 $2 $3 $4');
+      const challenge = await request(server).post('/api/v1/training-portal/login/code').send({ phone: spaced }).expect(200);
+      expect(challenge.body.destination).toBe(`${employeePhone.slice(0, 4)} *** ** ${employeePhone.slice(-2)}`);
+      await request(server).post('/api/v1/training-portal/login').send({ challengeId: challenge.body.challengeId, code: '000000' }).expect(401);
+      const smsBefore = app.get(SmsService).outbox.length;
+      const unknown = await request(server).post('/api/v1/training-portal/login/code').send({ phone: '05009998877' }).expect(200);
+      expect(unknown.body.challengeId).toBeTruthy();
+      expect(app.get(SmsService).outbox.length).toBe(smsBefore);
+      portalToken = await portalLogin(app, spaced);
       const list = await portal(request(server).get('/api/v1/training-portal/assignments')).expect(200);
       expect(list.body.items).toEqual([expect.objectContaining({ id: participantId, trainingName: 'KVKK Farkındalık Eğitimi' })]);
 
@@ -351,8 +345,7 @@ describe('Uzaktan eğitim', () => {
       expect(second.body.topic).toMatchObject({ index: 1, title: 'Temel kavramlar' });
 
       // Yeni oturum (çıkış + yeniden giriş): konular baştan başlar, ön test tekrar sorulmaz.
-      const relogin = await request(server).post('/api/v1/training-portal/login').send({ phone: employeePhone, password: PASSWORD }).expect(200);
-      portalToken = relogin.body.token;
+      portalToken = await portalLogin(app, employeePhone);
       const restarted = await portal(request(server).get(`/api/v1/training-portal/assignments/${participantId}`)).expect(200);
       expect(restarted.body).toMatchObject({ step: 'topic', topic: { index: 0 } });
 
@@ -404,17 +397,13 @@ describe('Uzaktan eğitim', () => {
       await asAdmin(request(server).delete(`/api/v1/training-admin/groups/${groupId}`)).expect(409);
     });
 
-    it('eğitim kaydı olan çalışan silinemez; şifremi unuttum çalışır', async () => {
+    it('eğitim kaydı olan çalışan silinemez; kod sınırı aşılınca yeni kod istenemez', async () => {
       const list = await asAdmin(request(server).get(`/api/v1/admin/organizations/${orgId}/employees`)).expect(200);
       const can = list.body.items.find((e: any) => e.email === employeeEmail);
       await asAdmin(request(server).delete(`/api/v1/admin/organizations/${orgId}/employees/${can.id}`)).expect(409);
 
-      const sent = mailCount(app);
-      await request(server).post('/api/v1/training-portal/password-reset/request').send({ phone: employeePhone }).expect(202);
-      const token = extractCode((await waitForMailTo(app, employeeEmail, sent)).text);
-      await request(server).post('/api/v1/training-portal/password-reset/confirm').send({ token, password: 'YeniSifre12345' }).expect(204);
-      await request(server).post('/api/v1/training-portal/login').send({ phone: employeePhone, password: PASSWORD }).expect(401);
-      await request(server).post('/api/v1/training-portal/login').send({ phone: employeePhone, password: 'YeniSifre12345' }).expect(200);
+      // Bu telefona 10 dakikada en fazla 3 kod gider (önceki adımlarda 3 kod istendi).
+      await request(server).post('/api/v1/training-portal/login/code').send({ phone: employeePhone }).expect(429);
     });
 
     it('gönderilmiş katılımcının kaydı sınav sonuçlarıyla silinemez', async () => {
@@ -469,7 +458,7 @@ describe('Uzaktan eğitim', () => {
     const access = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`))
       .send({ employeeIds: [emp.body.id, noEmail.body.id] })
       .expect(200);
-    expect(access.body).toEqual({ sent: 1, skipped: [{ name: 'E-postasız Çalışan', reason: 'E-posta adresi yok' }] });
+    expect(access.body).toEqual({ sent: 1, skipped: [{ name: 'E-postasız Çalışan', reason: 'Cep telefonu yok' }] });
     // Müşteri ve platform yöneticisi olmayanlar portal erişimi gönderemez.
     await request(server)
       .post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`)
@@ -477,16 +466,10 @@ describe('Uzaktan eğitim', () => {
       .send({})
       .expect(403);
 
-    const mail = lastMailTo(app, email).text;
-    expect(mail).toContain('Doküman Müşteri A.Ş.');
-    const temp = /Geçici şifreniz: (\S+)/.exec(mail)![1];
-    const first = await request(server).post('/api/v1/training-portal/login').send({ phone, password: temp }).expect(200);
-    const changed = await request(server)
-      .post('/api/v1/training-portal/change-password')
-      .set('authorization', `Bearer ${first.body.token}`)
-      .send({ currentPassword: temp, newPassword: PASSWORD })
-      .expect(200);
-    const portal = (req: request.Test) => req.set('authorization', `Bearer ${changed.body.token}`);
+    expect(lastSmsTo(app, phone).text).toContain('Doküman Müşteri A.Ş.');
+    expect(lastMailTo(app, email).text).toContain('Doküman Müşteri A.Ş.');
+    const token = await portalLogin(app, phone);
+    const portal = (req: request.Test) => req.set('authorization', `Bearer ${token}`);
 
     const list = await portal(request(server).get('/api/v1/training-portal/documents')).expect(200);
     expect(list.body.items).toEqual([
@@ -533,19 +516,13 @@ describe('Uzaktan eğitim', () => {
       .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Okur', email, phone })
       .expect(201);
     const other = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Ece', lastName: 'Henüz', email: uniqueEmail('okumayan') })
+      .send({ nationalId: nationalId(), firstName: 'Ece', lastName: 'Henüz', email: uniqueEmail('okumayan'), phone: uniquePhone() })
       .expect(201);
     await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`))
       .send({ employeeIds: [emp.body.id] })
       .expect(200);
-    const temp = /Geçici şifreniz: (\S+)/.exec(lastMailTo(app, email).text)![1];
-    const first = await request(server).post('/api/v1/training-portal/login').send({ phone, password: temp }).expect(200);
-    const changed = await request(server)
-      .post('/api/v1/training-portal/change-password')
-      .set('authorization', `Bearer ${first.body.token}`)
-      .send({ currentPassword: temp, newPassword: PASSWORD })
-      .expect(200);
-    const portal = (req: request.Test) => req.set('authorization', `Bearer ${changed.body.token}`);
+    const token = await portalLogin(app, phone);
+    const portal = (req: request.Test) => req.set('authorization', `Bearer ${token}`);
 
     // Doküman portalda okunabilir metin olarak gelir.
     const view = await portal(request(server).get(`/api/v1/training-portal/documents/${doc.id}`)).expect(200);
@@ -603,7 +580,7 @@ describe('Uzaktan eğitim', () => {
     expect(logs.body.items.find((l: any) => l.action === 'document.read_confirmed').metadata).toMatchObject({
       employeeId: emp.body.id,
       versionNo: 2,
-      account: email,
+      account: phone,
     });
     const download = await as(request(server).get('/api/v1/audit-logs?action=documents.download')).expect(200);
     expect(download.body.items).toEqual([expect.objectContaining({ entityId: doc.id, user: expect.objectContaining({ email: owner.email }) })]);

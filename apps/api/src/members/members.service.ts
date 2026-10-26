@@ -35,7 +35,7 @@ export class MembersService {
         id: memberships.id,
         status: memberships.status,
         createdAt: memberships.createdAt,
-        user: { id: users.id, email: users.email, fullName: users.fullName },
+        user: { id: users.id, email: users.email, fullName: users.fullName, phone: users.phone },
         role: { id: roles.id, key: roles.key, name: roles.name },
       })
       .from(memberships)
@@ -49,7 +49,7 @@ export class MembersService {
    * Kullanıcıyı kuruluşa verilen rolle ekler. Sistemde kayıtlı değilse hesap açılır ve şifre oluşturma
    * bağlantısı gönderilir; kayıtlıysa kuruluşa eklendiği bildirilir.
    */
-  async add(orgId: string, actorId: string | null, input: { email: string; fullName: string; roleKey: string }) {
+  async add(orgId: string, actorId: string | null, input: { email: string; fullName: string; roleKey: string; phone?: string | null }) {
     const role = await this.findRole(orgId, input.roleKey);
     const email = input.email.trim();
     const fullName = input.fullName.trim();
@@ -65,6 +65,7 @@ export class MembersService {
         .values({
           email,
           fullName,
+          phone: input.phone ?? null,
           // Kullanılamaz rastgele şifre; kullanıcı bağlantıyla kendi şifresini oluşturur.
           passwordHash: await hashPassword(generateToken()),
         })
@@ -76,6 +77,7 @@ export class MembersService {
       .from(memberships)
       .where(and(eq(memberships.userId, user.id), eq(memberships.organizationId, orgId)));
     if (existing) throw new ConflictException('Kullanıcı zaten bu kuruluşun üyesi');
+    if (!newUser && input.phone) await this.db.update(users).set({ phone: input.phone }).where(eq(users.id, user.id));
 
     const [membership] = await this.db
       .insert(memberships)
@@ -107,6 +109,31 @@ export class MembersService {
       metadata: { email, role: role.key, newUser },
     });
     return { membership, user: { id: user.id, email: user.email, newUser } };
+  }
+
+  /**
+   * Kullanıcının cep telefonu (giriş doğrulama kodu buna SMS ile gider). Platform yöneticisi veya kullanıcının
+   * kendisi değiştirir; eski adrese bilgilendirme e-postası gider.
+   */
+  async setPhone(actorId: string, userId: string, phone: string | null) {
+    const [user] = await this.db
+      .update(users)
+      .set({ phone })
+      .where(eq(users.id, userId))
+      .returning({ id: users.id, email: users.email, fullName: users.fullName, phone: users.phone });
+    if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
+    await this.mailer.send({
+      to: user.email,
+      subject: 'KVK Yönetim Sistemi - cep telefonunuz değişti',
+      text:
+        `Merhaba ${user.fullName},\n\n` +
+        (phone
+          ? `Hesabınızın cep telefonu ${phone} olarak kaydedildi. Giriş doğrulama kodları bu numaraya SMS ile gönderilecek.\n`
+          : 'Hesabınızın cep telefonu silindi. Giriş doğrulama kodları e-posta adresinize gönderilecek.\n') +
+        '\nBu değişikliği siz yapmadıysanız hemen platform yöneticisine bildirin.\n',
+    });
+    await this.audit.record({ action: 'user.phone_changed', userId: actorId, entityType: 'user', entityId: userId, metadata: { phone } });
+    return user;
   }
 
   async update(

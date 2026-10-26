@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { MailerService } from '../src/auth/mailer.service';
+import { SmsService } from '../src/auth/sms.service';
 import { hashPassword } from '../src/common/crypto';
 import { setupApp } from '../src/setup-app';
 import { Database, DB } from '../src/db/db.module';
@@ -36,6 +37,26 @@ export function lastMailTo(app: INestApplication, email: string) {
   if (!mail) throw new Error(`No mail sent to ${email}`);
   return mail;
 }
+
+export function lastSmsTo(app: INestApplication, phone: string) {
+  const sms = [...app.get(SmsService).outbox].reverse().find((m) => m.to === phone);
+  if (!sms) throw new Error(`No SMS sent to ${phone}`);
+  return sms;
+}
+
+/** Eğitim portalına cep telefonu + SMS koduyla girer, portal belirtecini döner. */
+export async function portalLogin(app: INestApplication, phone: string) {
+  const server = app.getHttpServer();
+  const challenge = await request(server).post('/api/v1/training-portal/login/code').send({ phone }).expect(200);
+  const code = /(\d{6})/.exec(lastSmsTo(app, normalizePhoneForTest(phone)).text)![1];
+  const res = await request(server)
+    .post('/api/v1/training-portal/login')
+    .send({ challengeId: challenge.body.challengeId, code })
+    .expect(200);
+  return res.body.token as string;
+}
+
+const normalizePhoneForTest = (phone: string) => phone.replace(/\s/g, '');
 
 /** Gönderilmiş e-posta sayısı; `waitForMailTo` ile birlikte yalnızca bundan sonra gidenleri beklemek için. */
 export function mailCount(app: INestApplication) {

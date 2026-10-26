@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { and, asc, desc, eq, inArray, isNotNull, isNull, SQL } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { MailerService } from '../auth/mailer.service';
+import { SmsService } from '../auth/sms.service';
 import { Database, InjectDb } from '../db/db.module';
 import {
   employees,
@@ -32,6 +33,7 @@ export class GroupsService {
     @InjectDb() private readonly db: Database,
     private readonly portalAuth: PortalAuthService,
     private readonly mailer: MailerService,
+    private readonly sms: SmsService,
     private readonly audit: AuditService,
   ) {}
 
@@ -203,8 +205,9 @@ export class GroupsService {
   }
 
   /**
-   * Eğitimi başlatır: katılımcılara eğitim portalı bağlantısı ve giriş bilgileri e-postayla gönderilir.
-   * `participantIds` verilmezse henüz gönderilmemiş katılımcılara gönderilir. E-postası olmayan çalışan atlanır.
+   * Eğitimi başlatır: katılımcılara eğitim portalı bağlantısı SMS ile (e-postası varsa ayrıca e-postayla) gönderilir.
+   * Portalda şifre yoktur; çalışan cep telefonu ve SMS ile gelen kodla girer. `participantIds` verilmezse henüz
+   * gönderilmemiş katılımcılara gönderilir. Cep telefonu olmayan çalışan atlanır.
    */
   async send(userId: string, id: string, participantIds?: string[]) {
     const group = await this.find(id);
@@ -228,33 +231,37 @@ export class GroupsService {
     const skipped: { name: string; reason: string }[] = [];
     for (const t of targets) {
       const name = fullName(t.employee);
-      if (!t.employee.email) {
-        skipped.push({ name, reason: 'E-posta adresi yok' });
-        continue;
-      }
       if (!t.employee.phone) {
-        skipped.push({ name, reason: 'Cep telefonu yok (portal kullanıcı adı)' });
+        skipped.push({ name, reason: 'Cep telefonu yok' });
         continue;
       }
       if (t.completedAt) {
         skipped.push({ name, reason: 'Eğitimi tamamlamış' });
         continue;
       }
-      const creds = await this.portalAuth.issueCredentials(t.employee.email);
-      const login = creds.temporaryPassword
-        ? `Kullanıcı adınız (cep telefonunuz): ${t.employee.phone}\nGeçici şifreniz: ${creds.temporaryPassword}\n\n` +
-          'İlk girişte şifrenizi değiştirmeniz istenecektir.\n'
-        : `Kullanıcı adınız (cep telefonunuz): ${t.employee.phone}\nMevcut Eğitim Portalı şifrenizle giriş yapabilirsiniz. ` +
-          'Şifrenizi hatırlamıyorsanız giriş sayfasındaki "Şifremi unuttum" bağlantısını kullanın.\n';
-      await this.mailer.send({
-        to: t.employee.email,
-        subject: `${training.name} - Uzaktan eğitim`,
-        text:
-          `Merhaba ${name},\n\n${org.name} tarafından "${training.name}" eğitimine katılımınız bekleniyor.\n\n` +
-          `Eğitim Portalı: ${this.portalAuth.portalUrl}\n${login}\n` +
-          'Eğitim bir ön test, ders konuları ve bir son testten oluşur. Eğitimi bitirmeden çıkarsanız tekrar ' +
-          'girdiğinizde eğitim baştan başlar.\n',
-      });
+      try {
+        await this.sms.send({
+          to: t.employee.phone,
+          text:
+            `${shorten(org.name, 40)}: "${shorten(training.name, 60)}" eğitiminiz başladı. ` +
+            `Eğitim Portalı: ${this.portalAuth.portalUrl} (cep telefonunuz ve SMS kodu ile giriş)`,
+        });
+      } catch {
+        skipped.push({ name, reason: 'SMS gönderilemedi' });
+        continue;
+      }
+      if (t.employee.email) {
+        await this.mailer.send({
+          to: t.employee.email,
+          subject: `${training.name} - Uzaktan eğitim`,
+          text:
+            `Merhaba ${name},\n\n${org.name} tarafından "${training.name}" eğitimine katılımınız bekleniyor.\n\n` +
+            `Eğitim Portalı: ${this.portalAuth.portalUrl}\n` +
+            `Giriş için cep telefonunuzu (${t.employee.phone}) yazın; telefonunuza SMS ile gelen kodu girin.\n\n` +
+            'Eğitim bir ön test, ders konuları ve bir son testten oluşur. Eğitimi bitirmeden çıkarsanız tekrar ' +
+            'girdiğinizde eğitim baştan başlar.\n',
+        });
+      }
       await this.db.update(trainingParticipants).set({ sentAt: new Date() }).where(eq(trainingParticipants.id, t.id));
       sent.push(t.id);
     }
@@ -400,4 +407,9 @@ export class GroupsService {
     if (!row) throw new NotFoundException('Eğitim grubu bulunamadı');
     return row;
   }
+}
+
+/** SMS'i kısa tutmak için uzun adları kısaltır. */
+function shorten(value: string, max: number) {
+  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }

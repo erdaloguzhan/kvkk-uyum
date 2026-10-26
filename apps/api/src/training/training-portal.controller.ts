@@ -1,22 +1,19 @@
-import { Body, Controller, Get, HttpCode, Logger, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { CaptchaService } from '../auth/captcha.service';
-import { passwordSchema } from '../common/password-policy';
 import { AppRequest, clientInfo, Public } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
 import { sendFile } from './files';
 import { PortalAuthService, TraineeToken } from './portal-auth.service';
 import { PortalDocumentsService } from './portal-documents.service';
 import { PortalService } from './portal.service';
-import { AllowPendingPasswordChange, CurrentTrainee, TraineeGuard } from './trainee.guard';
+import { CurrentTrainee, TraineeGuard } from './trainee.guard';
 import { answersBody, mobileLogin } from './training.schema';
 
-const loginBody = z.object({ phone: mobileLogin, password: z.string().min(1).max(128), captchaToken: z.string().max(2000).optional() });
-const changePasswordBody = z.object({ currentPassword: z.string().min(1).max(128), newPassword: passwordSchema });
-const resetRequestBody = z.object({ phone: mobileLogin, captchaToken: z.string().max(2000).optional() });
-const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
+const codeBody = z.object({ phone: mobileLogin, captchaToken: z.string().max(2000).optional() });
+const loginBody = z.object({ challengeId: z.uuid(), code: z.string().regex(/^\d{6}$/, 'Kod 6 haneli olmalı') });
 const nextBody = z.object({ topicIndex: z.number().int().min(0) });
 const readBody = z.object({ versionId: z.uuid() });
 
@@ -28,8 +25,6 @@ const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 @Controller('training-portal')
 @Public()
 export class TrainingPortalController {
-  private readonly logger = new Logger(TrainingPortalController.name);
-
   constructor(
     private readonly auth: PortalAuthService,
     private readonly captcha: CaptchaService,
@@ -37,50 +32,28 @@ export class TrainingPortalController {
     private readonly documents: PortalDocumentsService,
   ) {}
 
+  /** 1. adım: cep telefonuna SMS ile giriş kodu gönderilir. */
+  @Throttle(AUTH_THROTTLE)
+  @Post('login/code')
+  @HttpCode(200)
+  async requestCode(@Req() req: AppRequest, @Body(new ZodPipe(codeBody)) body: z.infer<typeof codeBody>) {
+    const client = clientInfo(req);
+    await this.captcha.verify(body.captchaToken, client.ip);
+    return this.auth.requestCode(body.phone, client);
+  }
+
+  /** 2. adım: kod doğrulanır, portal oturumu açılır. */
   @Throttle(AUTH_THROTTLE)
   @Post('login')
   @HttpCode(200)
-  async login(@Req() req: AppRequest, @Body(new ZodPipe(loginBody)) body: z.infer<typeof loginBody>) {
-    const client = clientInfo(req);
-    await this.captcha.verify(body.captchaToken, client.ip);
-    return this.auth.login(body, client);
-  }
-
-  @Throttle(AUTH_THROTTLE)
-  @Post('password-reset/request')
-  @HttpCode(202)
-  async requestReset(@Req() req: AppRequest, @Body(new ZodPipe(resetRequestBody)) body: z.infer<typeof resetRequestBody>) {
-    await this.captcha.verify(body.captchaToken, req.ip ?? null);
-    // Yanıt e-postayı beklemez; yanıt süresinden telefonun kayıtlı olup olmadığı anlaşılamaz.
-    void this.auth.requestReset(body.phone, clientInfo(req)).catch((err) => this.logger.error(`Portal şifre sıfırlama e-postası gönderilemedi: ${err}`));
-  }
-
-  @Throttle(AUTH_THROTTLE)
-  @Post('password-reset/confirm')
-  @HttpCode(204)
-  async confirmReset(@Req() req: AppRequest, @Body(new ZodPipe(resetConfirmBody)) body: z.infer<typeof resetConfirmBody>) {
-    await this.auth.confirmReset(body.token, body.password, clientInfo(req));
-  }
-
-  @Throttle(AUTH_THROTTLE)
-  @Post('change-password')
-  @HttpCode(200)
-  @UseGuards(TraineeGuard)
-  @AllowPendingPasswordChange()
-  changePassword(
-    @Req() req: AppRequest,
-    @CurrentTrainee() trainee: TraineeToken,
-    @Body(new ZodPipe(changePasswordBody)) body: z.infer<typeof changePasswordBody>,
-  ) {
-    return this.auth.changePassword(trainee, body, clientInfo(req));
+  login(@Req() req: AppRequest, @Body(new ZodPipe(loginBody)) body: z.infer<typeof loginBody>) {
+    return this.auth.login(body, clientInfo(req));
   }
 
   @Get('me')
   @UseGuards(TraineeGuard)
-  @AllowPendingPasswordChange()
-  async me(@CurrentTrainee() trainee: TraineeToken) {
-    const account = await this.auth.findById(trainee.sub);
-    return { email: account.email, mustChangePassword: account.mustChangePassword };
+  me(@CurrentTrainee() trainee: TraineeToken) {
+    return { phone: trainee.sub };
   }
 
   @Get('assignments')

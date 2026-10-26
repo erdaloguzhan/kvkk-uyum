@@ -24,7 +24,7 @@ export default function GroupsPage() {
     <>
       <PageHeader
         title="Eğitim grupları"
-        description="Bir kuruluşun seçilen çalışanlarına bir eğitim atayın. Eğitim başlatılınca katılımcılara eğitim bağlantısı ve giriş bilgileri e-postayla gider."
+        description="Bir kuruluşun seçilen çalışanlarına bir eğitim atayın. Eğitim başlatılınca katılımcılara eğitim bağlantısı SMS ile gider; portala cep telefonu ve SMS koduyla girerler."
         actions={
           <>
             <ExportButton

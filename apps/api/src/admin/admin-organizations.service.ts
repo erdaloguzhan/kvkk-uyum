@@ -10,6 +10,8 @@ import { OrganizationProfile, OrganizationsService } from '../organizations/orga
 interface Person {
   email: string;
   fullName: string;
+  /** Cep telefonu; giriş doğrulama kodu buna SMS ile gider. */
+  phone?: string | null;
 }
 
 export interface NewOrganization extends OrganizationProfile {
@@ -17,6 +19,8 @@ export interface NewOrganization extends OrganizationProfile {
   email: string;
   /** KVKK Sorumlusunun adı soyadı. */
   authorizedPerson: string;
+  /** KVKK Sorumlusunun cep telefonu. */
+  authorizedPhone?: string | null;
   /** Onay veren Yönetici. E-postası Sorumlununkiyle aynıysa tek kullanıcı "Sorumlu + Yönetici" olur. */
   approver: Person;
 }
@@ -59,13 +63,13 @@ export class AdminOrganizationsService {
    * e-postaysa tek hesap). Hesabı olmayanlara şifre oluşturma bağlantısı, olanlara bilgilendirme gider.
    */
   async create(adminId: string, input: NewOrganization) {
-    const { approver, ...profile } = input;
+    const { approver, authorizedPhone, ...profile } = input;
     const email = input.email.trim();
     const combined = sameEmail(approver.email, email);
 
     const created = await this.orgs.create(null, { ...profile, email }, adminId);
     const people = [
-      { email, fullName: input.authorizedPerson, roleKey: combined ? 'officer_approver' : 'kvkk_officer' },
+      { email, fullName: input.authorizedPerson, phone: authorizedPhone, roleKey: combined ? 'officer_approver' : 'kvkk_officer' },
       ...(combined ? [] : [{ ...approver, roleKey: 'approver' }]),
     ];
     const members = [];

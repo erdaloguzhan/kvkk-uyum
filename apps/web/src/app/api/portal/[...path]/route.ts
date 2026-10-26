@@ -7,7 +7,7 @@ import { API_URL, apiPath, apiUnavailable, forwardHeaders, RESPONSE_HEADERS } fr
  */
 const PORTAL_COOKIE = 'kvkk_tr';
 /** Yanıtında belirteç dönen uç noktalar: belirteç çereze yazılır, gövdeden çıkarılır. */
-const TOKEN_PATHS = new Set(['login', 'change-password']);
+const TOKEN_PATHS = new Set(['login']);
 
 function cookieOptions(req: NextRequest, maxAge: number) {
   const secure = req.nextUrl.protocol === 'https:' || req.headers.get('x-forwarded-proto') === 'https';

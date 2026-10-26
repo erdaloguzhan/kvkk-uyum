@@ -24,6 +24,8 @@ function LoginForm() {
   const [email, setEmail] = useState(params.get('eposta') ?? '');
   const [password, setPassword] = useState('');
   const [challengeId, setChallengeId] = useState<string | null>(null);
+  /** Kodun gönderildiği yer: SMS ise maskeli cep telefonu, değilse e-posta. */
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,12 +56,13 @@ function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api<{ challengeId: string }>('auth/login', {
+      const res = await api<{ challengeId: string; channel: 'sms' | 'email'; destination: string | null }>('auth/login', {
         method: 'POST',
         body: { email, password, captchaToken: await solveCaptcha() },
         auth: false,
       });
       setChallengeId(res.challengeId);
+      setSentTo(res.channel === 'sms' && res.destination ? `${res.destination} numaralı cep telefonunuza SMS ile` : `${email} adresine`);
       setCode('');
     } catch (err) {
       setError(errorText(err));
@@ -92,7 +95,7 @@ function LoginForm() {
 
   if (challengeId) {
     return (
-      <AuthCard title="Doğrulama kodu" subtitle={<>{email} adresine 6 haneli bir kod gönderdik. Kod 10 dakika geçerlidir.</>}>
+      <AuthCard title="Doğrulama kodu" subtitle={<>{sentTo} 6 haneli bir kod gönderdik. Kod 10 dakika geçerlidir.</>}>
         <form className="form" onSubmit={submitCode}>
           <ErrorAlert error={error} />
           <Field label="Kod" htmlFor="code">

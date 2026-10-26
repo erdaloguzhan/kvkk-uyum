@@ -187,6 +187,7 @@ export default function TrainersPage() {
             value={form}
             onChange={setForm}
             emailRequired
+            phoneHint="Yönetim paneline girişte doğrulama kodu bu numaraya SMS ile gider."
             emailHint={editing === 'new' ? 'Kullanıcı adı olur; şifre oluşturma bağlantısı bu adrese gider.' : 'Kullanıcı adıdır; değiştirirseniz eğitimci yeni adresle giriş yapar.'}
           />
           <Field label="Ünvan" htmlFor="t-unvan" hint="Sertifikada eğitimcinin adının altında yazar.">

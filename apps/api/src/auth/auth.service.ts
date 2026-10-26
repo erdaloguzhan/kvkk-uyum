@@ -19,6 +19,7 @@ import {
 import { Database, InjectDb } from '../db/db.module';
 import { loginChallenges, memberships, organizations, refreshTokens, roles, trainers, users } from '../db/schema';
 import { MailerService } from './mailer.service';
+import { maskPhone, SmsService } from './sms.service';
 
 export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -40,10 +41,14 @@ export class AuthService {
     @InjectDb() private readonly db: Database,
     private readonly jwt: JwtService,
     private readonly mailer: MailerService,
+    private readonly sms: SmsService,
     private readonly audit: AuditService,
   ) {}
 
-  /** 1. adım: şifre doğrulanır, e-postaya doğrulama kodu gönderilir. */
+  /**
+   * 1. adım: şifre doğrulanır, doğrulama kodu cep telefonuna SMS ile gönderilir (Erdal, 26.10.2026: tüm panel
+   * girişlerinde). Cep telefonu kayıtlı olmayan hesapta kod e-postaya gider.
+   */
   async login(input: { email: string; password: string }, client: ClientInfo) {
     const user = await this.findUserByEmail(input.email);
     if (!user || !user.isActive) {
@@ -90,13 +95,23 @@ export class AuthService {
       })
       .returning({ id: loginChallenges.id });
 
-    await this.mailer.send({
-      to: user.email,
-      subject: 'KVK Yönetim Sistemi giriş kodu',
-      text: `Giriş doğrulama kodunuz: ${code}\nKod 10 dakika geçerlidir.`,
-    });
-    await this.audit.record({ action: 'auth.code_sent', userId: user.id, ...client });
-    return { challengeId: challenge.id, expiresInSeconds: CODE_TTL_MS / 1000 };
+    const viaSms = !!user.phone && this.sms.available;
+    if (viaSms) {
+      await this.sms.send({ to: user.phone!, text: `KVK Uyum giriş kodunuz: ${code}\nKod 10 dakika geçerlidir, kimseyle paylaşmayın.` });
+    } else {
+      await this.mailer.send({
+        to: user.email,
+        subject: 'KVK Yönetim Sistemi giriş kodu',
+        text: `Giriş doğrulama kodunuz: ${code}\nKod 10 dakika geçerlidir.`,
+      });
+    }
+    await this.audit.record({ action: 'auth.code_sent', userId: user.id, metadata: { channel: viaSms ? 'sms' : 'email' }, ...client });
+    return {
+      challengeId: challenge.id,
+      expiresInSeconds: CODE_TTL_MS / 1000,
+      channel: viaSms ? ('sms' as const) : ('email' as const),
+      destination: viaSms ? maskPhone(user.phone!) : null,
+    };
   }
 
   /** 2. adım: doğrulama kodu kontrol edilir, belirteçler verilir. */
@@ -233,6 +248,7 @@ export class AuthService {
         id: users.id,
         email: users.email,
         fullName: users.fullName,
+        phone: users.phone,
         isPlatformAdmin: users.isPlatformAdmin,
         trainerActive: trainers.isActive,
       })
