@@ -61,12 +61,14 @@ export const employeeBody = z.object({
 });
 export type EmployeeInput = z.infer<typeof employeeBody>;
 
+const trainerTitle = optionalText(150);
 export const trainerCreateBody = z.object({
   ...personFields,
   email: z.email('Geçerli bir e-posta adresi girin').max(254),
+  title: trainerTitle,
 });
 export const trainerUpdateBody = z
-  .object({ ...personFields, email: z.email('Geçerli bir e-posta adresi girin').max(254), isActive: z.boolean() })
+  .object({ ...personFields, email: z.email('Geçerli bir e-posta adresi girin').max(254), title: trainerTitle, isActive: z.boolean() })
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: 'Güncellenecek alan yok' });
 

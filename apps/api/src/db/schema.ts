@@ -548,6 +548,11 @@ export const trainers = pgTable(
     hireDate: date('hire_date', { mode: 'string' }),
     terminationDate: date('termination_date', { mode: 'string' }),
     phone: text('phone'),
+    /** Sertifikada adın altında yazar (ör. "KVKK Danışmanı"). */
+    title: text('title'),
+    /** Sertifikadaki imza görseli (PNG veya JPEG). */
+    signature: bytea('signature'),
+    signatureMime: text('signature_mime'),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

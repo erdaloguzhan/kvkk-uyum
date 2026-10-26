@@ -16,6 +16,9 @@ export interface CertificateData {
   /** Eğitimin alt konu başlıkları; belgede madde madde listelenir. */
   topics: string[];
   trainerName: string | null;
+  trainerTitle?: string | null;
+  /** İmza görseli (PNG veya JPEG); yüklenirken PDF'e eklenebildiği doğrulanır. */
+  trainerSignature?: Buffer | null;
   completedAt: Date;
 }
 
@@ -24,7 +27,7 @@ const formatDate = (d: Date) =>
 
 /**
  * Eğitimi başarıyla tamamlayan katılımcının katılım belgesi (A4 yatay PDF). Düzen Erdal'ın şablonundaki gibi:
- * çerçeve, başlık, katılımcı bilgileri tablosu, eğitim konuları ve "Eğitimi veren".
+ * çerçeve, başlık, katılımcı bilgileri tablosu, eğitim konuları ve "Eğitimi veren" (imza, ad, ünvan).
  */
 export function certificatePdf(data: CertificateData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -99,26 +102,32 @@ export function certificatePdf(data: CertificateData): Promise<Buffer> {
       doc.font('regular').text(tail.trim(), left, doc.y, { width: inner, align: 'center' });
     }
 
-    // Konular: 8'e kadar tek sütun, fazlası iki sütun.
+    // "Eğitimi veren" bölümü sayfanın altında sabit yerde; konular üstündeki alana sığdırılır.
+    const trainerTop = 408;
     const topics = data.topics.slice(0, 20);
     const twoColumns = topics.length > 8;
     const perColumn = twoColumns ? Math.ceil(topics.length / 2) : topics.length;
     const colWidth = twoColumns ? 280 : 360;
     const listLeft = twoColumns ? (width - 2 * colWidth) / 2 : (width - colWidth) / 2 + 20;
     const listTop = doc.y + 10;
-    const lineH = 14.5;
-    doc.font('regular').fontSize(10.5).fillColor(black);
+    const lineH = Math.min(14.5, (trainerTop - 10 - listTop) / Math.max(perColumn, 1));
+    doc.font('regular').fontSize(Math.min(10.5, lineH * 0.72)).fillColor(black);
     topics.forEach((topic, i) => {
       const col = Math.floor(i / perColumn);
       const ty = listTop + (i % perColumn) * lineH;
       const tx = listLeft + col * colWidth;
-      doc.circle(tx + 3, ty + 6, 1.8).fill(black);
+      doc.circle(tx + 3, ty + lineH * 0.41, 1.8).fill(black);
       doc.fillColor(black).text(topic, tx + 12, ty, { width: colWidth - 20, height: lineH, ellipsis: true, lineBreak: false });
     });
 
-    const trainerTop = Math.max(listTop + perColumn * lineH + 16, 400);
     centered('EĞİTİMİ VEREN', trainerTop, 'bold', 11);
-    if (data.trainerName) centered(data.trainerName, trainerTop + 18, 'regular', 11);
+    const sigTop = trainerTop + 17;
+    const sigBox = { w: 150, h: 40 };
+    if (data.trainerSignature) {
+      doc.image(data.trainerSignature, (width - sigBox.w) / 2, sigTop, { fit: [sigBox.w, sigBox.h], align: 'center', valign: 'center' });
+    }
+    if (data.trainerName) centered(data.trainerName, sigTop + sigBox.h + 3, 'regular', 11);
+    if (data.trainerTitle) centered(data.trainerTitle, doc.y + 1, 'regular', 9.5);
     doc.end();
   });
 }

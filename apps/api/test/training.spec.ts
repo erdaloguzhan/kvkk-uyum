@@ -43,6 +43,9 @@ let phoneSeq = 100000000 + Math.floor(Math.random() * 800000000);
 /** Her çağrıda farklı bir cep telefonu (05XXXXXXXXX). */
 const uniquePhone = () => `05${phoneSeq++}`;
 
+/** 1x1 piksel PNG (imza yükleme testi için). */
+const TINY_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+
 describe('Uzaktan eğitim', () => {
   let app: INestApplication;
   let server: any;
@@ -267,8 +270,17 @@ describe('Uzaktan eğitim', () => {
 
       // Eğitimci grupta seçilir (zorunlu); sertifikada grubun eğitimcisi yazar.
       const groupTrainer = await asAdmin(request(server).post('/api/v1/training-admin/trainers'))
-        .send({ nationalId: nationalId(), firstName: 'Grup', lastName: 'Eğitimcisi', email: uniqueEmail('grup-egitimci') })
+        .send({ nationalId: nationalId(), firstName: 'Grup', lastName: 'Eğitimcisi', email: uniqueEmail('grup-egitimci'), title: 'KVKK Danışmanı' })
         .expect(201);
+      expect(groupTrainer.body).toMatchObject({ title: 'KVKK Danışmanı', hasSignature: false });
+      // Sertifikadaki imza: yalnızca PDF'e eklenebilen PNG/JPEG kabul edilir.
+      const sigUrl = `/api/v1/training-admin/trainers/${groupTrainer.body.id}/signature`;
+      await asAdmin(request(server).put(sigUrl)).attach('file', Buffer.from('imza değil'), { filename: 'imza.png', contentType: 'image/png' }).expect(400);
+      await asAdmin(request(server).put(sigUrl)).attach('file', TINY_PNG, { filename: 'imza.png', contentType: 'image/png' }).expect(204);
+      const sig = await asAdmin(request(server).get(sigUrl)).buffer(true).parse(binary).expect(200);
+      expect(sig.headers['content-type']).toContain('image/png');
+      const trainerList = await asAdmin(request(server).get('/api/v1/training-admin/trainers')).expect(200);
+      expect(trainerList.body.items.find((t: any) => t.id === groupTrainer.body.id).hasSignature).toBe(true);
       const body = { organizationId: orgId, trainingId, name: 'Eğitim Müşteri çalışanları', employeeIds: [emp.body.id, noEmail.body.id, noPhone.body.id] };
       await asAdmin(request(server).post('/api/v1/training-admin/groups')).send(body).expect(400);
       const group = await asAdmin(request(server).post('/api/v1/training-admin/groups'))

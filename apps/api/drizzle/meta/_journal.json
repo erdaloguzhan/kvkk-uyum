@@ -120,6 +120,13 @@
       "when": 1792955560382,
       "tag": "0016_group_trainer",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793043848290,
+      "tag": "0017_trainer_signature",
+      "breakpoints": true
     }
   ]
 }
