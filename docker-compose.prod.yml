@@ -35,6 +35,9 @@ services:
       MAIL_FROM: ${MAIL_FROM:?MAIL_FROM .env dosyasında tanımlı olmalı}
       APP_URL: https://${DOMAIN:?DOMAIN .env dosyasında tanımlı olmalı}
       PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:?PLATFORM_ADMIN_EMAILS .env dosyasında tanımlı olmalı}
+      VERIMOR_USERNAME: ${VERIMOR_USERNAME:-}
+      VERIMOR_PASSWORD: ${VERIMOR_PASSWORD:-}
+      SMS_HEADER: ${SMS_HEADER:-KVK UYUM}
       ALARM_INTERVAL_MINUTES: "60"
       TRIAL_DAYS: ${TRIAL_DAYS:-30}
     depends_on:

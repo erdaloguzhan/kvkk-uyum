@@ -10,14 +10,13 @@ import { DocumentsService } from '../documents/documents.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { EmployeesService } from '../training/employees.service';
 import { GroupsService } from '../training/groups.service';
-import { PortalAuthService } from '../training/portal-auth.service';
 import { PortalDocumentsService } from '../training/portal-documents.service';
 import { TrainersService } from '../training/trainers.service';
 import { TrainingsService } from '../training/trainings.service';
 import { ApprovalsService } from '../workflow/approvals.service';
 import { TasksService } from '../workflow/tasks.service';
 import { Database, DB } from './db.module';
-import { documents, documentVersions, organizations, trainingAccounts, users } from './schema';
+import { documents, documentVersions, organizations, users } from './schema';
 
 /**
  * Yerel deneme kurulumuna hazır test verisi yükler: iki kuruluş, kullanıcılar, dokümanlar, envanter,
@@ -274,21 +273,19 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
   await groups.send(admin.id, group.id);
   // Gruba girmeyen çalışanlara yalnızca doküman okuması için portal erişimi.
   await portalDocs.sendAccess(admin.id, orgA);
-  // İşten çıkan çalışanın eski portal hesabı: girebilir ama dokümanları göremez.
-  await app.get(PortalAuthService).issueCredentials('deniz.arslan@test.local');
 
   // Herkes aynı test şifresiyle hemen girebilsin.
   const hash = await hashPassword(TEST_PASSWORD);
   const accounts = ['sorumlu.a@test.local', 'yonetici.a@test.local', 'tek.b@test.local', 'egitimci@test.local'];
   await db.update(users).set({ passwordHash: hash }).where(inArray(sql`lower(${users.email})`, accounts));
-  await db
-    .update(trainingAccounts)
-    .set({ passwordHash: hash, mustChangePassword: false })
-    .where(sql`lower(${trainingAccounts.email}) like '%@test.local'`);
+  // Giriş kodu SMS ile gider (geliştirmede API günlüğüne yazılır).
+  for (const [i, email] of accounts.entries()) {
+    await db.update(users).set({ phone: `0532555090${i}` }).where(sql`lower(${users.email}) = ${email}`);
+  }
 
   console.log(`Test verisi yüklendi. Tüm test hesaplarının şifresi: ${TEST_PASSWORD}`);
   console.log('Müşteri ekranı (http://localhost:3000): sorumlu.a@test.local (KVKK Sorumlusu), yonetici.a@test.local (Yönetici), tek.b@test.local (Sorumlu + Yönetici)');
-  console.log('Eğitimci: egitimci@test.local · Eğitim Portalı (http://localhost:3000/egitim) cep telefonuyla: 05325550010 (Ayşe), 05325550017 (Gül), 05325550016 (Deniz, işten çıkmış)');
+  console.log('Eğitimci: egitimci@test.local · Eğitim Portalı (http://localhost:3000/egitim) cep telefonu + SMS koduyla: 05325550010 (Ayşe), 05325550017 (Gül), 05325550016 (Deniz, işten çıkmış)');
 }
 
 main().catch((err) => {

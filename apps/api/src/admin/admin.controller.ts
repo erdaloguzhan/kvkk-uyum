@@ -24,6 +24,7 @@ import { ZodPipe } from '../common/zod.pipe';
 import { profileFields } from '../organizations/organizations.controller';
 import { TemplatesService } from '../templates/templates.service';
 import { MembersService } from '../members/members.service';
+import { optionalMobile } from '../training/training.schema';
 import { AdminOrganizationsService } from './admin-organizations.service';
 import { PlatformAdminGuard } from './platform-admin.guard';
 
@@ -34,9 +35,11 @@ const createOrgBody = z.object({
   ...profileFields,
   email: z.email('Geçerli bir e-posta adresi girin').max(254),
   authorizedPerson: z.string().trim().min(2, 'KVKK Sorumlusunun adını girin').max(200),
+  authorizedPhone: optionalMobile,
   approver: z.object({
     email: z.email('Yöneticinin e-posta adresini girin').max(254),
     fullName: z.string().trim().min(2, 'Yöneticinin adını girin').max(200),
+    phone: optionalMobile,
   }),
 });
 
@@ -44,8 +47,10 @@ const memberRoleKey = z.enum(SYSTEM_ROLES.map((r) => r.key) as [string, ...strin
 const addMemberBody = z.object({
   email: z.email('Geçerli bir e-posta adresi girin').max(254),
   fullName: z.string().trim().min(2).max(200),
+  phone: optionalMobile,
   roleKey: memberRoleKey,
 });
+const phoneBody = z.object({ phone: optionalMobile });
 const updateMemberBody = z
   .object({ roleKey: memberRoleKey, status: z.enum(['active', 'disabled']) })
   .partial()
@@ -142,6 +147,16 @@ export class AdminController {
     @Param('memberId', ParseUUIDPipe) memberId: string,
   ) {
     return this.members.remove(id, user.id, memberId);
+  }
+
+  /** Kullanıcının cep telefonu (giriş doğrulama kodu buna SMS ile gider). */
+  @Patch('users/:userId/phone')
+  setUserPhone(
+    @CurrentUser() user: AuthUser,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body(new ZodPipe(phoneBody)) body: z.infer<typeof phoneBody>,
+  ) {
+    return this.members.setPhone(user.id, userId, body.phone);
   }
 
   @Post('organizations/:id/members/:memberId/resend-invite')

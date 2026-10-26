@@ -15,7 +15,6 @@ export function PortalShell({ children }: { children: ReactNode }) {
           {PORTAL_BRAND}
         </Link>
         <span className="actions">
-          <Link href="/egitim/sifre-degistir">Şifre değiştir</Link>
           <button type="button" onClick={portalLogout}>
             Çıkış yap
           </button>

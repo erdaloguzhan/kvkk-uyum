@@ -6,5 +6,5 @@ import { useSession } from '@/lib/session';
 export default function Profile() {
   const { me, org } = useSession();
   if (!me) return null;
-  return <ProfilePage fullName={me.fullName} email={me.email} role={org?.role.name} />;
+  return <ProfilePage fullName={me.fullName} email={me.email} phone={me.phone} role={org?.role.name} />;
 }

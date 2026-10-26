@@ -52,7 +52,6 @@ export function EmployeePicker({
                 <input type="checkbox" checked={selected.includes(e.id)} onChange={() => toggle(e.id)} />
                 <span>
                   {e.firstName} {e.lastName} <span className="muted small">· {e.nationalId}</span>{' '}
-                  {!e.email && <Badge kind="warning">E-posta yok</Badge>}
                   {!e.phone && <Badge kind="warning">Cep telefonu yok</Badge>}
                 </span>
               </label>
@@ -60,7 +59,7 @@ export function EmployeePicker({
           </>
         )}
       </div>
-      <span className="hint">{selected.length} çalışan seçildi. E-postası olmayan çalışana eğitim gönderilemez.</span>
+      <span className="hint">{selected.length} çalışan seçildi. Cep telefonu olmayan çalışana eğitim gönderilemez.</span>
     </div>
   );
 }

@@ -29,6 +29,8 @@ export interface Me {
   id: string;
   email: string;
   fullName: string;
+  /** Giriş doğrulama kodunun SMS ile gittiği cep telefonu; yoksa kod e-postaya gider. */
+  phone: string | null;
   /** Yönetim paneline (/admin) erişebilir. */
   isPlatformAdmin: boolean;
   /** Aktif eğitimci: yönetim panelinde yalnızca eğitim bölümünü görür. */
@@ -185,7 +187,7 @@ export interface ApprovalRequest {
 export interface Member {
   id: string;
   status: 'active' | 'disabled';
-  user: { id: string; email: string; fullName: string };
+  user: { id: string; email: string; fullName: string; phone: string | null };
   role: { id: string; key: string; name: string };
 }
 

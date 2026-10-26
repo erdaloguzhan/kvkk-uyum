@@ -85,13 +85,15 @@ export class TrainersService {
     } else {
       [user] = await this.db
         .insert(users)
-        .values({ email, fullName, passwordHash: await hashPassword(generateToken()) })
+        .values({ email, fullName, phone: profile.phone ?? null, passwordHash: await hashPassword(generateToken()) })
         .returning({ id: users.id, email: users.email, fullName: users.fullName });
     }
     const [trainer] = await this.db
       .insert(trainers)
       .values({ ...profile, nationalIdHash: blindIndex(profile.nationalId), userId: user.id })
       .returning({ id: trainers.id });
+
+    if (!newUser && profile.phone) await this.db.update(users).set({ phone: profile.phone }).where(eq(users.id, user.id));
 
     const intro = 'KVK Yönetim Sistemi eğitim yönetimi için eğitimci hesabınız oluşturuldu.';
     if (newUser) {
@@ -136,6 +138,8 @@ export class TrainersService {
         .set({ ...profile, ...(profile.nationalId && { nationalIdHash: blindIndex(profile.nationalId) }), updatedAt: new Date() })
         .where(eq(trainers.id, id));
     }
+    // Eğitimcinin cep telefonu giriş doğrulama kodunun da gittiği numaradır.
+    if (input.phone !== undefined) await this.db.update(users).set({ phone: input.phone }).where(eq(users.id, current.userId));
     if (input.firstName || input.lastName) {
       const fullName = `${input.firstName ?? current.firstName} ${input.lastName ?? current.lastName}`;
       await this.db.update(users).set({ fullName }).where(eq(users.id, current.userId));

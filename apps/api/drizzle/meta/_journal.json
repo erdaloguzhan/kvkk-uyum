@@ -127,6 +127,13 @@
       "when": 1793043848290,
       "tag": "0017_trainer_signature",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793048981897,
+      "tag": "0018_sms_login",
+      "breakpoints": true
     }
   ]
 }

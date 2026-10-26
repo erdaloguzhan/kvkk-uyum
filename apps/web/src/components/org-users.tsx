@@ -21,7 +21,7 @@ export function OrgUsers({ orgId }: { orgId: string }) {
   const base = `admin/organizations/${orgId}/members`;
   const list = useApi<{ items: Member[] }>(base);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ fullName: '', email: '', roleKey: 'approver' });
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', roleKey: 'approver' });
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +37,15 @@ export function OrgUsers({ orgId }: { orgId: string }) {
     } catch (err) {
       setError(errorText(err));
     }
+  }
+
+  function editPhone(m: Member) {
+    const value = prompt(
+      `${m.user.fullName} için cep telefonu (05XX XXX XX XX). Giriş doğrulama kodu bu numaraya SMS ile gider; boş bırakırsanız e-postaya gider.`,
+      m.user.phone ?? '',
+    );
+    if (value === null) return;
+    run(() => api(`admin/users/${m.user.id}/phone`, { method: 'PATCH', body: { phone: value.trim() || null } }), 'Cep telefonu kaydedildi.');
   }
 
   async function add(ev: FormEvent) {
@@ -62,7 +71,7 @@ export function OrgUsers({ orgId }: { orgId: string }) {
         <button
           className="btn btn-small"
           onClick={() => {
-            setForm({ fullName: '', email: '', roleKey: 'approver' });
+            setForm({ fullName: '', email: '', phone: '', roleKey: 'approver' });
             setFormError(null);
             setAdding(true);
           }}
@@ -82,6 +91,7 @@ export function OrgUsers({ orgId }: { orgId: string }) {
             <tr>
               <th>Ad soyad</th>
               <th>E-posta</th>
+              <th>Cep telefonu</th>
               <th>Rol</th>
               <th>Durum</th>
               <th />
@@ -92,6 +102,12 @@ export function OrgUsers({ orgId }: { orgId: string }) {
               <tr key={m.id}>
                 <td>{m.user.fullName}</td>
                 <td>{m.user.email}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {m.user.phone ?? <Badge kind="warning">Yok, kod e-postaya gider</Badge>}{' '}
+                  <button className="btn btn-small btn-link" onClick={() => editPhone(m)}>
+                    Değiştir
+                  </button>
+                </td>
                 <td>
                   <select
                     aria-label="Rol"
@@ -142,6 +158,9 @@ export function OrgUsers({ orgId }: { orgId: string }) {
           </Field>
           <Field label="E-posta" htmlFor="member-email" required hint="Kullanıcı adı olur; hesabı yoksa şifre oluşturma bağlantısı gider.">
             <input id="member-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          </Field>
+          <Field label="Cep telefonu" htmlFor="member-phone" required hint="Giriş doğrulama kodu bu numaraya SMS ile gider.">
+            <input id="member-phone" type="tel" placeholder="05XX XXX XX XX" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
           </Field>
           <Field label="Rol" htmlFor="member-role" required hint={ROLE_HINTS[form.roleKey]}>
             <select id="member-role" value={form.roleKey} onChange={(e) => setForm({ ...form, roleKey: e.target.value })}>

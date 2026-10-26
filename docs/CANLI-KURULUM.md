@@ -22,6 +22,10 @@ Kurulum tek bir Linux sunucuda (VPS veya bulut sunucu) Docker ile çalışır:
 - **Alan adı:** Ör. `uyum.firmaniz.com.tr`. DNS'te bu ad için sunucunun IP adresini gösteren bir **A kaydı** açın.
 - **E-posta (SMTP):** Giriş kodları ve bildirimler için gerçek bir gönderim hesabı. Alan adınız için SPF ve DKIM
   kayıtlarını sağlayıcının anlattığı şekilde ekleyin; yoksa e-postalar spam'e düşer.
+- **SMS (Verimor):** Panel giriş kodları ve Eğitim Portalı (şifresiz, cep telefonu + SMS kodu) için. Verimor'da
+  SMS başlığını (ör. `KVK UYUM`) onaylatın, OİM > SMS Ayarlarım'da API şifresi tanımlayın ve sunucunun IP adresini
+  izinli IP olarak girin. Bilgiler `.env` dosyasındaki `VERIMOR_USERNAME`, `VERIMOR_PASSWORD`, `SMS_HEADER`
+  alanlarına yazılır.
 - **Güvenlik duvarı:** Sunucuda yalnızca 22 (SSH), 80 ve 443 portları açık olmalı. SSH'ye şifreyle değil anahtarla girilmeli.
 
 ## 2. Docker'ı kurun

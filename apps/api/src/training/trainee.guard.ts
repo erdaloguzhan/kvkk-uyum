@@ -1,22 +1,9 @@
-import {
-  CanActivate,
-  createParamDecorator,
-  ExecutionContext,
-  ForbiddenException,
-  Injectable,
-  SetMetadata,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { CanActivate, createParamDecorator, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AppRequest } from '../common/request-context';
 import { PortalAuthService, TraineeToken } from './portal-auth.service';
 
 type TraineeRequest = AppRequest & { trainee?: TraineeToken };
-
-const ALLOW_PASSWORD_CHANGE_PENDING = 'allowPasswordChangePending';
-/** Geçici şifreyle girmiş (şifresini henüz değiştirmemiş) katılımcının da çağırabileceği uç nokta. */
-export const AllowPendingPasswordChange = () => SetMetadata(ALLOW_PASSWORD_CHANGE_PENDING, true);
 
 export const CurrentTrainee = createParamDecorator(
   (_: unknown, ctx: ExecutionContext) => ctx.switchToHttp().getRequest<TraineeRequest>().trainee!,
@@ -29,7 +16,6 @@ export const CurrentTrainee = createParamDecorator(
 @Injectable()
 export class TraineeGuard implements CanActivate {
   constructor(
-    private readonly reflector: Reflector,
     private readonly jwt: JwtService,
     private readonly auth: PortalAuthService,
   ) {}
@@ -44,15 +30,9 @@ export class TraineeGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException();
     }
-    if (payload.typ !== 'trainee' || !payload.sid) throw new UnauthorizedException();
-    const account = await this.auth.findById(payload.sub);
-    const allowPending = this.reflector.getAllAndOverride<boolean>(ALLOW_PASSWORD_CHANGE_PENDING, [
-      ctx.getHandler(),
-      ctx.getClass(),
-    ]);
-    if (account.mustChangePassword && !allowPending) {
-      throw new ForbiddenException({ message: 'Devam etmeden önce şifrenizi değiştirin', code: 'PASSWORD_CHANGE_REQUIRED' });
-    }
+    if (payload.typ !== 'trainee' || !payload.sid || !payload.sub) throw new UnauthorizedException();
+    // Telefon çalışan kayıtlarından kaldırıldıysa oturum da geçersizdir.
+    if (!(await this.auth.isKnown(payload.sub))) throw new UnauthorizedException();
     req.trainee = payload;
     return true;
   }

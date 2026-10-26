@@ -5,7 +5,9 @@ import {
   createUser,
   extractCode,
   lastMailTo,
+  lastSmsTo,
   login,
+  makePlatformAdmin,
   mailCount,
   PASSWORD,
   registerAndLogin,
@@ -33,6 +35,33 @@ describe('Kimlik doğrulama', () => {
       .expect(200);
     expect(me.body.email).toBe(session.email);
     expect(me.body.organizations).toEqual([]);
+  });
+
+  it('cep telefonu kayıtlıysa giriş kodu SMS ile gider; telefon kullanıcı veya platform yöneticisi tarafından değiştirilir', async () => {
+    const session = await registerAndLogin(app);
+    const auth = (req: request.Test) => req.set('Authorization', `Bearer ${session.accessToken}`);
+    await auth(request(server).patch('/api/v1/auth/me/phone')).send({ phone: '123' }).expect(400);
+    await auth(request(server).patch('/api/v1/auth/me/phone')).send({ phone: '0532 111 22 33' }).expect(200);
+    expect(lastMailTo(app, session.email).text).toContain('05321112233');
+    const me = await auth(request(server).get('/api/v1/auth/me')).expect(200);
+    expect(me.body.phone).toBe('05321112233');
+
+    const step = await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(200);
+    expect(step.body).toMatchObject({ channel: 'sms', destination: '0532 *** ** 33' });
+    const code = /(\d{6})/.exec(lastSmsTo(app, '05321112233').text)![1];
+    await request(server).post('/api/v1/auth/verify').send({ challengeId: step.body.challengeId, code }).expect(200);
+
+    // Platform yöneticisi başka kullanıcının telefonunu siler: kod yeniden e-postaya gider.
+    const admin = await registerAndLogin(app);
+    await makePlatformAdmin(app, admin.user.id);
+    await auth(request(server).patch(`/api/v1/admin/users/${me.body.id}/phone`)).send({ phone: null }).expect(403);
+    await request(server)
+      .patch(`/api/v1/admin/users/${me.body.id}/phone`)
+      .set('Authorization', `Bearer ${admin.accessToken}`)
+      .send({ phone: null })
+      .expect(200);
+    const byEmail = await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(200);
+    expect(byEmail.body).toMatchObject({ channel: 'email', destination: null });
   });
 
   it('açık kayıt yoktur: hesaplar yalnızca yönetim panelinden açılır', async () => {
