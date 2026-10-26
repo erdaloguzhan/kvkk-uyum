@@ -245,6 +245,7 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
     terminationDate: null,
     phone: null,
     email: 'egitimci@test.local',
+    title: 'KVKK Danışmanı',
   });
   const training = await trainings.create(admin.id, {
     name: 'KVKK Temel Farkındalık Eğitimi (test)',

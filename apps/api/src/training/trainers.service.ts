@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { MailerService } from '../auth/mailer.service';
@@ -8,8 +8,21 @@ import { blindIndex } from '../common/field-crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { memberships, trainers, users } from '../db/schema';
+import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { trainerCreateBody, trainerUpdateBody } from './training.schema';
+
+const SIGNATURE_TYPES = ['image/png', 'image/jpeg'];
+
+/** Görsel PDF'e eklenebiliyor mu (bozuk veya desteklenmeyen PNG sertifika üretimini bozmasın). */
+function embeddable(buffer: Buffer) {
+  try {
+    new PDFDocument().image(buffer, 0, 0, { width: 10 });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const byTurkish = (a: string, b: string) => a.localeCompare(b, 'tr');
 
@@ -35,6 +48,8 @@ export class TrainersService {
         hireDate: trainers.hireDate,
         terminationDate: trainers.terminationDate,
         phone: trainers.phone,
+        title: trainers.title,
+        hasSignature: sql<boolean>`${trainers.signature} is not null`,
         email: users.email,
         isActive: trainers.isActive,
         createdAt: trainers.createdAt,
@@ -176,6 +191,34 @@ export class TrainersService {
     );
     await this.audit.record({ action: 'training.trainer_invite_resent', userId: adminId, entityType: 'trainer', entityId: id });
     return { email: t.email };
+  }
+
+  /** Sertifikadaki imza görseli. PDF'e gömülebilmesi için yalnızca PNG veya JPEG kabul edilir. */
+  async setSignature(adminId: string, id: string, file: { buffer: Buffer; mimetype: string }) {
+    await this.get(id);
+    if (!SIGNATURE_TYPES.includes(file.mimetype) || !embeddable(file.buffer)) {
+      throw new BadRequestException('İmza PNG veya JPEG görsel olmalı');
+    }
+    await this.db
+      .update(trainers)
+      .set({ signature: file.buffer, signatureMime: file.mimetype, updatedAt: new Date() })
+      .where(eq(trainers.id, id));
+    await this.audit.record({ action: 'training.trainer_signature_set', userId: adminId, entityType: 'trainer', entityId: id });
+  }
+
+  async removeSignature(adminId: string, id: string) {
+    await this.get(id);
+    await this.db.update(trainers).set({ signature: null, signatureMime: null, updatedAt: new Date() }).where(eq(trainers.id, id));
+    await this.audit.record({ action: 'training.trainer_signature_removed', userId: adminId, entityType: 'trainer', entityId: id });
+  }
+
+  async signature(id: string) {
+    const [row] = await this.db
+      .select({ content: trainers.signature, mimeType: trainers.signatureMime })
+      .from(trainers)
+      .where(eq(trainers.id, id));
+    if (!row?.content || !row.mimeType) throw new NotFoundException('İmza bulunamadı');
+    return { content: row.content, mimeType: row.mimeType };
   }
 
   private async ensureNationalIdFree(nationalId: string) {

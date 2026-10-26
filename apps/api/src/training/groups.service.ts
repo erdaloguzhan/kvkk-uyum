@@ -341,6 +341,8 @@ export class GroupsService {
         trainingName: trainings.name,
         trainerFirstName: trainers.firstName,
         trainerLastName: trainers.lastName,
+        trainerTitle: trainers.title,
+        trainerSignature: trainers.signature,
         completedAt: trainingParticipants.completedAt,
       })
       .from(trainingParticipants)
@@ -364,6 +366,8 @@ export class GroupsService {
       trainingName: row.trainingName,
       topics: topics.map((t) => t.title),
       trainerName: row.trainerFirstName ? `${row.trainerFirstName} ${row.trainerLastName}` : null,
+      trainerTitle: row.trainerTitle,
+      trainerSignature: row.trainerSignature,
       completedAt: row.completedAt,
     });
     await this.audit.record({

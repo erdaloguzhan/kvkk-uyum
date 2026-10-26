@@ -293,6 +293,9 @@ export interface Trainer {
   terminationDate: string | null;
   phone: string | null;
   email: string;
+  /** Sertifikada adın altında yazar. */
+  title: string | null;
+  hasSignature: boolean;
   isActive: boolean;
 }
 

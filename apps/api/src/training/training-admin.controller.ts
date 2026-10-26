@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Res,
   UploadedFile,
@@ -90,6 +91,33 @@ export class TrainingAdminController {
   @HttpCode(200)
   resendTrainerInvite(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.trainers.resendInvite(user.id, id);
+  }
+
+  /** Eğitimcinin sertifikadaki imzası (`file` alanında PNG veya JPEG, en fazla 1 MB). */
+  @Get('trainers/:id/signature')
+  async trainerSignature(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    const sig = await this.trainers.signature(id);
+    res.type(sig.mimeType).set('Cache-Control', 'private, no-cache').set('X-Content-Type-Options', 'nosniff').send(sig.content);
+  }
+
+  @Put('trainers/:id/signature')
+  @PlatformAdminOnly()
+  @HttpCode(204)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 1024 * 1024, files: 1 } }))
+  async setTrainerSignature(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    if (!file) throw new BadRequestException('İmza dosyası gerekli');
+    await this.trainers.setSignature(user.id, id, file);
+  }
+
+  @Delete('trainers/:id/signature')
+  @PlatformAdminOnly()
+  @HttpCode(204)
+  async deleteTrainerSignature(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    await this.trainers.removeSignature(user.id, id);
   }
 
   // --- Eğitimler, alt konular, sorular ---
