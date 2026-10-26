@@ -83,9 +83,10 @@ Veritabanı değişiklikleri (migration) API açılırken otomatik uygulanır.
   ve `BACKUP_KEEP_DAYS` günden (varsayılan 14) eskileri siler.
 - Elle yedek: `docker compose -f docker-compose.prod.yml exec backup bash /backup.sh now`
 - Son yedekler: `ls -lh yedekler/`
-- **Sunucu dışına kopya:** Sunucu tamamen kaybolursa yerel yedekler de gider. `yedekler/` klasörünü her gün
-  sağlayıcının nesne depolama (S3 uyumlu) hizmetine ya da başka bir sunucuya kopyalayın, ve sağlayıcının disk
-  anlık görüntü (snapshot) özelliğini açın. Kopyalar da Türkiye'de olmalıdır.
+- **Sunucu dışına kopya:** Sunucu tamamen kaybolursa yerel yedekler de gider. `offsite` servisi yedekleri her gün
+  şifreleyip başka bir sunucuya veya nesne depolamaya (Türkiye'de) kopyalar; kurulumu ve felaket durumunda geri
+  yükleme adımları [FELAKET-KURTARMA.md](FELAKET-KURTARMA.md) dosyasındadır. Sağlayıcının disk anlık görüntü
+  (snapshot) özelliğini de açın.
 - Yedeklerde T.C. kimlik numaraları şifrelidir; ama adlar ve e-postalar açıktır. Yedek dosyalarına erişimi kısıtlayın.
 
 ### Yedekten geri yükleme
@@ -110,6 +111,7 @@ Yedeğin gerçekten geri yüklenebildiğini ayda bir, ayrı bir deneme sunucusun
 - [ ] `https://ALAN-ADINIZ` kilit simgesiyle açılıyor, `http://` adresi HTTPS'e yönleniyor
 - [ ] Dışarıdan 5432 ve 3000 portlarına bağlanılamıyor
 - [ ] Giriş kodu e-postası gerçek bir adrese geliyor (spam klasörüne değil)
-- [ ] `yedekler/` klasöründe ilk yedek oluştu ve sunucu dışına kopyalanıyor
-- [ ] Bir yedek deneme sunucusuna geri yüklenip açıldı
+- [ ] `yedekler/` klasöründe ilk yedek oluştu ve `offsite` servisi sunucu dışına kopyalıyor ([FELAKET-KURTARMA.md](FELAKET-KURTARMA.md))
+- [ ] Bir yedek deneme ortamına geri yüklenip açıldı ([STAGING.md](STAGING.md))
+- [ ] UptimeRobot kontrolleri kuruldu, uyarı e-postası denendi ([IZLEME.md](IZLEME.md))
 - [ ] Yerel denemeden kalan test verisi (seed) canlıya yüklenmedi
