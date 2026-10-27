@@ -22,6 +22,7 @@ const changePasswordBody = z.object({
   newPassword: passwordSchema,
 });
 const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
+const resetInfoBody = z.object({ token: z.string().min(1).max(200) });
 
 // Kimlik doğrulama uç noktaları için sıkı hız sınırı: dakikada 10 istek.
 const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
@@ -85,6 +86,15 @@ export class AuthController {
     // Yanıt e-postanın gönderilmesini beklemez: kayıtlı ve kayıtsız adresler aynı sürede yanıtlanır,
     // yanıt süresinden adresin sistemde olup olmadığı anlaşılamaz.
     void this.passwordReset.request(body.email, client).catch((err) => this.logger.error(`Şifre sıfırlama e-postası gönderilemedi: ${err}`));
+  }
+
+  /** Şifre belirleme penceresindeki hitap: bağlantıdaki koda ait kişinin adı ve rolü. */
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post('password-reset/info')
+  @HttpCode(200)
+  resetInfo(@Body(new ZodPipe(resetInfoBody)) body: z.infer<typeof resetInfoBody>) {
+    return this.passwordReset.info(body.token);
   }
 
   @Public()

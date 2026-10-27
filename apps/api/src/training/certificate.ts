@@ -35,7 +35,7 @@ export function certificatePdf(data: CertificateData): Promise<Buffer> {
       size: 'A4',
       layout: 'landscape',
       margin: 0,
-      info: { Title: `Katılım Belgesi - ${data.fullName}`, Author: 'KVK Yönetim Sistemi' },
+      info: { Title: `Katılım Belgesi - ${data.fullName}`, Author: 'KVK Uyum Yönetim Sistemi' },
     });
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));

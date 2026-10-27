@@ -14,12 +14,17 @@ import { PASSWORD_HINT, passwordProblem } from '@/lib/password';
 export default function SetPasswordPage() {
   const [token, setToken] = useState('');
   const [fromLink, setFromLink] = useState(false);
+  const [account, setAccount] = useState<{ fullName: string; roleLabel: string | null } | null>(null);
 
   useEffect(() => {
     const kod = new URLSearchParams(window.location.search).get('kod');
     if (!kod) return;
     setToken(kod);
     setFromLink(true);
+    // Hitap için kişinin adı ve rolü; kod geçersizse hitapsız devam edilir, hata şifre kaydedilirken gösterilir.
+    api<{ fullName: string; roleLabel: string | null }>('auth/password-reset/info', { method: 'POST', body: { token: kod }, auth: false })
+      .then(setAccount)
+      .catch(() => {});
     // Kod tarayıcı geçmişinde kalmasın.
     window.history.replaceState(null, '', window.location.pathname);
   }, []);
@@ -48,7 +53,13 @@ export default function SetPasswordPage() {
   return (
     <AuthCard
       title="Şifre belirle"
-      subtitle={fromLink ? 'Hesabınız için bir şifre oluşturun.' : 'E-postanızdaki kodu girin ve yeni şifrenizi belirleyin.'}
+      greeting={
+        account && {
+          fullName: account.fullName,
+          text: `KVK Uyum Yönetim Sistemi ${account.roleLabel ? `${account.roleLabel} ` : ''}hesabınız için bir şifre oluşturun.`,
+        }
+      }
+      subtitle={account ? undefined : fromLink ? 'Hesabınız için bir şifre oluşturun.' : 'E-postanızdaki kodu girin ve yeni şifrenizi belirleyin.'}
     >
       {done ? (
         <>

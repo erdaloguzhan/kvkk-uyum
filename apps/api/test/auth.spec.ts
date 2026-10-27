@@ -3,6 +3,7 @@ import request from 'supertest';
 import { SmsService } from '../src/auth/sms.service';
 import {
   createApp,
+  createOrg,
   createUser,
   extractCode,
   lastMailTo,
@@ -73,6 +74,16 @@ describe('Kimlik doğrulama', () => {
       .expect(200);
     const byEmail = await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(200);
     expect(byEmail.body).toMatchObject({ channel: 'email', destination: null });
+  });
+
+  it('giriş kodu e-postası ve doğrulama penceresi kişiye adı ve rolüyle hitap eder', async () => {
+    const session = await registerAndLogin(app);
+    await createOrg(app, session, { name: 'Hitap Deneme A.Ş.' });
+    const step = await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(200);
+    expect(step.body).toMatchObject({ fullName: 'Test Kullanıcı', roleLabel: 'KVKK Sorumlusu + Yönetici' });
+    expect(lastMailTo(app, session.email).text).toMatch(
+      /^Sayın Test Kullanıcı,\n\nKVK Uyum Yönetim Sistemine KVKK Sorumlusu \+ Yönetici olarak giriş kodunuz: \d{6}\n/,
+    );
   });
 
   it('açık kayıt yoktur: hesaplar yalnızca yönetim panelinden açılır', async () => {
@@ -154,11 +165,17 @@ describe('Kimlik doğrulama', () => {
     // Kayıtlı olmayan e-posta için de aynı yanıt.
     await request(server).post('/api/v1/auth/password-reset/request').send({ email: uniqueEmail() }).expect(202);
 
-    const token = extractCode((await waitForMailTo(app, session.email, sent)).text);
+    const resetMail = (await waitForMailTo(app, session.email, sent)).text;
+    expect(resetMail).toMatch(/^Sayın Test Kullanıcı,\n\nKVK Uyum Yönetim Sistemi hesabınızın şifresini/);
+    const token = extractCode(resetMail);
+    // Şifre belirleme penceresi hitap için kişinin adını alır.
+    const info = await request(server).post('/api/v1/auth/password-reset/info').send({ token }).expect(200);
+    expect(info.body).toEqual({ fullName: 'Test Kullanıcı', roleLabel: null });
     await request(server)
       .post('/api/v1/auth/password-reset/confirm')
       .send({ token, password: 'YeniSifre4567' })
       .expect(204);
+    await request(server).post('/api/v1/auth/password-reset/info').send({ token }).expect(400);
     await request(server).post('/api/v1/auth/refresh').send({ refreshToken: session.refreshToken }).expect(401);
     await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(401);
     await login(app, session.email, 'YeniSifre4567');

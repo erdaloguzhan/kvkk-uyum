@@ -4,6 +4,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { MailerService } from '../auth/mailer.service';
 import { Database, InjectDb } from '../db/db.module';
 import { notifications, users } from '../db/schema';
+import { salutation } from '../auth/account-label';
 
 export interface NewNotification {
   organizationId: string;
@@ -35,8 +36,8 @@ export class NotificationsService {
       .onConflictDoNothing({ target: notifications.dedupeKey })
       .returning({ id: notifications.id });
     if (inserted.length === 0) return false;
-    const [user] = await this.db.select({ email: users.email }).from(users).where(eq(users.id, n.userId));
-    if (user) await this.mailer.send({ to: user.email, subject: n.title, text: n.body });
+    const [user] = await this.db.select({ email: users.email, fullName: users.fullName }).from(users).where(eq(users.id, n.userId));
+    if (user) await this.mailer.send({ to: user.email, subject: n.title, text: `${salutation(user.fullName)}\n\n${n.body}` });
     return true;
   }
 

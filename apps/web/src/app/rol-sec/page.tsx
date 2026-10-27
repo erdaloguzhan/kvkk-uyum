@@ -29,7 +29,10 @@ function RoleChooser() {
   const roles = selectableRoles(me);
 
   return (
-    <AuthCard title="Rol seçin" subtitle={<>{me.fullName}, bu oturumda hangi rolle çalışacağınızı seçin.</>}>
+    <AuthCard
+      title="Rol seçin"
+      greeting={{ fullName: me.fullName, text: 'KVK Uyum Yönetim Sistemine bu oturumda hangi rolle giriş yapacağınızı seçin.' }}
+    >
       <div className="role-list">
         {roles.map((r) => (
           <button

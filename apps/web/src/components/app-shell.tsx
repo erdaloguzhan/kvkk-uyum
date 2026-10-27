@@ -79,13 +79,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           ☰
         </button>
         <Logo height={34} onDark />
-        <strong>KVK Yönetim Sistemi</strong>
+        <strong>KVK Uyum Yönetim Sistemi</strong>
       </header>
       {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
       <nav className={`sidebar${menuOpen ? ' open' : ''}`} aria-label="Ana menü">
         <div className="brand">
           <Logo onDark />
-          KVK Yönetim Sistemi
+          KVK Uyum Yönetim Sistemi
           <small>KVKK uyum yönetimi</small>
         </div>
         {org &&

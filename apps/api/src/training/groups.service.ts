@@ -255,7 +255,7 @@ export class GroupsService {
           to: t.employee.email,
           subject: `${training.name} - Uzaktan eğitim`,
           text:
-            `Merhaba ${name},\n\n${org.name} tarafından "${training.name}" eğitimine katılımınız bekleniyor.\n\n` +
+            `Sayın ${name},\n\n${org.name} tarafından "${training.name}" eğitimine katılımınız bekleniyor.\n\n` +
             `Eğitim Portalı: ${this.portalAuth.portalUrl}\n` +
             `Giriş için cep telefonunuzu (${t.employee.phone}) yazın; telefonunuza SMS ile gelen kodu girin.\n\n` +
             'Eğitim bir ön test, ders konuları ve bir son testten oluşur. Eğitimi bitirmeden çıkarsanız tekrar ' +

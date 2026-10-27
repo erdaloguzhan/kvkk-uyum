@@ -15,6 +15,7 @@ import { MailerService } from '../auth/mailer.service';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { memberships, organizations, roles, supportAttachments, supportMessages, supportTickets, users } from '../db/schema';
+import { salutation } from '../auth/account-label';
 
 export interface UploadedAttachment {
   fileName: string;
@@ -463,12 +464,12 @@ export class SupportService {
   /** Talep kaydedildikten sonra gönderilir; e-posta hatası kullanıcının işlemini bozmaz. */
   private async mailUser(userId: string, subject: string, text: string) {
     const [user] = await this.db
-      .select({ email: users.email, isActive: users.isActive })
+      .select({ email: users.email, fullName: users.fullName, isActive: users.isActive })
       .from(users)
       .where(eq(users.id, userId));
     if (!user?.isActive) return;
     try {
-      await this.mailer.send({ to: user.email, subject, text });
+      await this.mailer.send({ to: user.email, subject, text: `${salutation(user.fullName)}\n\n${text}` });
     } catch (err) {
       this.logger.error(`Destek e-postası gönderilemedi: ${subject}`, err as Error);
     }

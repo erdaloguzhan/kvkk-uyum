@@ -19,6 +19,7 @@ import {
 } from '../common/crypto';
 import { Database, InjectDb } from '../db/db.module';
 import { loginChallenges, memberships, organizations, refreshTokens, roles, trainers, users } from '../db/schema';
+import { accountRoleLabel, salutation, SYSTEM_NAME } from './account-label';
 import { MailerService } from './mailer.service';
 import { maskPhone, SmsService } from './sms.service';
 
@@ -98,6 +99,7 @@ export class AuthService {
       })
       .returning({ id: loginChallenges.id });
 
+    const roleLabel = await accountRoleLabel(this.db, user.id);
     let viaSms = !!user.phone && this.sms.available;
     if (viaSms) {
       try {
@@ -111,8 +113,11 @@ export class AuthService {
     if (!viaSms) {
       await this.mailer.send({
         to: user.email,
-        subject: 'KVK Yönetim Sistemi giriş kodu',
-        text: `Giriş doğrulama kodunuz: ${code}\nKod 10 dakika geçerlidir.`,
+        subject: `${SYSTEM_NAME} giriş kodu`,
+        text:
+          `${salutation(user.fullName)}\n\n` +
+          `${SYSTEM_NAME}ne ${roleLabel ? `${roleLabel} olarak ` : ''}giriş kodunuz: ${code}\n` +
+          'Kod 10 dakika geçerlidir, kimseyle paylaşmayın.\n',
       });
     }
     await this.audit.record({ action: 'auth.code_sent', userId: user.id, metadata: { channel: viaSms ? 'sms' : 'email' }, ...client });
@@ -121,6 +126,9 @@ export class AuthService {
       expiresInSeconds: CODE_TTL_MS / 1000,
       channel: viaSms ? ('sms' as const) : ('email' as const),
       destination: viaSms ? maskPhone(user.phone!) : null,
+      // Doğrulama kodu penceresindeki hitap için; şifre doğrulandıktan sonra döner.
+      fullName: user.fullName,
+      roleLabel,
     };
   }
 
