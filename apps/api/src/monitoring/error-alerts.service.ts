@@ -53,7 +53,7 @@ export class ErrorAlertsService implements OnApplicationBootstrap, OnApplication
     const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     this.alert(
       'error',
-      'KVK Yönetim Sistemi: sunucu hatası',
+      'KVK Uyum Yönetim Sistemi: sunucu hatası',
       `Sunucuda beklenmeyen bir hata oluştu.\n\nYer: ${where}\nHata: ${message}\nZaman: ${new Date().toISOString()}\n\n` +
         'Ayrıntı için sunucuda: docker compose -f docker-compose.prod.yml logs --since 1h api',
     );
@@ -66,7 +66,7 @@ export class ErrorAlertsService implements OnApplicationBootstrap, OnApplication
     const freeGb = ((s.bavail * s.bsize) / 1024 ** 3).toFixed(1);
     this.alert(
       'disk',
-      'KVK Yönetim Sistemi: disk dolmak üzere',
+      'KVK Uyum Yönetim Sistemi: disk dolmak üzere',
       `Sunucu diskinin %${Math.round(used * 100)}'i dolu, ${freeGb} GB boş yer kaldı.\n` +
         'Disk dolarsa veritabanı yazamaz ve sistem durur. Eski yedekleri ve Docker imajlarını temizleyin ' +
         '(docker system prune) veya diski büyütün.',

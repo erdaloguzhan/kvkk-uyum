@@ -57,8 +57,8 @@ export class PlatformAdminSeeder implements OnApplicationBootstrap {
     if (!created) return; // Zaten yönetici.
     await this.audit.record({ action: 'platform_admin.granted', userId: created.id, metadata: { email, created: true } });
     await this.passwordReset.sendInvite(created, null, {
-      subject: 'KVK Yönetim Sistemi yönetici hesabınız',
-      intro: 'KVK Yönetim Sistemi için platform yöneticisi hesabınız oluşturuldu.',
+      subject: 'KVK Uyum Yönetim Sistemi yönetici hesabınız',
+      intro: 'KVK Uyum Yönetim Sistemi için platform yöneticisi hesabınız oluşturuldu.',
     });
     this.logger.log(`Platform yöneticisi hesabı açıldı, şifre oluşturma bağlantısı gönderildi: ${email}`);
   }

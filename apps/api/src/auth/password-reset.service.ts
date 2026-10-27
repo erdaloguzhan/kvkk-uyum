@@ -5,6 +5,7 @@ import { generateToken, hashPassword, sha256 } from '../common/crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { passwordResetTokens, refreshTokens, users } from '../db/schema';
+import { accountRoleLabel, salutation, SYSTEM_NAME } from './account-label';
 import { MailerService } from './mailer.service';
 
 const RESET_TTL_MS = 60 * 60 * 1000;
@@ -22,7 +23,7 @@ export class PasswordResetService {
   /** Kullanıcı yoksa da aynı yanıt döner (e-posta adresi sızdırılmaz). */
   async request(email: string, client: { ip: string | null; userAgent: string | null }) {
     const [user] = await this.db
-      .select({ id: users.id, email: users.email, isActive: users.isActive })
+      .select({ id: users.id, email: users.email, fullName: users.fullName, isActive: users.isActive })
       .from(users)
       .where(sql`lower(${users.email}) = lower(${email.trim()})`);
     if (!user?.isActive) return;
@@ -30,9 +31,9 @@ export class PasswordResetService {
     const token = await this.createToken(user.id, RESET_TTL_MS);
     await this.mailer.send({
       to: user.email,
-      subject: 'KVK Yönetim Sistemi şifre sıfırlama',
+      subject: `${SYSTEM_NAME} şifre sıfırlama`,
       text:
-        `Şifrenizi sıfırlamak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
+        `${salutation(user.fullName)}\n\n${await this.accountPhrase(user.id)} şifresini sıfırlamak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
         `Bağlantı 1 saat geçerlidir. Bağlantı açılmazsa şifre belirleme sayfasına şu kodu girebilirsiniz: ${token}\n\n` +
         'Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.',
     });
@@ -50,21 +51,48 @@ export class PasswordResetService {
     opts: { subject?: string; intro?: string } = {},
   ) {
     const token = await this.createToken(user.id, INVITE_TTL_MS);
-    const greeting = user.fullName ? `Merhaba ${user.fullName},\n\n` : 'Merhaba,\n\n';
+    const greeting = `${salutation(user.fullName)}\n\n`;
     const intro =
       opts.intro ??
       (organizationName
-        ? `${organizationName} için KVK Yönetim Sistemi hesabınız oluşturuldu.`
-        : 'KVK Yönetim Sistemi hesabınız oluşturuldu.');
+        ? `${organizationName} için KVK Uyum Yönetim Sistemi hesabınız oluşturuldu.`
+        : 'KVK Uyum Yönetim Sistemi hesabınız oluşturuldu.');
     await this.mailer.send({
       to: user.email,
-      subject: opts.subject ?? `${organizationName ?? 'KVK Yönetim Sistemi'} - hesabınızı etkinleştirin`,
+      subject: opts.subject ?? `${organizationName ?? 'KVK Uyum Yönetim Sistemi'} - hesabınızı etkinleştirin`,
       text:
         `${greeting}${intro}\n\n` +
         `Şifrenizi oluşturmak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
         `Bağlantı 7 gün geçerlidir. Kullanıcı adınız bu e-posta adresidir: ${user.email}\n` +
         `Bağlantı açılmazsa şifre belirleme sayfasına şu kodu girebilirsiniz: ${token}\n`,
     });
+  }
+
+  /**
+   * Şifre belirleme penceresindeki hitap için: bağlantıdaki kod geçerliyse kişinin adı ve rolü döner.
+   * Kodu bilen zaten hesabın sahibidir; geçersiz kodda ayrıntı verilmez.
+   */
+  async info(token: string) {
+    const [row] = await this.db
+      .select({ userId: users.id, fullName: users.fullName })
+      .from(passwordResetTokens)
+      .innerJoin(users, eq(users.id, passwordResetTokens.userId))
+      .where(
+        and(
+          eq(passwordResetTokens.tokenHash, sha256(token)),
+          isNull(passwordResetTokens.usedAt),
+          gt(passwordResetTokens.expiresAt, new Date()),
+          eq(users.isActive, true),
+        ),
+      );
+    if (!row) throw new BadRequestException('Kod geçersiz veya süresi dolmuş');
+    return { fullName: row.fullName, roleLabel: await accountRoleLabel(this.db, row.userId) };
+  }
+
+  /** "KVK Uyum Yönetim Sistemi KVKK Sorumlusu hesabınızın" gibi; rol yoksa yalnızca sistem adı. */
+  private async accountPhrase(userId: string) {
+    const role = await accountRoleLabel(this.db, userId);
+    return `${SYSTEM_NAME} ${role ? `${role} ` : ''}hesabınızın`;
   }
 
   /** Kullanıcının bekleyen (kullanılmamış) şifre bağlantılarını geçersiz kılar; yeniden davet öncesi çağrılır. */

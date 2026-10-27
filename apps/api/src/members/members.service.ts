@@ -87,15 +87,15 @@ export class MembersService {
     const orgName = await this.orgName(orgId);
     if (newUser) {
       await this.passwordReset.sendInvite(user, orgName, {
-        intro: `${orgName} için KVK Yönetim Sistemi hesabınız ${role.name} rolüyle oluşturuldu.`,
+        intro: `${orgName} için KVK Uyum Yönetim Sistemi hesabınız ${role.name} rolüyle oluşturuldu.`,
       });
     } else {
       await this.mailer.send({
         to: user.email,
-        subject: `${orgName} - KVK Yönetim Sistemi`,
+        subject: `${orgName} - KVK Uyum Yönetim Sistemi`,
         text:
-          `Merhaba ${user.fullName},\n\n` +
-          `Hesabınız KVK Yönetim Sisteminde ${orgName} kuruluşuna ${role.name} rolüyle bağlandı.\n\n` +
+          `Sayın ${user.fullName},\n\n` +
+          `Hesabınız KVK Uyum Yönetim Sisteminde ${orgName} kuruluşuna ${role.name} rolüyle bağlandı.\n\n` +
           `Mevcut şifrenizle giriş yapabilirsiniz: ${this.config.appUrl}/giris\n` +
           `Kullanıcı adınız bu e-posta adresidir: ${user.email}\n`,
       });
@@ -124,9 +124,9 @@ export class MembersService {
     if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
     await this.mailer.send({
       to: user.email,
-      subject: 'KVK Yönetim Sistemi - cep telefonunuz değişti',
+      subject: 'KVK Uyum Yönetim Sistemi - cep telefonunuz değişti',
       text:
-        `Merhaba ${user.fullName},\n\n` +
+        `Sayın ${user.fullName},\n\n` +
         (phone
           ? `Hesabınızın cep telefonu ${phone} olarak kaydedildi. Giriş doğrulama kodları bu numaraya SMS ile gönderilecek.\n`
           : 'Hesabınızın cep telefonu silindi. Giriş doğrulama kodları e-posta adresinize gönderilecek.\n') +

@@ -3,7 +3,7 @@ import { SessionProvider } from '@/lib/session';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'KVK Yönetim Sistemi', template: '%s · KVK Yönetim Sistemi' },
+  title: { default: 'KVK Uyum Yönetim Sistemi', template: '%s · KVK Uyum Yönetim Sistemi' },
   description: 'KVKK uyum yönetimi',
 };
 

@@ -120,7 +120,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       <nav className={`sidebar${menuOpen ? ' open' : ''}`} aria-label="Yönetim menüsü">
         <div className="brand">
           <Logo onDark />
-          KVK Yönetim Sistemi
+          KVK Uyum Yönetim Sistemi
           <small>Yönetim paneli</small>
         </div>
         {isAdmin && NAV.map(link)}

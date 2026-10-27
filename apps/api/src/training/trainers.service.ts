@@ -95,15 +95,15 @@ export class TrainersService {
 
     if (!newUser && profile.phone) await this.db.update(users).set({ phone: profile.phone }).where(eq(users.id, user.id));
 
-    const intro = 'KVK Yönetim Sistemi eğitim yönetimi için eğitimci hesabınız oluşturuldu.';
+    const intro = 'KVK Uyum Yönetim Sistemi eğitim yönetimi için eğitimci hesabınız oluşturuldu.';
     if (newUser) {
-      await this.passwordReset.sendInvite(user, null, { subject: 'KVK Yönetim Sistemi - eğitimci hesabınız', intro });
+      await this.passwordReset.sendInvite(user, null, { subject: 'KVK Uyum Yönetim Sistemi - eğitimci hesabınız', intro });
     } else {
       await this.mailer.send({
         to: user.email,
-        subject: 'KVK Yönetim Sistemi - eğitimci hesabınız',
+        subject: 'KVK Uyum Yönetim Sistemi - eğitimci hesabınız',
         text:
-          `Merhaba ${user.fullName},\n\n${intro}\n\n` +
+          `Sayın ${user.fullName},\n\n${intro}\n\n` +
           `Mevcut şifrenizle yönetim paneline giriş yapabilirsiniz: ${this.config.appUrl}/admin\n` +
           `Kullanıcı adınız bu e-posta adresidir: ${user.email}\n`,
       });
@@ -189,8 +189,8 @@ export class TrainersService {
       { id: t.userId, email: t.email, fullName: `${t.firstName} ${t.lastName}` },
       null,
       {
-        subject: 'KVK Yönetim Sistemi - eğitimci hesabınız',
-        intro: 'KVK Yönetim Sistemi eğitim yönetimi için eğitimci hesabınız oluşturuldu.',
+        subject: 'KVK Uyum Yönetim Sistemi - eğitimci hesabınız',
+        intro: 'KVK Uyum Yönetim Sistemi eğitim yönetimi için eğitimci hesabınız oluşturuldu.',
       },
     );
     await this.audit.record({ action: 'training.trainer_invite_resent', userId: adminId, entityType: 'trainer', entityId: id });

@@ -124,7 +124,7 @@ describe('Yönetim paneli', () => {
       expect(res.body.organization.setupCompletedAt).toBeTruthy();
 
       const mail = lastMailTo(app, email);
-      expect(mail.text).toContain('Merhaba Mehmet Demir');
+      expect(mail.text).toContain('Sayın Mehmet Demir');
       expect(mail.text).toContain(PROFILE.name);
       expect(mail.text).toContain('KVKK Sorumlusu');
       expect(mail.text).toMatch(/http:\/\/localhost:3000\/sifre-belirle\?kod=/);

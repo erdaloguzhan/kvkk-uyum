@@ -195,6 +195,7 @@ tbody tr:hover { background: #fafbfc; }
 .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: linear-gradient(160deg, #15314f 0%, #1f5fa8 100%); }
 .auth-card { background: #fff; border-radius: 12px; padding: 32px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
 .auth-card h1 { margin-bottom: 4px; }
+.auth-card .greeting { margin: 8px 0 10px; line-height: 1.5; }
 .auth-card .brand-line { color: var(--primary); font-weight: 700; margin-bottom: 18px; }
 .auth-links { margin-top: 18px; display: flex; justify-content: space-between; font-size: 0.9rem; flex-wrap: wrap; gap: 8px; }
 

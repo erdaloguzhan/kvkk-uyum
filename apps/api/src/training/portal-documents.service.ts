@@ -252,7 +252,7 @@ export class PortalDocumentsService {
           to: e.email,
           subject: `${org.name} - KVKK dokümanları`,
           text:
-            `Merhaba ${name},\n\n${org.name} KVKK politika ve prosedürlerini Eğitim Portalında okuyabilirsiniz.\n\n` +
+            `Sayın ${name},\n\n${org.name} KVKK politika ve prosedürlerini Eğitim Portalında okuyabilirsiniz.\n\n` +
             `Eğitim Portalı: ${this.portalAuth.portalUrl}\n` +
             `Giriş için cep telefonunuzu (${e.phone}) yazın; telefonunuza SMS ile gelen kodu girin.\n`,
         });
