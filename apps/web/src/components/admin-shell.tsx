@@ -6,6 +6,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { selectableRoles, useSession } from '@/lib/session';
 import { Empty, Loading } from './ui';
+import { Logo } from './logo';
 
 interface NavItem {
   href: string;
@@ -112,11 +113,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Menü" onClick={() => setMenuOpen(true)}>
           ☰
         </button>
+        <Logo height={26} onDark />
         <strong>Yönetim Paneli</strong>
       </header>
       {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
       <nav className={`sidebar${menuOpen ? ' open' : ''}`} aria-label="Yönetim menüsü">
         <div className="brand">
+          <Logo height={44} onDark />
           KVK Yönetim Sistemi
           <small>Yönetim paneli</small>
         </div>
