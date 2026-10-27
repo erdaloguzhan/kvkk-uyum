@@ -113,13 +113,13 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Menü" onClick={() => setMenuOpen(true)}>
           ☰
         </button>
-        <Logo height={26} onDark />
+        <Logo height={34} onDark />
         <strong>Yönetim Paneli</strong>
       </header>
       {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
       <nav className={`sidebar${menuOpen ? ' open' : ''}`} aria-label="Yönetim menüsü">
         <div className="brand">
-          <Logo height={44} onDark />
+          <Logo onDark />
           KVK Yönetim Sistemi
           <small>Yönetim paneli</small>
         </div>

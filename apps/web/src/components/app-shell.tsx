@@ -78,13 +78,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Menü" onClick={() => setMenuOpen(true)}>
           ☰
         </button>
-        <Logo height={26} onDark />
+        <Logo height={34} onDark />
         <strong>KVK Yönetim Sistemi</strong>
       </header>
       {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
       <nav className={`sidebar${menuOpen ? ' open' : ''}`} aria-label="Ana menü">
         <div className="brand">
-          <Logo height={44} onDark />
+          <Logo onDark />
           KVK Yönetim Sistemi
           <small>KVKK uyum yönetimi</small>
         </div>

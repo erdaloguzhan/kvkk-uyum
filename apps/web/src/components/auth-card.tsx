@@ -15,7 +15,7 @@ export function AuthCard({
   return (
     <main className="auth-page">
       <div className="auth-card">
-        <Logo height={48} />
+        <Logo height={68} />
         <div className="brand-line">{brand}</div>
         <h1>{title}</h1>
         {subtitle && <p className="muted">{subtitle}</p>}

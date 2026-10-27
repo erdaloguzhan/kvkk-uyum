@@ -13,7 +13,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
     <div className="portal">
       <header className="portal-top">
         <Link href="/egitim/panel" style={{ color: '#fff', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Logo height={30} onDark />
+          <Logo height={42} onDark />
           {PORTAL_BRAND}
         </Link>
         <span className="actions">
