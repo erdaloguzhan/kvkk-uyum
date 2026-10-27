@@ -101,6 +101,16 @@ describe('Uzaktan eğitim', () => {
     await asAdmin(request(server).post(`/api/v1/admin/organizations/${secondOrg}/employees`))
       .send({ nationalId: tc, firstName: 'Boşluk', lastName: 'Deneme', phone: '05321234567' })
       .expect(201);
+
+    // SMS gönderilemezse portal anlaşılır bir hata döner (500 değil).
+    const smsPhone = uniquePhone();
+    await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
+      .send({ nationalId: nationalId(), firstName: 'Sms', lastName: 'Hatası', phone: smsPhone })
+      .expect(201);
+    const failing = jest.spyOn(app.get(SmsService), 'send').mockRejectedValueOnce(new Error('Verimor: 400'));
+    const down = await request(server).post('/api/v1/training-portal/login/code').send({ phone: smsPhone }).expect(503);
+    failing.mockRestore();
+    expect(down.body.message).toContain('SMS gönderilemedi');
   });
 
   it('T.C. kimlik noyu veritabanında şifreli saklar, API düz metin döner', async () => {

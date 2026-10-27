@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { and, count, eq, gt, isNull, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
@@ -36,6 +36,8 @@ export interface TraineeToken {
  */
 @Injectable()
 export class PortalAuthService {
+  private readonly logger = new Logger(PortalAuthService.name);
+
   constructor(
     @InjectDb() private readonly db: Database,
     private readonly jwt: JwtService,
@@ -74,7 +76,12 @@ export class PortalAuthService {
       .returning({ id: portalLoginCodes.id });
 
     if (await this.isKnown(phone)) {
-      await this.sms.send({ to: phone, text: `KVK Uyum Eğitim Portalı giriş kodunuz: ${code}\nKod 5 dakika geçerlidir, kimseyle paylaşmayın.` });
+      try {
+        await this.sms.send({ to: phone, text: `KVK Uyum Eğitim Portalı giriş kodunuz: ${code}\nKod 5 dakika geçerlidir, kimseyle paylaşmayın.` });
+      } catch (err) {
+        this.logger.error(`Portal giriş kodu SMS ile gönderilemedi: ${err}`);
+        throw new ServiceUnavailableException('SMS gönderilemedi. Lütfen biraz sonra tekrar deneyin.');
+      }
       await this.audit.record({ action: 'training.portal_code_sent', metadata: { phone }, ...client });
     } else {
       await this.audit.record({ action: 'training.portal_code_unknown_phone', metadata: { phone }, ...client });
