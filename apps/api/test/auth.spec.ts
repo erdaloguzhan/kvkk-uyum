@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { SmsService } from '../src/auth/sms.service';
 import {
   createApp,
   createUser,
@@ -50,6 +51,16 @@ describe('Kimlik doğrulama', () => {
     expect(step.body).toMatchObject({ channel: 'sms', destination: '0532 *** ** 33' });
     const code = /(\d{6})/.exec(lastSmsTo(app, '05321112233').text)![1];
     await request(server).post('/api/v1/auth/verify').send({ challengeId: step.body.challengeId, code }).expect(200);
+
+    // SMS servisi hata verirse (ör. başlık henüz onaylanmamış) giriş kilitlenmez: kod e-postayla gider.
+    const failing = jest.spyOn(app.get(SmsService), 'send').mockRejectedValueOnce(new Error('Verimor: 400 INVALID_SOURCE_ADDRESS'));
+    const fallback = await request(server).post('/api/v1/auth/login').send({ email: session.email, password: PASSWORD }).expect(200);
+    failing.mockRestore();
+    expect(fallback.body).toMatchObject({ channel: 'email', destination: null });
+    await request(server)
+      .post('/api/v1/auth/verify')
+      .send({ challengeId: fallback.body.challengeId, code: extractCode(lastMailTo(app, session.email).text) })
+      .expect(200);
 
     // Platform yöneticisi başka kullanıcının telefonunu siler: kod yeniden e-postaya gider.
     const admin = await registerAndLogin(app);

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -37,6 +38,8 @@ const INVALID_CREDENTIALS = 'E-posta veya şifre hatalı';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectDb() private readonly db: Database,
     private readonly jwt: JwtService,
@@ -95,10 +98,17 @@ export class AuthService {
       })
       .returning({ id: loginChallenges.id });
 
-    const viaSms = !!user.phone && this.sms.available;
+    let viaSms = !!user.phone && this.sms.available;
     if (viaSms) {
-      await this.sms.send({ to: user.phone!, text: `KVK Uyum giriş kodunuz: ${code}\nKod 10 dakika geçerlidir, kimseyle paylaşmayın.` });
-    } else {
+      try {
+        await this.sms.send({ to: user.phone!, text: `KVK Uyum giriş kodunuz: ${code}\nKod 10 dakika geçerlidir, kimseyle paylaşmayın.` });
+      } catch (err) {
+        // SMS servisi çalışmıyorsa giriş kilitlenmesin: kod e-postayla gider.
+        this.logger.error(`Giriş kodu SMS ile gönderilemedi, e-postayla gönderiliyor: ${err}`);
+        viaSms = false;
+      }
+    }
+    if (!viaSms) {
       await this.mailer.send({
         to: user.email,
         subject: 'KVK Yönetim Sistemi giriş kodu',
