@@ -10,6 +10,7 @@ import { OrgGuard } from './common/org.guard';
 import { AppConfig, CONFIG, ConfigModule } from './config';
 import { ContractsModule } from './contracts/contracts.module';
 import { DbModule } from './db/db.module';
+import { DestructionModule } from './destruction/destruction.module';
 import { DocumentsModule } from './documents/documents.module';
 import { HealthController } from './health.controller';
 import { IncidentsModule } from './incidents/incidents.module';
@@ -48,6 +49,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     WorkflowModule,
     ContractsModule,
     IncidentsModule,
+    DestructionModule,
     AdminModule,
     TrainingModule,
     SupportModule,

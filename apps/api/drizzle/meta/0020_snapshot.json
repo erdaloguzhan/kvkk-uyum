@@ -1,5 +1,5 @@
 {
-  "id": "2bff7c2a-c35c-4798-8e4e-d3f808b6c45a",
+  "id": "e7c1dec3-9878-47f1-a137-68e0a09e8aa5",
   "prevId": "0923135a-2ba9-4355-a6ee-0907b9fa463d",
   "version": "7",
   "dialect": "postgresql",
@@ -527,220 +527,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.data_subject_request_events": {
-      "name": "data_subject_request_events",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "request_id": {
-          "name": "request_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "note": {
-          "name": "note",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "data_subject_request_events_request_idx": {
-          "name": "data_subject_request_events_request_idx",
-          "columns": [
-            {
-              "expression": "request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "data_subject_request_events_request_id_data_subject_requests_id_fk": {
-          "name": "data_subject_request_events_request_id_data_subject_requests_id_fk",
-          "tableFrom": "data_subject_request_events",
-          "tableTo": "data_subject_requests",
-          "columnsFrom": [
-            "request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "data_subject_request_events_user_id_users_id_fk": {
-          "name": "data_subject_request_events_user_id_users_id_fk",
-          "tableFrom": "data_subject_request_events",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.data_subject_request_files": {
-      "name": "data_subject_request_files",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "request_id": {
-          "name": "request_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "file_name": {
-          "name": "file_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size": {
-          "name": "size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "uploaded_by": {
-          "name": "uploaded_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "data_subject_request_files_request_idx": {
-          "name": "data_subject_request_files_request_idx",
-          "columns": [
-            {
-              "expression": "request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "data_subject_request_files_request_id_data_subject_requests_id_fk": {
-          "name": "data_subject_request_files_request_id_data_subject_requests_id_fk",
-          "tableFrom": "data_subject_request_files",
-          "tableTo": "data_subject_requests",
-          "columnsFrom": [
-            "request_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "data_subject_request_files_uploaded_by_users_id_fk": {
-          "name": "data_subject_request_files_uploaded_by_users_id_fk",
-          "tableFrom": "data_subject_request_files",
-          "tableTo": "users",
-          "columnsFrom": [
-            "uploaded_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.data_subject_requests": {
-      "name": "data_subject_requests",
+    "public.destruction_items": {
+      "name": "destruction_items",
       "schema": "",
       "columns": {
         "id": {
@@ -756,80 +544,62 @@
           "primaryKey": false,
           "notNull": true
         },
-        "number": {
-          "name": "number",
-          "type": "integer",
+        "plan_id": {
+          "name": "plan_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "channel": {
-          "name": "channel",
+        "inventory_entry_id": {
+          "name": "inventory_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_description": {
+          "name": "data_description",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "full_name": {
-          "name": "full_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "national_id": {
-          "name": "national_id",
+        "storage_medium": {
+          "name": "storage_medium",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "birth_date": {
-          "name": "birth_date",
+        "retention_period": {
+          "name": "retention_period",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planned_date": {
+          "name": "planned_date",
           "type": "date",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "phone": {
-          "name": "phone",
+        "operation_type": {
+          "name": "operation_type",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "relationship": {
-          "name": "relationship",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "relationship_detail": {
-          "name": "relationship_detail",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "response_method": {
-          "name": "response_method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "items": {
-          "name": "items",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
-        "description": {
-          "name": "description",
+        "method": {
+          "name": "method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "officer_id": {
+          "name": "officer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "officer_name": {
+          "name": "officer_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -839,38 +609,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'new'"
+          "default": "'planned'"
         },
-        "received_at": {
-          "name": "received_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "target_date": {
-          "name": "target_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "legal_due_date": {
-          "name": "legal_due_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "paused_on": {
-          "name": "paused_on",
-          "type": "date",
+        "cancel_reason": {
+          "name": "cancel_reason",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
-        },
-        "paused_days": {
-          "name": "paused_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
         },
         "task_id": {
           "name": "task_id",
@@ -878,50 +623,185 @@
           "primaryKey": false,
           "notNull": false
         },
-        "answered_on": {
-          "name": "answered_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answer_outcome": {
-          "name": "answer_outcome",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answer_method": {
-          "name": "answer_method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answer_summary": {
-          "name": "answer_summary",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answer_recorded_at": {
-          "name": "answer_recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "answer_recorded_by": {
-          "name": "answer_recorded_by",
+        "created_by": {
+          "name": "created_by",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "ip": {
-          "name": "ip",
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "destruction_items_plan_idx": {
+          "name": "destruction_items_plan_idx",
+          "columns": [
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "planned_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "destruction_items_organization_id_organizations_id_fk": {
+          "name": "destruction_items_organization_id_organizations_id_fk",
+          "tableFrom": "destruction_items",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "destruction_items_plan_id_destruction_plans_id_fk": {
+          "name": "destruction_items_plan_id_destruction_plans_id_fk",
+          "tableFrom": "destruction_items",
+          "tableTo": "destruction_plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "destruction_items_inventory_entry_id_inventory_entries_id_fk": {
+          "name": "destruction_items_inventory_entry_id_inventory_entries_id_fk",
+          "tableFrom": "destruction_items",
+          "tableTo": "inventory_entries",
+          "columnsFrom": [
+            "inventory_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_items_officer_id_destruction_officers_id_fk": {
+          "name": "destruction_items_officer_id_destruction_officers_id_fk",
+          "tableFrom": "destruction_items",
+          "tableTo": "destruction_officers",
+          "columnsFrom": [
+            "officer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_items_task_id_tasks_id_fk": {
+          "name": "destruction_items_task_id_tasks_id_fk",
+          "tableFrom": "destruction_items",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "task_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_items_created_by_users_id_fk": {
+          "name": "destruction_items_created_by_users_id_fk",
+          "tableFrom": "destruction_items",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.destruction_officers": {
+      "name": "destruction_officers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "user_agent": {
-          "name": "user_agent",
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note": {
+          "name": "note",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -948,8 +828,8 @@
         }
       },
       "indexes": {
-        "data_subject_requests_org_number_unique": {
-          "name": "data_subject_requests_org_number_unique",
+        "destruction_officers_org_start_idx": {
+          "name": "destruction_officers_org_start_idx",
           "columns": [
             {
               "expression": "organization_id",
@@ -958,28 +838,7 @@
               "nulls": "last"
             },
             {
-              "expression": "number",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "data_subject_requests_org_received_idx": {
-          "name": "data_subject_requests_org_received_idx",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "received_at",
+              "expression": "start_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -992,9 +851,9 @@
         }
       },
       "foreignKeys": {
-        "data_subject_requests_organization_id_organizations_id_fk": {
-          "name": "data_subject_requests_organization_id_organizations_id_fk",
-          "tableFrom": "data_subject_requests",
+        "destruction_officers_organization_id_organizations_id_fk": {
+          "name": "destruction_officers_organization_id_organizations_id_fk",
+          "tableFrom": "destruction_officers",
           "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
@@ -1005,12 +864,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "data_subject_requests_task_id_tasks_id_fk": {
-          "name": "data_subject_requests_task_id_tasks_id_fk",
-          "tableFrom": "data_subject_requests",
-          "tableTo": "tasks",
+        "destruction_officers_employee_id_employees_id_fk": {
+          "name": "destruction_officers_employee_id_employees_id_fk",
+          "tableFrom": "destruction_officers",
+          "tableTo": "employees",
           "columnsFrom": [
-            "task_id"
+            "employee_id"
           ],
           "columnsTo": [
             "id"
@@ -1018,12 +877,186 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "data_subject_requests_answer_recorded_by_users_id_fk": {
-          "name": "data_subject_requests_answer_recorded_by_users_id_fk",
-          "tableFrom": "data_subject_requests",
+        "destruction_officers_created_by_users_id_fk": {
+          "name": "destruction_officers_created_by_users_id_fk",
+          "tableFrom": "destruction_officers",
           "tableTo": "users",
           "columnsFrom": [
-            "answer_recorded_by"
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.destruction_plans": {
+      "name": "destruction_plans",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_start": {
+          "name": "period_start",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_end": {
+          "name": "period_end",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "approver_id": {
+          "name": "approver_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approval_task_id": {
+          "name": "approval_task_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "request_note": {
+          "name": "request_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decision_note": {
+          "name": "decision_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "destruction_plans_org_period_idx": {
+          "name": "destruction_plans_org_period_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "period_start",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "destruction_plans_organization_id_organizations_id_fk": {
+          "name": "destruction_plans_organization_id_organizations_id_fk",
+          "tableFrom": "destruction_plans",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "destruction_plans_approver_id_users_id_fk": {
+          "name": "destruction_plans_approver_id_users_id_fk",
+          "tableFrom": "destruction_plans",
+          "tableTo": "users",
+          "columnsFrom": [
+            "approver_id"
           ],
           "columnsTo": [
             "id"
@@ -1031,9 +1064,282 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "data_subject_requests_created_by_users_id_fk": {
-          "name": "data_subject_requests_created_by_users_id_fk",
-          "tableFrom": "data_subject_requests",
+        "destruction_plans_approval_task_id_tasks_id_fk": {
+          "name": "destruction_plans_approval_task_id_tasks_id_fk",
+          "tableFrom": "destruction_plans",
+          "tableTo": "tasks",
+          "columnsFrom": [
+            "approval_task_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_plans_requested_by_users_id_fk": {
+          "name": "destruction_plans_requested_by_users_id_fk",
+          "tableFrom": "destruction_plans",
+          "tableTo": "users",
+          "columnsFrom": [
+            "requested_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_plans_decided_by_users_id_fk": {
+          "name": "destruction_plans_decided_by_users_id_fk",
+          "tableFrom": "destruction_plans",
+          "tableTo": "users",
+          "columnsFrom": [
+            "decided_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_plans_created_by_users_id_fk": {
+          "name": "destruction_plans_created_by_users_id_fk",
+          "tableFrom": "destruction_plans",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.destruction_records": {
+      "name": "destruction_records",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_title": {
+          "name": "plan_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inventory_entry_id": {
+          "name": "inventory_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "data_description": {
+          "name": "data_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_medium": {
+          "name": "storage_medium",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planned_date": {
+          "name": "planned_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "performed_date": {
+          "name": "performed_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operation_type": {
+          "name": "operation_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "performed_note": {
+          "name": "performed_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "officer_id": {
+          "name": "officer_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "officer_name": {
+          "name": "officer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "destruction_records_org_date_idx": {
+          "name": "destruction_records_org_date_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "performed_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "destruction_records_item_unique": {
+          "name": "destruction_records_item_unique",
+          "columns": [
+            {
+              "expression": "item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "destruction_records_organization_id_organizations_id_fk": {
+          "name": "destruction_records_organization_id_organizations_id_fk",
+          "tableFrom": "destruction_records",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "destruction_records_item_id_destruction_items_id_fk": {
+          "name": "destruction_records_item_id_destruction_items_id_fk",
+          "tableFrom": "destruction_records",
+          "tableTo": "destruction_items",
+          "columnsFrom": [
+            "item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_records_plan_id_destruction_plans_id_fk": {
+          "name": "destruction_records_plan_id_destruction_plans_id_fk",
+          "tableFrom": "destruction_records",
+          "tableTo": "destruction_plans",
+          "columnsFrom": [
+            "plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_records_inventory_entry_id_inventory_entries_id_fk": {
+          "name": "destruction_records_inventory_entry_id_inventory_entries_id_fk",
+          "tableFrom": "destruction_records",
+          "tableTo": "inventory_entries",
+          "columnsFrom": [
+            "inventory_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_records_officer_id_destruction_officers_id_fk": {
+          "name": "destruction_records_officer_id_destruction_officers_id_fk",
+          "tableFrom": "destruction_records",
+          "tableTo": "destruction_officers",
+          "columnsFrom": [
+            "officer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "destruction_records_created_by_users_id_fk": {
+          "name": "destruction_records_created_by_users_id_fk",
+          "tableFrom": "destruction_records",
           "tableTo": "users",
           "columnsFrom": [
             "created_by"
@@ -2920,20 +3226,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "request_form_key": {
-          "name": "request_form_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "substr(md5(gen_random_uuid()::text), 1, 16)"
-        },
-        "request_form_enabled": {
-          "name": "request_form_enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
         "license_status": {
           "name": "license_status",
           "type": "text",
@@ -2953,6 +3245,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "destruction_period_months": {
+          "name": "destruction_period_months",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 6
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2961,23 +3260,7 @@
           "default": "now()"
         }
       },
-      "indexes": {
-        "organizations_request_form_key_unique": {
-          "name": "organizations_request_form_key_unique",
-          "columns": [
-            {
-              "expression": "request_form_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

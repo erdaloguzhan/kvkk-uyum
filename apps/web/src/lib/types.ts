@@ -25,6 +25,9 @@ import type {
   IncidentForm,
   IncidentNotificationType,
   IncidentStatus,
+  DestructionItemStatus,
+  DestructionOperation,
+  DestructionPlanStatus,
 } from '@kvkk/shared';
 
 export interface OrgMembership {
@@ -693,4 +696,92 @@ export interface IncidentReport {
   byCategory: { label: string; count: number }[];
   byLikelihood: { label: string; count: number }[];
   items: Incident[];
+}
+
+// ---- Kişisel veri imha yönetimi ----
+
+export interface DestructionSettings {
+  periodMonths: number;
+  lastPlanEnd: string | null;
+  nextPeriodStart: string;
+  uncovered: boolean;
+}
+
+export interface DestructionOfficer {
+  id: string;
+  employeeId: string | null;
+  fullName: string;
+  title: string | null;
+  startDate: string;
+  endDate: string | null;
+  note: string | null;
+  current: boolean;
+  createdAt: string;
+}
+
+export interface DestructionPlanSummary {
+  id: string;
+  title: string;
+  periodStart: string;
+  periodEnd: string;
+  description: string | null;
+  status: DestructionPlanStatus;
+  itemCount: number;
+  doneCount: number;
+  cancelledCount: number;
+  createdAt: string;
+}
+
+export interface DestructionItem {
+  id: string;
+  planId: string;
+  inventoryEntryId: string | null;
+  dataDescription: string;
+  storageMedium: StorageMedium | null;
+  retentionPeriod: string | null;
+  plannedDate: string;
+  operationType: DestructionOperation;
+  method: string | null;
+  officerId: string | null;
+  officerName: string | null;
+  status: DestructionItemStatus;
+  cancelReason: string | null;
+  taskId: string | null;
+  overdue: boolean;
+  record: {
+    id: string;
+    performedDate: string;
+    operationType: DestructionOperation;
+    performedNote: string;
+    officerName: string | null;
+  } | null;
+}
+
+export interface DestructionPlan extends Omit<DestructionPlanSummary, 'itemCount' | 'doneCount' | 'cancelledCount'> {
+  approver: { id: string; fullName: string } | null;
+  requestedBy: { id: string; fullName: string } | null;
+  decidedBy: { id: string; fullName: string } | null;
+  requestedAt: string | null;
+  requestNote: string | null;
+  decisionNote: string | null;
+  decidedAt: string | null;
+  approvalDueDate: string | null;
+  items: DestructionItem[];
+}
+
+export interface DestructionRecord {
+  id: string;
+  itemId: string | null;
+  planId: string | null;
+  planTitle: string | null;
+  inventoryEntryId: string | null;
+  dataDescription: string;
+  storageMedium: StorageMedium | null;
+  plannedDate: string | null;
+  performedDate: string;
+  operationType: DestructionOperation;
+  performedNote: string;
+  officerId: string | null;
+  officerName: string | null;
+  createdAt: string;
 }

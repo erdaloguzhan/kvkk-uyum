@@ -181,6 +181,9 @@ export class TasksService {
     if (task.type === 'data_subject_request') {
       throw new ConflictException('Başvuru görevi, başvurunun cevabı kaydedilince kapanır');
     }
+    if (task.entityType === 'destruction_item') {
+      throw new ConflictException('Bu görev, İmha yönetiminde imhanın gerçekleştiği kaydedilince kapanır');
+    }
     if (task.assigneeId !== viewer.userId && !viewer.canManage) {
       throw new ForbiddenException('Bu görevi yalnızca atanan kişi tamamlayabilir');
     }
@@ -277,11 +280,11 @@ export class TasksService {
         ? documents
         : entityType === 'inventory_entry'
           ? inventoryEntries
-          : entityType === 'data_subject_request'
-            ? dataSubjectRequests
           : entityType === 'incident'
             ? incidents
-            : inventoryApprovals;
+            : entityType === 'data_subject_request'
+              ? dataSubjectRequests
+              : inventoryApprovals;
     const [row] = await this.db
       .select({ id: table.id })
       .from(table)

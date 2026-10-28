@@ -145,8 +145,15 @@
     {
       "idx": 20,
       "version": "7",
-      "when": 1793184298954,
-      "tag": "0020_data_subject_requests",
+      "when": 1793182892797,
+      "tag": "0020_destruction",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793184394358,
+      "tag": "0021_data_subject_requests",
       "breakpoints": true
     }
   ]

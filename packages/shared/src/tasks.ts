@@ -33,6 +33,8 @@ export const TASK_ENTITY_TYPES = {
   inventory_approval: 'Envanter onay talebi',
   data_subject_request: 'İlgili kişi başvurusu',
   incident: 'Veri ihlali kaydı',
+  destruction_plan: 'İmha planı',
+  destruction_item: 'Planlanan imha',
 } as const;
 
 export type TaskEntityType = keyof typeof TASK_ENTITY_TYPES;
