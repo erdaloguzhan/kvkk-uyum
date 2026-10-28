@@ -20,7 +20,9 @@ export const PERMISSIONS = {
   INCIDENTS_APPROVE: 'incidents.approve',
   CONTRACTS_READ: 'contracts.read',
   CONTRACTS_MANAGE: 'contracts.manage',
+  DESTRUCTION_READ: 'destruction.read',
   DESTRUCTION_MANAGE: 'destruction.manage',
+  DESTRUCTION_APPROVE: 'destruction.approve',
   REPORTS_READ: 'reports.read',
 } as const;
 
@@ -36,8 +38,8 @@ export interface SystemRoleDefinition {
 
 /**
  * Müşteri kuruluşlarında yalnızca bu sabit roller vardır; özel rol tanımlanamaz.
- * Sorumlu tüm işi yapar; dokümanları ve veri envanterindeki değişiklikleri Yöneticinin onayına gönderir.
- * Yönetici dokümanları, envanter değişikliklerini ve veri ihlali bildirimlerini onaylar, görev atar; başka bir şeyi değiştiremez.
+ * Sorumlu tüm işi yapar; dokümanları, veri envanterindeki değişiklikleri ve imha planlarını Yöneticinin onayına gönderir.
+ * Yönetici dokümanları, envanter değişikliklerini, veri ihlali bildirimlerini ve imha planlarını onaylar, görev atar; başka bir şeyi değiştiremez.
  * Aynı kişi (aynı e-posta) her ikisi olacaksa "Sorumlu + Yönetici" rolü atanır.
  * Çalışanlar yayınlanmış dokümanları ayrı bir rol yerine eğitim portalı hesaplarıyla görür.
  */
@@ -52,7 +54,10 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
     name: 'KVKK Sorumlusu',
     permissions: ALL_PERMISSIONS.filter(
       (p) =>
-        p !== PERMISSIONS.DOCUMENTS_APPROVE && p !== PERMISSIONS.INVENTORY_APPROVE && p !== PERMISSIONS.INCIDENTS_APPROVE,
+        p !== PERMISSIONS.DOCUMENTS_APPROVE &&
+        p !== PERMISSIONS.INVENTORY_APPROVE &&
+        p !== PERMISSIONS.INCIDENTS_APPROVE &&
+        p !== PERMISSIONS.DESTRUCTION_APPROVE,
     ),
   },
   {
@@ -63,6 +68,8 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
       PERMISSIONS.DOCUMENTS_APPROVE,
       PERMISSIONS.INVENTORY_READ,
       PERMISSIONS.INVENTORY_APPROVE,
+      PERMISSIONS.DESTRUCTION_READ,
+      PERMISSIONS.DESTRUCTION_APPROVE,
       // Görev atamak için: görevleri görür, açar/değiştirir ve atayacağı kişileri seçmek için üyeleri listeler.
       PERMISSIONS.TASKS_READ,
       PERMISSIONS.TASKS_MANAGE,

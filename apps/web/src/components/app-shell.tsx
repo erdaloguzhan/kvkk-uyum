@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { href: '/envanter', label: 'Veri envanteri', permission: PERMISSIONS.INVENTORY_READ },
   { href: '/sozlesmeler', label: 'Sözleşmeler', permission: PERMISSIONS.CONTRACTS_READ },
   { href: '/ihlaller', label: 'Veri ihlalleri', permission: PERMISSIONS.INCIDENTS_READ },
+  { href: '/imha', label: 'Veri imha yönetimi', permission: PERMISSIONS.DESTRUCTION_READ },
   { href: '/gorevler', label: 'Görevler', permission: PERMISSIONS.TASKS_READ },
   { href: '/bildirimler', label: 'Bildirimler' },
   { href: '/kayitlar', label: 'İşlem kayıtları', permission: PERMISSIONS.AUDIT_READ },

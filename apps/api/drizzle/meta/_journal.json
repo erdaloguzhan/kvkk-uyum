@@ -141,6 +141,13 @@
       "when": 1793181216520,
       "tag": "0019_incidents",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793182892797,
+      "tag": "0020_destruction",
+      "breakpoints": true
     }
   ]
 }

@@ -174,6 +174,9 @@ export class TasksService {
     if (task.type === 'approval') {
       throw new ConflictException('Onay görevi, onay talebi onaylanarak veya reddedilerek kapanır');
     }
+    if (task.entityType === 'destruction_item') {
+      throw new ConflictException('Bu görev, İmha yönetiminde imhanın gerçekleştiği kaydedilince kapanır');
+    }
     if (task.assigneeId !== viewer.userId && !viewer.canManage) {
       throw new ForbiddenException('Bu görevi yalnızca atanan kişi tamamlayabilir');
     }
