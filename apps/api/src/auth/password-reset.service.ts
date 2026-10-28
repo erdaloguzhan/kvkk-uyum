@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { generateToken, hashPassword, sha256 } from '../common/crypto';
@@ -7,15 +7,19 @@ import { Database, InjectDb } from '../db/db.module';
 import { passwordResetTokens, refreshTokens, users } from '../db/schema';
 import { accountRoleLabel, salutation, SYSTEM_NAME } from './account-label';
 import { MailerService } from './mailer.service';
+import { SmsService } from './sms.service';
 
 const RESET_TTL_MS = 60 * 60 * 1000;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PasswordResetService {
+  private readonly logger = new Logger(PasswordResetService.name);
+
   constructor(
     @InjectDb() private readonly db: Database,
     private readonly mailer: MailerService,
+    private readonly sms: SmsService,
     private readonly audit: AuditService,
     @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
@@ -34,7 +38,7 @@ export class PasswordResetService {
       subject: `${SYSTEM_NAME} şifre sıfırlama`,
       text:
         `${salutation(user.fullName)}\n\n${await this.accountPhrase(user.id)} şifresini sıfırlamak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
-        `Bağlantı 1 saat geçerlidir. Bağlantı açılmazsa şifre belirleme sayfasına şu kodu girebilirsiniz: ${token}\n\n` +
+        'Bağlantı 1 saat geçerlidir.\n\n' +
         'Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.',
     });
     await this.audit.record({ action: 'auth.password_reset_requested', userId: user.id, ...client });
@@ -59,13 +63,13 @@ export class PasswordResetService {
         : 'KVK Uyum Yönetim Sistemi hesabınız oluşturuldu.');
     await this.mailer.send({
       to: user.email,
-      subject: opts.subject ?? `${organizationName ?? 'KVK Uyum Yönetim Sistemi'} - hesabınızı etkinleştirin`,
+      subject: opts.subject ?? `${SYSTEM_NAME} hesabınız oluşturuldu`,
       text:
         `${greeting}${intro}\n\n` +
         `Şifrenizi oluşturmak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
-        `Bağlantı 7 gün geçerlidir. Kullanıcı adınız bu e-posta adresidir: ${user.email}\n` +
-        `Bağlantı açılmazsa şifre belirleme sayfasına şu kodu girebilirsiniz: ${token}\n`,
+        `Bağlantı 7 gün geçerlidir. Kullanıcı adınız bu e-posta adresidir: ${user.email}\n`,
     });
+    await this.smsInviteNotice(user.id);
   }
 
   /**
@@ -87,6 +91,25 @@ export class PasswordResetService {
       );
     if (!row) throw new BadRequestException('Kod geçersiz veya süresi dolmuş');
     return { fullName: row.fullName, roleLabel: await accountRoleLabel(this.db, row.userId) };
+  }
+
+  /**
+   * Davet e-postası gereksiz klasörüne düşebildiği için (Hotmail, 28.10.2026) cep telefonu kayıtlıysa SMS ile
+   * haber verilir. Bağlantı SMS'te gönderilmez; SMS gönderilemezse davet yine geçerlidir.
+   */
+  private async smsInviteNotice(userId: string) {
+    const [user] = await this.db.select({ fullName: users.fullName, phone: users.phone }).from(users).where(eq(users.id, userId));
+    if (!user?.phone || !this.sms.available) return;
+    try {
+      await this.sms.send({
+        to: user.phone,
+        text:
+          `Sayın ${user.fullName}, KVK Uyum Yönetim Sistemi hesabınız oluşturuldu. Şifre oluşturma bağlantısı e-posta ` +
+          'adresinize gönderildi. Gelen kutunuzda yoksa Gereksiz/Spam klasörüne bakın.',
+      });
+    } catch (err) {
+      this.logger.error(`Davet SMS'i gönderilemedi: ${err}`);
+    }
   }
 
   /** "KVK Uyum Yönetim Sistemi KVKK Sorumlusu hesabınızın" gibi; rol yoksa yalnızca sistem adı. */

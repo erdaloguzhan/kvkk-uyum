@@ -107,7 +107,11 @@ export async function login(app: INestApplication, email: string, password = PAS
     .post('/api/v1/auth/login')
     .send({ email, password })
     .expect(200);
-  const code = extractCode(lastMailTo(app, email).text);
+  // Telefonu kayıtlı kullanıcının kodu SMS ile gider.
+  const code =
+    loginRes.body.channel === 'sms'
+      ? /(\d{6})/.exec(app.get(SmsService).outbox[app.get(SmsService).outbox.length - 1].text)![1]
+      : extractCode(lastMailTo(app, email).text);
   const verifyRes = await request(server)
     .post('/api/v1/auth/verify')
     .send({ challengeId: loginRes.body.challengeId, code })

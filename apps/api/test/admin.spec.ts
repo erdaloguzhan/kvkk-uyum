@@ -5,11 +5,13 @@ import path from 'node:path';
 import PizZip from 'pizzip';
 import request from 'supertest';
 import { templateTags, UNSUPPORTED_PLACEHOLDERS } from '../src/documents/template-renderer';
+import { textToHtml } from '../src/auth/mailer.service';
 import {
   createApp,
   createOrg,
   extractCode,
   lastMailTo,
+  lastSmsTo,
   login,
   makePlatformAdmin,
   PASSWORD,
@@ -109,11 +111,12 @@ describe('Yönetim paneli', () => {
 
     it('kuruluşu Sorumlu ve Yönetici hesaplarıyla açar; her birine şifre oluşturma bağlantısı gider', async () => {
       const email = uniqueEmail('sorumlu');
+      const officerPhone = `053${String(Date.now()).slice(-8)}`;
       const approver = person('yonetici', 'Ali Kaya');
       const res = await request(server)
         .post('/api/v1/admin/organizations')
         .set(auth(admin.accessToken))
-        .send({ ...PROFILE, email, authorizedPerson: 'Mehmet Demir', approver })
+        .send({ ...PROFILE, email, authorizedPerson: 'Mehmet Demir', authorizedPhone: officerPhone, approver })
         .expect(201);
       const orgId = res.body.organization.id;
       expect(res.body.members).toEqual([
@@ -131,6 +134,13 @@ describe('Yönetim paneli', () => {
       // Şifre e-postayla gönderilmez.
       expect(mail.text).not.toContain(PASSWORD);
       expect(lastMailTo(app, approver.email).text).toContain('Yönetici');
+      // E-posta gereksiz klasörüne düşebilir: telefonu olana SMS ile haber verilir (bağlantı SMS'te yok).
+      const notice = lastSmsTo(app, officerPhone).text;
+      expect(notice).toContain('Sayın Mehmet Demir');
+      expect(notice).toContain('Gereksiz/Spam');
+      expect(notice).not.toContain('sifre-belirle');
+      // E-postanın HTML sürümünde bağlantı tıklanabilir.
+      expect(textToHtml(mail.text)).toMatch(/<a href="http:\/\/localhost:3000\/sifre-belirle\?kod=/);
 
       const officer = await activate(email);
       expect(await roleIn(officer, orgId)).toBe('kvkk_officer');
