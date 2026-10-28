@@ -26,6 +26,7 @@ import { sendAttachment, toAttachments } from '../support/files';
 import { sendFile } from '../training/files';
 import {
   answerBody,
+  assigneeBody,
   formSettingsBody,
   listQuery,
   manualCreateBody,
@@ -98,12 +99,12 @@ export class RequestsController {
 
   @Patch('form-settings')
   @RequirePermissions(PERMISSIONS.REQUESTS_MANAGE)
-  setFormEnabled(
+  updateFormSettings(
     @CurrentOrg() org: OrgContext,
     @CurrentUser() user: AuthUser,
     @Body(new ZodPipe(formSettingsBody)) body: z.infer<typeof formSettingsBody>,
   ) {
-    return this.requests.setFormEnabled(org.id, user.id, body.enabled);
+    return this.requests.updateFormSettings(org.id, user.id, body);
   }
 
   @Post('form-settings/regenerate')
@@ -144,6 +145,18 @@ export class RequestsController {
     @Body(new ZodPipe(statusBody)) body: z.infer<typeof statusBody>,
   ) {
     return this.requests.setStatus(org.id, user.id, id, body.status, body.note);
+  }
+
+  @Post(':id/assignee')
+  @HttpCode(200)
+  @RequirePermissions(PERMISSIONS.REQUESTS_MANAGE)
+  reassign(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(assigneeBody)) body: z.infer<typeof assigneeBody>,
+  ) {
+    return this.requests.reassign(org.id, user.id, id, body.assigneeId);
   }
 
   @Post(':id/notes')

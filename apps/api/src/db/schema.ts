@@ -65,6 +65,8 @@ export const organizations = pgTable('organizations', {
     .default(sql`substr(md5(gen_random_uuid()::text), 1, 16)`),
   /** Başvuru formu dışarıya açık mı. */
   requestFormEnabled: boolean('request_form_enabled').notNull().default(true),
+  /** Yeni başvuruların görevinin atanacağı kullanıcı; boşsa KVKK Sorumlusu kuralı uygulanır. */
+  requestAssigneeId: uuid('request_assignee_id').references(() => users.id, { onDelete: 'set null' }),
   licenseStatus: text('license_status', { enum: ['trial', 'active', 'expired'] })
     .notNull()
     .default('trial'),
@@ -1141,7 +1143,7 @@ export const dataSubjectRequestEvents = pgTable(
       .notNull()
       .references(() => dataSubjectRequests.id, { onDelete: 'cascade' }),
     kind: text('kind', {
-      enum: ['received', 'status_changed', 'info_requested', 'info_received', 'answered', 'answer_updated', 'note', 'file_added'],
+      enum: ['received', 'status_changed', 'info_requested', 'info_received', 'answered', 'answer_updated', 'note', 'file_added', 'reassigned'],
     }).notNull(),
     note: text('note'),
     userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),

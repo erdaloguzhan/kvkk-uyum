@@ -613,6 +613,17 @@ export interface RequestFormSettings {
   key: string;
   url: string;
   embedCode: string;
+  /** Form ayarlarında seçilen kişi; null ise KVKK Sorumlusu kuralı uygulanır. */
+  assignee: RequestAssigneeOption | null;
+  /** Yeni başvurunun şu an düşeceği kişi. */
+  effectiveAssignee: RequestAssigneeOption | null;
+  candidates: RequestAssigneeOption[];
+}
+
+export interface RequestAssigneeOption {
+  id: string;
+  fullName: string;
+  roleName: string;
 }
 
 export interface DataSubjectRequestReport {

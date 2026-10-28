@@ -111,7 +111,7 @@ describe('İlgili kişi başvuruları', () => {
 
     // Sorumluya bildirim (kişisel veri içermeden).
     const mail = lastMailTo(app, officer.email);
-    expect(mail.subject).toBe('Yeni ilgili kişi başvurusu: B-0001');
+    expect(mail.subject).toBe('İlgili kişi başvurusu size atandı: B-0001');
     expect(mail.text).not.toContain('Ayşe');
 
     const file = await request(server)
@@ -261,6 +261,50 @@ describe('İlgili kişi başvuruları', () => {
     expect(report.body.byOutcome.find((o: any) => o.key === 'accepted').count).toBe(1);
     expect(report.body.byItem.filter((i: any) => i.count > 0).map((i: any) => i.no)).toEqual([1, 5, 6]);
     expect(report.body.byRelationship.find((r: any) => r.key === 'former_employee').count).toBe(1);
+  });
+
+  it('başvuruların atanacağı kişi seçilebilir ve açık başvurunun sorumlusu değiştirilebilir', async () => {
+    const { admin, officer, as, key } = await setupOrg();
+    const url = '/api/v1/data-subject-requests/form-settings';
+    const settings = await request(server).get(url).set(as(admin.accessToken)).expect(200);
+    // Seçim yokken KVKK Sorumlusu (Sorumlu + Yönetici olan kurucudan önce) görevi alır.
+    expect(settings.body.assignee).toBeNull();
+    expect(settings.body.effectiveAssignee.id).toBe(officer.user.id);
+    expect(settings.body.candidates.map((c: any) => c.id)).toEqual([officer.user.id, admin.user.id]);
+
+    const first = await submit(key, { ...APPLICATION, email: uniqueEmail('b1') }).expect(201);
+    const firstId = (await request(server).get('/api/v1/data-subject-requests').set(as(admin.accessToken))).body.items[0].id;
+    expect(first.body.number).toBe('B-0001');
+
+    // Kurucu, açık başvuruyu kendine alır; görev ona geçer ve "Bana atananlar"da görünür.
+    const moved = await request(server)
+      .post(`/api/v1/data-subject-requests/${firstId}/assignee`)
+      .set(as(admin.accessToken))
+      .send({ assigneeId: admin.user.id })
+      .expect(200);
+    expect(moved.body.task.assignee).toMatchObject({ id: admin.user.id });
+    expect(moved.body.events.at(-1)).toMatchObject({ kind: 'reassigned' });
+    const mine = await request(server).get('/api/v1/tasks?mine=true&status=open').set(as(admin.accessToken)).expect(200);
+    expect(mine.body.items.map((t: any) => t.entityId)).toContain(firstId);
+    const officerTasks = await request(server).get('/api/v1/tasks?mine=true&status=open').set(as(officer.accessToken)).expect(200);
+    expect(officerTasks.body.items.map((t: any) => t.entityId)).not.toContain(firstId);
+
+    // Yetkisi olmayan veya kuruluşta olmayan kişi seçilemez.
+    const stranger = await registerAndLogin(app);
+    await request(server).post(`/api/v1/data-subject-requests/${firstId}/assignee`).set(as(admin.accessToken)).send({ assigneeId: stranger.user.id }).expect(400);
+    await request(server).patch(url).set(as(admin.accessToken)).send({ assigneeId: stranger.user.id }).expect(400);
+
+    // Varsayılan atanan seçilince yeni başvurular ona düşer; seçim kaldırılınca kural geri gelir.
+    const chosen = await request(server).patch(url).set(as(admin.accessToken)).send({ assigneeId: admin.user.id }).expect(200);
+    expect(chosen.body.assignee.id).toBe(admin.user.id);
+    expect(chosen.body.enabled).toBe(true);
+    await submit(key, { ...APPLICATION, email: uniqueEmail('b2') }).expect(201);
+    const list = await request(server).get('/api/v1/data-subject-requests').set(as(admin.accessToken)).expect(200);
+    expect(list.body.items.find((r: any) => r.code === 'B-0002').assignee.id).toBe(admin.user.id);
+
+    const cleared = await request(server).patch(url).set(as(admin.accessToken)).send({ assigneeId: null }).expect(200);
+    expect(cleared.body.assignee).toBeNull();
+    expect(cleared.body.effectiveAssignee.id).toBe(officer.user.id);
   });
 
   it('Sorumlu elden veya noterden gelen başvuruyu girer', async () => {
