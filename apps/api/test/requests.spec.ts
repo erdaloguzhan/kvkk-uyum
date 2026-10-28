@@ -91,7 +91,7 @@ describe('İlgili kişi başvuruları', () => {
       channel: 'web_form',
       phone: '05321112233',
       nationalIdMasked: '100******46',
-      assignee: { id: officer.user.id },
+      assignee: { id: officer.user.id, fullName: 'Selin Sorumlu' },
     });
     const today = dateIn(new Date());
     expect(item.targetDate).toBe(addDays(today, 20));
@@ -103,7 +103,7 @@ describe('İlgili kişi başvuruları', () => {
     expect(detail.body.files).toHaveLength(1);
     expect(detail.body.files[0]).toMatchObject({ kind: 'applicant', fileName: 'kimlik.pdf', mimeType: 'application/pdf' });
     expect(detail.body.events[0].kind).toBe('received');
-    expect(detail.body.task).toMatchObject({ status: 'open', dueDate: addDays(today, 20), assignee: { id: officer.user.id } });
+    expect(detail.body.task).toMatchObject({ status: 'open', dueDate: addDays(today, 20), assignee: { id: officer.user.id, fullName: 'Selin Sorumlu' } });
 
     // T.C. kimlik numarası veritabanında şifreli.
     const raw = await db.execute<{ national_id: string }>(sql`select national_id from data_subject_requests where id = ${item.id}`);
