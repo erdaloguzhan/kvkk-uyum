@@ -23,6 +23,9 @@ export const PERMISSIONS = {
   DESTRUCTION_READ: 'destruction.read',
   DESTRUCTION_MANAGE: 'destruction.manage',
   DESTRUCTION_APPROVE: 'destruction.approve',
+  /** İlgili kişi başvuruları (FRM-010). */
+  REQUESTS_READ: 'requests.read',
+  REQUESTS_MANAGE: 'requests.manage',
   REPORTS_READ: 'reports.read',
 } as const;
 
@@ -74,6 +77,8 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
       PERMISSIONS.TASKS_READ,
       PERMISSIONS.TASKS_MANAGE,
       PERMISSIONS.USERS_READ,
+      // İlgili kişi başvurularını ve raporlarını görür; cevabı Sorumlu kaydeder.
+      PERMISSIONS.REQUESTS_READ,
       // Veri ihlali kayıtlarını görür ve Kurula bildirim formunu onaylar (PRS-030: bildirim yöneticinin yükümlülüğü).
       PERMISSIONS.INCIDENTS_READ,
       PERMISSIONS.INCIDENTS_APPROVE,

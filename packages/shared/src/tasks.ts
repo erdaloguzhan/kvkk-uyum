@@ -3,13 +3,17 @@
  * Web, mobil ve API aynı listeleri kullanır.
  */
 
-/** Görev türleri. `approval` görevleri onay talebiyle birlikte oluşur ve onay/ret ile kapanır. */
+/**
+ * Görev türleri. `approval` görevleri onay talebiyle birlikte oluşur ve onay/ret ile kapanır;
+ * `data_subject_request` görevleri dışarıdan gelen başvuruyla açılır ve başvurunun cevabı kaydedilince kapanır.
+ */
 export const TASK_TYPES = {
   general: 'Genel',
   document_review: 'Doküman gözden geçirme',
   inventory_review: 'Envanter gözden geçirme',
   data_destruction: 'Periyodik imha',
   approval: 'Onay',
+  data_subject_request: 'İlgili kişi başvurusu',
 } as const;
 
 export type TaskType = keyof typeof TASK_TYPES;
@@ -27,6 +31,7 @@ export const TASK_ENTITY_TYPES = {
   document: 'Doküman',
   inventory_entry: 'Envanter satırı',
   inventory_approval: 'Envanter onay talebi',
+  data_subject_request: 'İlgili kişi başvurusu',
   incident: 'Veri ihlali kaydı',
   destruction_plan: 'İmha planı',
   destruction_item: 'Planlanan imha',
@@ -34,7 +39,7 @@ export const TASK_ENTITY_TYPES = {
 
 export type TaskEntityType = keyof typeof TASK_ENTITY_TYPES;
 
-/** Görev açılırken bağlanabilecek kayıtlar; envanter onay talebine ve ihlal kaydına yalnızca onay görevi bağlanır. */
+/** Görev açılırken bağlanabilecek kayıtlar; onay talepleri, ihlal kayıtları ve başvuru görevleri sistem tarafından bağlanır. */
 export const LINKABLE_TASK_ENTITY_TYPES = ['document', 'inventory_entry'] as const satisfies readonly TaskEntityType[];
 
 /**

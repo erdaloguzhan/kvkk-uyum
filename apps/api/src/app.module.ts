@@ -18,6 +18,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { MembersModule } from './members/members.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { RequestsModule } from './requests/requests.module';
 import { RolesModule } from './roles/roles.module';
 import { SupportModule } from './support/support.module';
 import { TrainingModule } from './training/training.module';
@@ -52,6 +53,7 @@ import { WorkflowModule } from './workflow/workflow.module';
     AdminModule,
     TrainingModule,
     SupportModule,
+    RequestsModule,
   ],
   controllers: [HealthController],
   providers: [

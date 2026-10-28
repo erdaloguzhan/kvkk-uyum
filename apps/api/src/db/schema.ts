@@ -56,6 +56,15 @@ export const organizations = pgTable('organizations', {
   authorizedPerson: text('authorized_person'),
   taxNumber: text('tax_number'),
   website: text('website'),
+  /**
+   * Herkese açık ilgili kişi başvuru formunun (FRM-010) adresindeki kuruluş kodu: /basvuru/<kod>.
+   * Tahmin edilemez; Sorumlu yenileyebilir (eski bağlantı çalışmaz olur).
+   */
+  requestFormKey: text('request_form_key')
+    .notNull()
+    .default(sql`substr(md5(gen_random_uuid()::text), 1, 16)`),
+  /** Başvuru formu dışarıya açık mı. */
+  requestFormEnabled: boolean('request_form_enabled').notNull().default(true),
   licenseStatus: text('license_status', { enum: ['trial', 'active', 'expired'] })
     .notNull()
     .default('trial'),
@@ -64,7 +73,7 @@ export const organizations = pgTable('organizations', {
   /** Saklama ve İmha Politikasında belirlenen periyodik imha süresi (ay). */
   destructionPeriodMonths: integer('destruction_period_months').notNull().default(6),
   createdAt: createdAt(),
-});
+}, (t) => [uniqueIndex('organizations_request_form_key_unique').on(t.requestFormKey)]);
 
 export const roles = pgTable(
   'roles',
@@ -316,7 +325,7 @@ export const tasks = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
     type: text('type', {
-      enum: ['general', 'document_review', 'inventory_review', 'data_destruction', 'approval'],
+      enum: ['general', 'document_review', 'inventory_review', 'data_destruction', 'approval', 'data_subject_request'],
     }).notNull(),
     title: text('title').notNull(),
     description: text('description'),
@@ -332,7 +341,7 @@ export const tasks = pgTable(
     status: text('status', { enum: ['open', 'done', 'cancelled'] }).notNull().default('open'),
     /** Bağlı kayıt (ör. gözden geçirilecek doküman). */
     entityType: text('entity_type', {
-      enum: ['document', 'inventory_entry', 'inventory_approval', 'incident', 'destruction_plan', 'destruction_item'],
+      enum: ['document', 'inventory_entry', 'inventory_approval', 'incident', 'destruction_plan', 'destruction_item', 'data_subject_request'],
     }),
     entityId: uuid('entity_id'),
     previousTaskId: uuid('previous_task_id').references((): AnyPgColumn => tasks.id, { onDelete: 'set null' }),
@@ -1024,4 +1033,119 @@ export const destructionRecords = pgTable(
     index('destruction_records_org_date_idx').on(t.organizationId, t.performedDate),
     uniqueIndex('destruction_records_item_unique').on(t.itemId),
   ],
+);
+
+// ---------------------------------------------------------------------------------------------
+// İlgili kişi başvuruları (FRM-010 / PRS-010)
+// ---------------------------------------------------------------------------------------------
+
+/** Formda işaretlenen talep maddesi (FRM-010 Talep No 1-10). */
+export interface DsrRequestItemRow {
+  no: number;
+  detail?: string | null;
+  option?: 'a' | 'b' | 'c' | null;
+}
+
+/**
+ * İlgili kişinin (veri sahibi) başvurusu. Online formdan gelir veya Sorumlu elden/noterden gelen başvuruyu
+ * kaydeder. Başvuru KVKK Sorumlusuna görev olarak düşer; cevap kaydedilince görev kapanır.
+ * Cevap süreleri gün olarak tutulur: `targetDate` kurum içi hedef, `legalDueDate` yasal son gün. Ek bilgi
+ * beklenirken süre işlemez; beklenen gün sayısı kadar iki tarih de ileri alınır.
+ */
+export const dataSubjectRequests = pgTable(
+  'data_subject_requests',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    /** Kuruluş içinde sıralı başvuru numarası (B-0001). */
+    number: integer('number').notNull(),
+    channel: text('channel', {
+      enum: ['web_form', 'in_person', 'notary', 'postal', 'kep', 'email', 'other'],
+    }).notNull(),
+    fullName: text('full_name').notNull(),
+    /** Şifreli. */
+    nationalId: encryptedText('national_id'),
+    birthDate: date('birth_date', { mode: 'string' }),
+    phone: text('phone'),
+    email: text('email'),
+    address: text('address'),
+    relationship: text('relationship', {
+      enum: ['member', 'visitor', 'former_employee', 'job_applicant', 'customer', 'other'],
+    }),
+    /** Eski çalışan için çalıştığı yıllar, iş başvurusu tarihi veya "Diğer" açıklaması. */
+    relationshipDetail: text('relationship_detail'),
+    responseMethod: text('response_method', { enum: ['postal', 'email', 'in_person'] }),
+    items: jsonb('items').$type<DsrRequestItemRow[]>().notNull(),
+    /** "Lütfen Kanun kapsamındaki talebinizi detaylı olarak açıklayınız". */
+    description: text('description'),
+    status: text('status', { enum: ['new', 'in_review', 'awaiting_info', 'answered'] })
+      .notNull()
+      .default('new'),
+    /** Başvurunun kuruma ulaştığı an (online formda gönderim anı). */
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
+    targetDate: date('target_date', { mode: 'string' }).notNull(),
+    legalDueDate: date('legal_due_date', { mode: 'string' }).notNull(),
+    /** Ek bilgi beklenmeye başlanan gün (süre durdu). */
+    pausedOn: date('paused_on', { mode: 'string' }),
+    /** Ek bilgi beklenen toplam gün. */
+    pausedDays: integer('paused_days').notNull().default(0),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    /** Cevabın ilgili kişiye bildirildiği gün. */
+    answeredOn: date('answered_on', { mode: 'string' }),
+    answerOutcome: text('answer_outcome', { enum: ['accepted', 'partially_accepted', 'rejected'] }),
+    answerMethod: text('answer_method', { enum: ['postal', 'email', 'in_person', 'kep', 'other'] }),
+    /** Veri sorumlusunun başvuruya ilişkin açıklamaları (cevabın özeti / ret gerekçesi). */
+    answerSummary: text('answer_summary'),
+    answerRecordedAt: timestamp('answer_recorded_at', { withTimezone: true }),
+    answerRecordedBy: uuid('answer_recorded_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Online formu gönderenin IP adresi ve tarayıcısı (kötüye kullanım incelemesi için). */
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('data_subject_requests_org_number_unique').on(t.organizationId, t.number),
+    index('data_subject_requests_org_received_idx').on(t.organizationId, t.receivedAt),
+  ],
+);
+
+/** Başvuru ekleri: başvuranın gönderdiği belgeler ve kurumun cevap yazısı. */
+export const dataSubjectRequestFiles = pgTable(
+  'data_subject_request_files',
+  {
+    id: id(),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => dataSubjectRequests.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['applicant', 'response', 'other'] }).notNull(),
+    fileName: text('file_name').notNull(),
+    mimeType: text('mime_type').notNull(),
+    size: integer('size').notNull(),
+    content: bytea('content').notNull(),
+    uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('data_subject_request_files_request_idx').on(t.requestId)],
+);
+
+/** Başvurunun işlem geçmişi (PRS-010: başvuru kayıtlarının tutulması). */
+export const dataSubjectRequestEvents = pgTable(
+  'data_subject_request_events',
+  {
+    id: id(),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => dataSubjectRequests.id, { onDelete: 'cascade' }),
+    kind: text('kind', {
+      enum: ['received', 'status_changed', 'info_requested', 'info_received', 'answered', 'answer_updated', 'note', 'file_added'],
+    }).notNull(),
+    note: text('note'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('data_subject_request_events_request_idx').on(t.requestId, t.createdAt)],
 );

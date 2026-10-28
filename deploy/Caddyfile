@@ -8,9 +8,12 @@ import /etc/caddy/ek/*.caddy
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
-		X-Frame-Options DENY
 		-Server
 	}
+	# Sayfalar başka sitelerde çerçeve içinde açılamaz. İlgili kişi başvuru formu (/basvuru/...) hariç:
+	# kuruluşlar onu kendi web sitelerine ekleyebilir (izin web uygulamasının CSP başlığında da verilir).
+	@cercevesiz not path /basvuru/*
+	header @cercevesiz X-Frame-Options DENY
 	# Doküman ve Excel yüklemeleri için üst sınır.
 	request_body {
 		max_size 25MB

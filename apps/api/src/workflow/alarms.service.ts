@@ -1,10 +1,11 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { and, eq, lte } from 'drizzle-orm';
+import { DSR_LEGAL_DAYS, DSR_TARGET_DAYS } from '@kvkk/shared';
+import { and, eq, inArray, lte } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { ErrorAlertsService } from '../monitoring/error-alerts.service';
 import { incidentDeadlineAlarms } from '../incidents/incident-alarms';
-import { memberships, tasks } from '../db/schema';
+import { dataSubjectRequests, memberships, tasks } from '../db/schema';
 import { addDays, dateIn, daysBetween, formatDate } from './dates';
 import { findActiveMember } from './members';
 import { NewNotification, NotificationsService } from './notifications.service';
@@ -70,8 +71,10 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
           ),
         )
         .where(and(eq(tasks.status, 'open'), lte(tasks.dueDate, addDays(today, MAX_REMINDER_DAYS))));
+      const paused = await this.pausedRequestTasks(rows.map((r) => r.task));
       let created = 0;
       for (const { task } of rows) {
+        if (paused.has(task.id)) continue;
         for (const n of this.alarmsFor(task, today)) {
           // Görevi açan kişi artık kuruluşta değilse ona bildirim gönderilmez.
           if (n.userId !== task.assigneeId && !(await findActiveMember(this.db, task.organizationId, n.userId))) continue;
@@ -85,6 +88,17 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
     } finally {
       this.running = false;
     }
+  }
+
+  /** Ek bilgi beklenen ilgili kişi başvurularında süre durduğu için hatırlatma gönderilmez. */
+  private async pausedRequestTasks(rows: TaskRow[]) {
+    const ids = rows.filter((t) => t.type === 'data_subject_request').map((t) => t.id);
+    if (ids.length === 0) return new Set<string>();
+    const paused = await this.db
+      .select({ taskId: dataSubjectRequests.taskId })
+      .from(dataSubjectRequests)
+      .where(and(inArray(dataSubjectRequests.taskId, ids), eq(dataSubjectRequests.status, 'awaiting_info')));
+    return new Set(paused.map((r) => r.taskId));
   }
 
   private alarmsFor(task: TaskRow, today: string): NewNotification[] {
@@ -124,6 +138,7 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
       ];
     }
     const late = -daysLeft;
+    if (task.type === 'data_subject_request') return [this.requestOverdue(task, today, late)];
     const alarms: NewNotification[] = [
       {
         ...base,
@@ -146,5 +161,32 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
       });
     }
     return alarms;
+  }
+
+  /**
+   * İlgili kişi başvurusu: görevin son tarihi kurum içi hedeftir. Hedef geçince yasal son güne kadar her gün,
+   * yasal süre de geçtiyse haftada bir hatırlatılır.
+   */
+  private requestOverdue(task: TaskRow, today: string, late: number): NewNotification {
+    const legal = addDays(task.dueDate, DSR_LEGAL_DAYS - DSR_TARGET_DAYS);
+    const legalLeft = daysBetween(today, legal);
+    const key = `task:${task.id}:${task.dueDate}`;
+    const base = { organizationId: task.organizationId, taskId: task.id, userId: task.assigneeId, kind: 'task_overdue' as const };
+    if (legalLeft >= 0) {
+      return {
+        ...base,
+        title: `Başvuru cevap süresi: ${legalLeft === 0 ? 'yasal son gün bugün' : `yasal süreye ${legalLeft} gün kaldı`}`,
+        body:
+          `${task.title}\nKurum içi hedef (${formatDate(task.dueDate)}) ${late} gün önce geçti.\n` +
+          `Yasal son gün: ${formatDate(legal)} (Kanun md. 13: en geç ${DSR_LEGAL_DAYS} gün).\n`,
+        dedupeKey: `${key}:dsr-overdue:${late}`,
+      };
+    }
+    return {
+      ...base,
+      title: `Yasal cevap süresi geçti: ${task.title}`,
+      body: `${task.title}\nYasal son gün (${formatDate(legal)}) ${-legalLeft} gün önce geçti. Başvuru hâlâ cevaplanmadı.\n`,
+      dedupeKey: `${key}:dsr-legal:${Math.floor((-legalLeft - 1) / 7)}`,
+    };
   }
 }

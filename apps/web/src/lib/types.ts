@@ -14,6 +14,14 @@ import type {
   NotificationKind,
   SupportCategory,
   SupportStatus,
+  DsrAnswerMethod,
+  DsrChannel,
+  DsrEventKind,
+  DsrOutcome,
+  DsrRelationship,
+  DsrRequestItem,
+  DsrResponseMethod,
+  DsrStatus,
   IncidentForm,
   IncidentNotificationType,
   IncidentStatus,
@@ -551,6 +559,83 @@ export interface AuditLogEntry {
   metadata: Record<string, unknown> | null;
   createdAt: string;
   user: { id: string; email: string; fullName: string } | null;
+}
+
+export interface DataSubjectRequestSummary {
+  id: string;
+  number: number;
+  code: string;
+  channel: DsrChannel;
+  fullName: string;
+  nationalIdMasked: string | null;
+  birthDate: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  relationship: DsrRelationship | null;
+  relationshipDetail: string | null;
+  responseMethod: DsrResponseMethod | null;
+  items: DsrRequestItem[];
+  description: string | null;
+  status: DsrStatus;
+  receivedAt: string;
+  targetDate: string;
+  legalDueDate: string;
+  pausedOn: string | null;
+  pausedDays: number;
+  daysToTarget: number | null;
+  daysToLegal: number | null;
+  overdue: boolean;
+  legalOverdue: boolean;
+  answeredOn: string | null;
+  answerOutcome: DsrOutcome | null;
+  answerMethod: DsrAnswerMethod | null;
+  answerSummary: string | null;
+  answerRecordedAt: string | null;
+  responseDays: number | null;
+  createdAt: string;
+  assignee?: { id: string; fullName: string } | null;
+}
+
+export interface DataSubjectRequestDetail extends DataSubjectRequestSummary {
+  nationalId: string | null;
+  ip: string | null;
+  userAgent: string | null;
+  createdBy: { id: string; fullName: string } | null;
+  answerRecordedBy: { id: string; fullName: string } | null;
+  task: { id: string; status: TaskStatus; dueDate: string; assignee: { id: string; fullName: string } } | null;
+  files: { id: string; kind: 'applicant' | 'response' | 'other'; fileName: string; mimeType: string; size: number; createdAt: string }[];
+  events: { id: string; kind: DsrEventKind; note: string | null; createdAt: string; user: { id: string; fullName: string } | null }[];
+}
+
+export interface RequestFormSettings {
+  enabled: boolean;
+  key: string;
+  url: string;
+  embedCode: string;
+}
+
+export interface DataSubjectRequestReport {
+  from: string | null;
+  to: string | null;
+  targetDays: number;
+  legalDays: number;
+  total: number;
+  open: number;
+  answered: number;
+  averageResponseDays: number | null;
+  answeredWithinTarget: number;
+  answeredWithinLegal: number;
+  answeredLate: number;
+  openPastTarget: number;
+  openPastLegal: number;
+  openDueSoon: number;
+  byStatus: { key: DsrStatus; count: number }[];
+  byOutcome: { key: DsrOutcome; count: number }[];
+  byChannel: { key: DsrChannel; count: number }[];
+  byRelationship: { key: DsrRelationship; count: number }[];
+  byItem: { no: number; count: number }[];
+  byMonth: { month: string; received: number; answered: number }[];
 }
 
 export interface Incident {

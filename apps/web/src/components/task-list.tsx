@@ -19,6 +19,7 @@ export function entityHref(t: Pick<Task, 'entityType' | 'entityId'>): string | n
   if (t.entityType === 'document') return `/dokumanlar/${t.entityId}`;
   if (t.entityType === 'inventory_entry') return `/envanter/${t.entityId}`;
   if (t.entityType === 'inventory_approval') return `/envanter/onay/${t.entityId}`;
+  if (t.entityType === 'data_subject_request') return `/basvurular/${t.entityId}`;
   if (t.entityType === 'incident') return `/ihlaller/${t.entityId}`;
   if (t.entityType === 'destruction_plan') return `/imha/${t.entityId}`;
   if (t.entityType === 'destruction_item') return `/imha/is/${t.entityId}`;
