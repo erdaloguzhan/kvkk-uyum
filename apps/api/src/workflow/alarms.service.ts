@@ -3,6 +3,7 @@ import { and, eq, lte } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { ErrorAlertsService } from '../monitoring/error-alerts.service';
+import { incidentDeadlineAlarms } from '../incidents/incident-alarms';
 import { memberships, tasks } from '../db/schema';
 import { addDays, dateIn, daysBetween, formatDate } from './dates';
 import { findActiveMember } from './members';
@@ -18,6 +19,7 @@ type TaskRow = typeof tasks.$inferSelect;
  * - Son tarihe hatırlatma günü kadar kala: hatırlatma (görev o günden sonra açıldıysa atlanır)
  * - Son gün: "son gün bugün"
  * - Süre geçince: atanan kişiye ilk gün ve sonra haftada bir; görevi açan kişiye bir kez.
+ * Ayrıca Kurula bildirilmemiş veri ihlalleri için 72 saat alarmları (bkz. incidents/incident-alarms).
  * Her alarmın tekil bir anahtarı vardır; tekrar çalıştırmak aynı alarmı ikinci kez üretmez.
  */
 @Injectable()
@@ -75,6 +77,9 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
           if (n.userId !== task.assigneeId && !(await findActiveMember(this.db, task.organizationId, n.userId))) continue;
           if (await this.notifications.notify(n)) created++;
         }
+      }
+      for (const n of await incidentDeadlineAlarms(this.db, now)) {
+        if (await this.notifications.notify(n)) created++;
       }
       return created;
     } finally {

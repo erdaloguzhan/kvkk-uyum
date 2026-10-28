@@ -14,6 +14,9 @@ import type {
   NotificationKind,
   SupportCategory,
   SupportStatus,
+  IncidentForm,
+  IncidentNotificationType,
+  IncidentStatus,
 } from '@kvkk/shared';
 
 export interface OrgMembership {
@@ -198,6 +201,7 @@ export interface Notification {
   body: string;
   taskId: string | null;
   approvalRequestId: string | null;
+  incidentId: string | null;
   readAt: string | null;
   createdAt: string;
 }
@@ -544,4 +548,64 @@ export interface AuditLogEntry {
   metadata: Record<string, unknown> | null;
   createdAt: string;
   user: { id: string; email: string; fullName: string } | null;
+}
+
+export interface Incident {
+  id: string;
+  number: number;
+  title: string;
+  notificationType: IncidentNotificationType;
+  parentId: string | null;
+  followUpRef: string | null;
+  occurredAt: string | null;
+  detectedAt: string;
+  form: IncidentForm;
+  status: IncidentStatus;
+  approverId: string | null;
+  taskId: string | null;
+  submittedAt: string | null;
+  decision: 'approved' | 'rejected' | null;
+  decisionNote: string | null;
+  decidedAt: string | null;
+  notifiedAt: string | null;
+  closingNote: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** İlk bildirimde Kurula bildirim için son an (tespit + 72 saat). */
+  deadlineAt: string | null;
+  hoursLeft: number | null;
+  overdue: boolean;
+  notifiedOnTime: boolean | null;
+  approver: { id: string; fullName: string } | null;
+  createdByUser: { id: string; fullName: string } | null;
+  decidedByUser: { id: string; fullName: string } | null;
+}
+
+export interface IncidentDetail extends Incident {
+  parent: { id: string; number: number; title: string } | null;
+  followUps: { id: string; number: number; title: string; notificationType: IncidentNotificationType; status: IncidentStatus }[];
+}
+
+export interface IncidentReport {
+  from: string | null;
+  to: string | null;
+  total: number;
+  followUps: number;
+  byStatus: Record<IncidentStatus, number>;
+  open: number;
+  openOverdue: number;
+  notified: number;
+  notifiedOnTime: number;
+  notifiedLate: number;
+  closedWithoutNotice: number;
+  averageHoursToNotify: number | null;
+  estimatedPeople: number;
+  estimatedRecords: number;
+  specialCategoryIncidents: number;
+  cyberAttacks: number;
+  bySource: { label: string; count: number }[];
+  byCategory: { label: string; count: number }[];
+  byLikelihood: { label: string; count: number }[];
+  items: Incident[];
 }

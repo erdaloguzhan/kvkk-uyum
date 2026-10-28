@@ -15,7 +15,9 @@ export const PERMISSIONS = {
   INVENTORY_APPROVE: 'inventory.approve',
   TASKS_READ: 'tasks.read',
   TASKS_MANAGE: 'tasks.manage',
+  INCIDENTS_READ: 'incidents.read',
   INCIDENTS_MANAGE: 'incidents.manage',
+  INCIDENTS_APPROVE: 'incidents.approve',
   CONTRACTS_READ: 'contracts.read',
   CONTRACTS_MANAGE: 'contracts.manage',
   DESTRUCTION_MANAGE: 'destruction.manage',
@@ -35,7 +37,7 @@ export interface SystemRoleDefinition {
 /**
  * Müşteri kuruluşlarında yalnızca bu sabit roller vardır; özel rol tanımlanamaz.
  * Sorumlu tüm işi yapar; dokümanları ve veri envanterindeki değişiklikleri Yöneticinin onayına gönderir.
- * Yönetici dokümanları ve envanter değişikliklerini onaylar, görev atar; başka bir şeyi değiştiremez.
+ * Yönetici dokümanları, envanter değişikliklerini ve veri ihlali bildirimlerini onaylar, görev atar; başka bir şeyi değiştiremez.
  * Aynı kişi (aynı e-posta) her ikisi olacaksa "Sorumlu + Yönetici" rolü atanır.
  * Çalışanlar yayınlanmış dokümanları ayrı bir rol yerine eğitim portalı hesaplarıyla görür.
  */
@@ -49,7 +51,8 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
     key: 'kvkk_officer',
     name: 'KVKK Sorumlusu',
     permissions: ALL_PERMISSIONS.filter(
-      (p) => p !== PERMISSIONS.DOCUMENTS_APPROVE && p !== PERMISSIONS.INVENTORY_APPROVE,
+      (p) =>
+        p !== PERMISSIONS.DOCUMENTS_APPROVE && p !== PERMISSIONS.INVENTORY_APPROVE && p !== PERMISSIONS.INCIDENTS_APPROVE,
     ),
   },
   {
@@ -64,6 +67,9 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
       PERMISSIONS.TASKS_READ,
       PERMISSIONS.TASKS_MANAGE,
       PERMISSIONS.USERS_READ,
+      // Veri ihlali kayıtlarını görür ve Kurula bildirim formunu onaylar (PRS-030: bildirim yöneticinin yükümlülüğü).
+      PERMISSIONS.INCIDENTS_READ,
+      PERMISSIONS.INCIDENTS_APPROVE,
     ],
   },
 ];
