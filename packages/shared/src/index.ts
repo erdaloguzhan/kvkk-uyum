@@ -7,3 +7,4 @@ export * from './contracts';
 export * from './support';
 export * from './audit';
 export * from './data-subject-requests';
+export * from './incidents';

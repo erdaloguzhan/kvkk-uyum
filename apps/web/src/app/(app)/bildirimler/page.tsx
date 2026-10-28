@@ -55,8 +55,8 @@ export default function NotificationsPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <strong>
                     {!n.readAt && <span aria-label="okunmadı" style={{ color: 'var(--primary)' }}>● </span>}
-                    {n.taskId ? (
-                      <Link href={`/gorevler/${n.taskId}`} onClick={() => markRead(n)}>
+                    {n.incidentId || n.taskId ? (
+                      <Link href={n.incidentId ? `/ihlaller/${n.incidentId}` : `/gorevler/${n.taskId}`} onClick={() => markRead(n)}>
                         {n.title}
                       </Link>
                     ) : (
@@ -69,7 +69,15 @@ export default function NotificationsPage() {
                   {n.body}
                 </div>
                 <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <Badge kind={n.kind === 'task_overdue' ? 'danger' : n.kind === 'task_due_today' ? 'warning' : 'info'}>
+                  <Badge
+                    kind={
+                      n.kind === 'task_overdue' || n.kind === 'incident_deadline'
+                        ? 'danger'
+                        : n.kind === 'task_due_today' || n.kind === 'incident_recorded'
+                          ? 'warning'
+                          : 'info'
+                    }
+                  >
                     {NOTIFICATION_KINDS[n.kind]}
                   </Badge>
                   {!n.readAt && (

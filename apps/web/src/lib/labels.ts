@@ -1,4 +1,4 @@
-import { CONTRACT_FIELD_LABELS, INVENTORY_COLUMNS, SYSTEM_ROLES } from '@kvkk/shared';
+import { CONTRACT_FIELD_LABELS, INCIDENT_FIELD_LABELS, INVENTORY_COLUMNS, SYSTEM_ROLES } from '@kvkk/shared';
 
 /** Sabit kuruluş rollerinin adları (anahtar → ad). */
 export const ROLE_LABELS: Record<string, string> = Object.fromEntries(SYSTEM_ROLES.map((r) => [r.key, r.name]));
@@ -26,6 +26,7 @@ const OTHER_LABELS: Record<string, string> = {
   ...Object.fromEntries(INVENTORY_COLUMNS.map((c) => [c.field, c.label])),
   // `type` ve `status` görevlerde de var; sözleşmeye özgü adla gösterilmesin diye alınmaz.
   ...Object.fromEntries(Object.entries(CONTRACT_FIELD_LABELS).filter(([k]) => k !== 'type' && k !== 'status')),
+  ...Object.fromEntries(Object.entries(INCIDENT_FIELD_LABELS).filter(([k]) => k !== 'title')),
 };
 
 export function fieldLabel(field: string): string {

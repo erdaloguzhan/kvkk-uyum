@@ -322,3 +322,16 @@ dl.details dd { margin: 0; }
 .report-bar .num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .report-bar { grid-template-columns: 1fr 60px 32px; } }
 .embed-code { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.82rem; }
+
+/* Veri ihlali kaydı (FRM-020 bölümleri) */
+.plain-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 16px; }
+.incident-section { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 0 18px 18px; }
+.incident-section > h2 { margin: 0 -18px 16px; padding: 8px 18px; background: #02677c; color: #fff; font-size: 1rem; border-radius: var(--radius) var(--radius) 0 0; }
+.check-list { display: grid; gap: 6px; }
+.check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; }
+@media (max-width: 640px) { .check-grid { grid-template-columns: 1fr; } }
+.check-inline { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.form-footer { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; position: sticky; bottom: 0; background: var(--bg); padding: 10px 0; }
+.bar-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bar-list li { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr 40px; gap: 10px; align-items: center; font-size: 0.9rem; }
+.bar-list .bar { height: 10px; border-radius: 999px; background: var(--primary); min-width: 4px; }

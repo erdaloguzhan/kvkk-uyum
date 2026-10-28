@@ -30,3 +30,14 @@ export async function requireActiveMember(db: Database, orgId: string, userId: s
   }
   return member;
 }
+
+/** Kuruluşun, verilen yetkilerden en az birine sahip aktif üyeleri. */
+export async function activeMembersWithAny(db: Database, orgId: string, permissions: Permission[]) {
+  const rows = await db
+    .select({ id: users.id, fullName: users.fullName, permissions: roles.permissions })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .innerJoin(roles, eq(roles.id, memberships.roleId))
+    .where(and(eq(memberships.organizationId, orgId), eq(memberships.status, 'active'), eq(users.isActive, true)));
+  return rows.filter((r) => permissions.some((p) => (r.permissions as Permission[]).includes(p)));
+}

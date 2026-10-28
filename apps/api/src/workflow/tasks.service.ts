@@ -10,7 +10,7 @@ import { and, asc, eq, getTableColumns, gte, lt, SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { AuditService } from '../audit/audit.service';
 import { Database, InjectDb } from '../db/db.module';
-import { dataSubjectRequests, documents, inventoryApprovals, inventoryEntries, tasks, users } from '../db/schema';
+import { dataSubjectRequests, documents, incidents, inventoryApprovals, inventoryEntries, tasks, users } from '../db/schema';
 import { addDays, addMonths, dateIn, daysBetween, formatDate, IsoDate } from './dates';
 import { requireActiveMember } from './members';
 import { NotificationsService } from './notifications.service';
@@ -279,6 +279,8 @@ export class TasksService {
           ? inventoryEntries
           : entityType === 'data_subject_request'
             ? dataSubjectRequests
+          : entityType === 'incident'
+            ? incidents
             : inventoryApprovals;
     const [row] = await this.db
       .select({ id: table.id })

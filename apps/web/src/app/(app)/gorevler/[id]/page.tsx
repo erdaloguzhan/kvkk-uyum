@@ -98,6 +98,10 @@ export default function TaskDetailPage() {
             <>
               <Link href={link}>Envanter değişikliklerini açıp</Link> onaylayın veya reddedin
             </>
+          ) : t.entityType === 'incident' ? (
+            <>
+              <Link href={link}>Veri ihlali kaydını açıp</Link> Kurula bildirim formunu onaylayın veya geri çevirin
+            </>
           ) : (
             <>
               <Link href={link}>Dokümanı açıp</Link> sürümü onaylayın veya reddedin

@@ -55,6 +55,7 @@ export function ApproverDialog({
   title,
   permission,
   hint,
+  showDueDate = true,
   busy,
   onClose,
   onSubmit,
@@ -62,6 +63,8 @@ export function ApproverDialog({
   title: string;
   permission: Permission;
   hint: string;
+  /** false: son tarih sorulmaz (ör. veri ihlalinde onay süresi bildirim süresine bağlıdır). */
+  showDueDate?: boolean;
   busy: boolean;
   onClose: () => void;
   onSubmit: (body: { approverId: string; dueDate: string | null; note: string | null }) => void;
@@ -89,9 +92,11 @@ export function ApproverDialog({
             ))}
           </select>
         </Field>
-        <Field label="Son tarih" htmlFor="due" hint={`Boş bırakılırsa ${DEFAULT_APPROVAL_DUE_DAYS} gün sonrası`}>
-          <input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        </Field>
+        {showDueDate && (
+          <Field label="Son tarih" htmlFor="due" hint={`Boş bırakılırsa ${DEFAULT_APPROVAL_DUE_DAYS} gün sonrası`}>
+            <input id="due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          </Field>
+        )}
         <Field label="Not" htmlFor="req-note">
           <textarea id="req-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
         </Field>

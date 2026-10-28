@@ -32,11 +32,12 @@ export const TASK_ENTITY_TYPES = {
   inventory_entry: 'Envanter satırı',
   inventory_approval: 'Envanter onay talebi',
   data_subject_request: 'İlgili kişi başvurusu',
+  incident: 'Veri ihlali kaydı',
 } as const;
 
 export type TaskEntityType = keyof typeof TASK_ENTITY_TYPES;
 
-/** Görev açılırken bağlanabilecek kayıtlar; onay talebi ve başvuru görevleri sistem tarafından bağlanır. */
+/** Görev açılırken bağlanabilecek kayıtlar; onay talepleri, ihlal kayıtları ve başvuru görevleri sistem tarafından bağlanır. */
 export const LINKABLE_TASK_ENTITY_TYPES = ['document', 'inventory_entry'] as const satisfies readonly TaskEntityType[];
 
 /**
@@ -75,6 +76,8 @@ export const NOTIFICATION_KINDS = {
   task_overdue: 'Süresi geçti',
   approval_requested: 'Onay talebi',
   approval_decided: 'Onay sonucu',
+  incident_recorded: 'Veri ihlali kaydı',
+  incident_deadline: 'Veri ihlali bildirim süresi',
 } as const;
 
 export type NotificationKind = keyof typeof NOTIFICATION_KINDS;
