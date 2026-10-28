@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { NotificationKind } from '@kvkk/shared';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, SQL, sql } from 'drizzle-orm';
 import { MailerService } from '../auth/mailer.service';
 import { Database, InjectDb } from '../db/db.module';
 import { notifications, users } from '../db/schema';
 import { salutation } from '../auth/account-label';
 
 export interface NewNotification {
-  organizationId: string;
+  /** Boşsa kuruluşa bağlı olmayan bildirimdir (ör. platform yöneticisinin eğitmene atadığı görev). */
+  organizationId: string | null;
   userId: string;
   kind: NotificationKind;
   title: string;
@@ -42,8 +43,13 @@ export class NotificationsService {
     return true;
   }
 
-  async list(orgId: string, userId: string, unreadOnly: boolean) {
-    const mine = and(eq(notifications.organizationId, orgId), eq(notifications.userId, userId));
+  /** `orgId` null: kuruluşa bağlı olmayan (eğitmen paneli) bildirimleri. */
+  private scope(orgId: string | null): SQL {
+    return orgId ? eq(notifications.organizationId, orgId) : isNull(notifications.organizationId);
+  }
+
+  async list(orgId: string | null, userId: string, unreadOnly: boolean) {
+    const mine = and(this.scope(orgId), eq(notifications.userId, userId));
     const items = await this.db
       .select()
       .from(notifications)
@@ -57,23 +63,23 @@ export class NotificationsService {
     return { items, unreadCount: unread };
   }
 
-  async markRead(orgId: string, userId: string, id: string) {
+  async markRead(orgId: string | null, userId: string, id: string) {
     const updated = await this.db
       .update(notifications)
       .set({ readAt: sql`coalesce(${notifications.readAt}, now())` })
       .where(
-        and(eq(notifications.id, id), eq(notifications.organizationId, orgId), eq(notifications.userId, userId)),
+        and(eq(notifications.id, id), this.scope(orgId), eq(notifications.userId, userId)),
       )
       .returning({ id: notifications.id });
     if (updated.length === 0) throw new NotFoundException('Bildirim bulunamadı');
   }
 
-  async markAllRead(orgId: string, userId: string) {
+  async markAllRead(orgId: string | null, userId: string) {
     await this.db
       .update(notifications)
       .set({ readAt: new Date() })
       .where(
-        and(eq(notifications.organizationId, orgId), eq(notifications.userId, userId), isNull(notifications.readAt)),
+        and(this.scope(orgId), eq(notifications.userId, userId), isNull(notifications.readAt)),
       );
   }
 }

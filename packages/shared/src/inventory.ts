@@ -128,6 +128,9 @@ export const DATA_CATEGORIES: DataCategoryDefinition[] = [
  * Adım adım girişte önerilen seçenekler, aynen ve bu sırayla gösterilir. Veri kategorisi, işleme amacı, kişi
  * grubu, hukuki sebep, alıcı grubu ve tedbirler Erdal'ın verdiği listelerdir; diğerleri TBL-010'daki örnek satırlarda geçen değerlerdir.
  * Kuruluşun kendi girdiği diğer değerler listenin sonuna eklenerek önerilir.
+ *
+ * Not (28.10.2026): Güncel seçenekler artık veritabanındaki Kişisel Veri Envanteri (şablon) tablosundan gelir ve
+ * admin panelinden düzenlenir. Bu liste yalnızca şablonun ilk içeriğidir (migration 0022) ve test verisinde kullanılır.
  */
 export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | InventoryListField, string[]>> = {
   department: ['İdari', 'Muhasebe'],

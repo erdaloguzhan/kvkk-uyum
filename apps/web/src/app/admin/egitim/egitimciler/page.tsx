@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { ExportButton } from '@/components/export-button';
 import { emptyPerson, PersonFields, PersonForm, toPersonForm } from '@/components/person-fields';
@@ -104,6 +105,9 @@ export default function TrainersPage() {
         description="Eğitimciler yönetim paneline kendi e-postalarıyla girer ve yalnızca eğitim bölümünü görür: eğitim içerikleri, sorular, gruplar ve sınav sonuçları."
         actions={
           <>
+            <Link className="btn btn-small" href="/admin/gorevler">
+              Eğitmen görevleri
+            </Link>
             <ExportButton
               fileName="Eğitimciler"
               rows={items}

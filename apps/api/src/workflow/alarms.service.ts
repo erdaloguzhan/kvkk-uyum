@@ -1,11 +1,11 @@
 import { Inject, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { DSR_LEGAL_DAYS, DSR_TARGET_DAYS } from '@kvkk/shared';
-import { and, eq, inArray, lte } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte } from 'drizzle-orm';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { ErrorAlertsService } from '../monitoring/error-alerts.service';
 import { incidentDeadlineAlarms } from '../incidents/incident-alarms';
-import { dataSubjectRequests, memberships, tasks } from '../db/schema';
+import { dataSubjectRequests, memberships, tasks, trainers, users } from '../db/schema';
 import { addDays, dateIn, daysBetween, formatDate } from './dates';
 import { findActiveMember } from './members';
 import { NewNotification, NotificationsService } from './notifications.service';
@@ -77,7 +77,15 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
         if (paused.has(task.id)) continue;
         for (const n of this.alarmsFor(task, today)) {
           // Görevi açan kişi artık kuruluşta değilse ona bildirim gönderilmez.
-          if (n.userId !== task.assigneeId && !(await findActiveMember(this.db, task.organizationId, n.userId))) continue;
+          if (n.userId !== task.assigneeId && !(await findActiveMember(this.db, task.organizationId!, n.userId))) continue;
+          if (await this.notifications.notify(n)) created++;
+        }
+      }
+      // Platform yöneticisinin aktif eğitmenlere atadığı görevler (kuruluşa bağlı değil).
+      const creator = await this.platformAdminIds();
+      for (const { task } of await this.trainerTasks(today)) {
+        for (const n of this.alarmsFor(task, today)) {
+          if (n.userId !== task.assigneeId && !creator.has(n.userId)) continue;
           if (await this.notifications.notify(n)) created++;
         }
       }
@@ -88,6 +96,22 @@ export class AlarmsService implements OnApplicationBootstrap, OnApplicationShutd
     } finally {
       this.running = false;
     }
+  }
+
+  private trainerTasks(today: string) {
+    return this.db
+      .select({ task: tasks })
+      .from(tasks)
+      .innerJoin(trainers, and(eq(trainers.userId, tasks.assigneeId), eq(trainers.isActive, true)))
+      .where(and(isNull(tasks.organizationId), eq(tasks.status, 'open'), lte(tasks.dueDate, addDays(today, MAX_REMINDER_DAYS))));
+  }
+
+  private async platformAdminIds() {
+    const rows = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.isPlatformAdmin, true), eq(users.isActive, true)));
+    return new Set(rows.map((r) => r.id));
   }
 
   /** Ek bilgi beklenen ilgili kişi başvurularında süre durduğu için hatırlatma gönderilmez. */

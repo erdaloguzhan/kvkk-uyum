@@ -142,6 +142,16 @@ export type InventoryEntry = {
   updatedAt: string;
 };
 
+/** Kişisel Veri Envanteri (şablon) seçeneği. */
+export interface InventoryTemplateOption {
+  id: string;
+  field: string;
+  value: string;
+  examples: string | null;
+  special: boolean;
+  sortOrder: number;
+}
+
 export interface InventoryOptions {
   columns: InventoryColumnDefinition[];
   requiredFields: InventoryField[];
@@ -174,6 +184,24 @@ export interface Task {
   createdBy: string | null;
   createdAt: string;
   assignee: { id: string; fullName: string; email: string };
+  daysLeft: number | null;
+  overdue: boolean;
+}
+
+/** Platform yöneticisinin eğitmene atadığı görev (kuruluşa bağlı değil). */
+export interface TrainerTask {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: string;
+  reminderDays: number[];
+  status: TaskStatus;
+  completedAt: string | null;
+  completionNote: string | null;
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  assignee: { id: string; fullName: string };
   daysLeft: number | null;
   overdue: boolean;
 }
@@ -306,6 +334,8 @@ export interface Employee {
 
 export interface Trainer {
   id: string;
+  /** Eğitmenin kullanıcı hesabı (görev atamada kullanılır). */
+  userId: string;
   nationalId: string;
   firstName: string;
   lastName: string;

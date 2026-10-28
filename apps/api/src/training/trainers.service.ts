@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { MailerService } from '../auth/mailer.service';
 import { PasswordResetService } from '../auth/password-reset.service';
@@ -7,7 +7,7 @@ import { generateToken, hashPassword } from '../common/crypto';
 import { blindIndex } from '../common/field-crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
-import { memberships, trainers, users } from '../db/schema';
+import { memberships, tasks, trainers, users } from '../db/schema';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
 import { trainerCreateBody, trainerUpdateBody } from './training.schema';
@@ -161,6 +161,8 @@ export class TrainersService {
   async remove(adminId: string, id: string) {
     const t = await this.get(id);
     await this.db.delete(trainers).where(eq(trainers.id, id));
+    // Eğitmene atanmış (kuruluşa bağlı olmayan) görevler eğitmenle birlikte silinir; bildirimleri de silinir.
+    await this.db.delete(tasks).where(and(isNull(tasks.organizationId), eq(tasks.assigneeId, t.userId)));
     const [user] = await this.db
       .select({ isPlatformAdmin: users.isPlatformAdmin })
       .from(users)

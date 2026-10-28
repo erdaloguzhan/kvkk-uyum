@@ -19,6 +19,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: '/admin', label: 'Kuruluşlar' },
   { href: '/admin/sablonlar', label: 'KVK Dokümanları (şablon)' },
+  { href: '/admin/envanter-sablonu', label: 'Kişisel Veri Envanteri (şablon)' },
 ];
 
 const TRAINING_NAV: NavItem[] = [
@@ -29,10 +30,15 @@ const TRAINING_NAV: NavItem[] = [
 
 const SUPPORT_NAV: NavItem[] = [{ href: '/admin/destek', label: 'Destek Talepleri' }];
 
+/** Eğitmen panelinde: Yöneticinin atadığı görevler ve bildirimler. */
+const TRAINER_WORK_NAV: NavItem[][] = [[{ href: '/admin/gorevler', label: 'Görevler' }], [{ href: '/admin/bildirimler', label: 'Bildirimler' }]];
+
 /** Menüde olmayan eğitim alt sayfaları (sınav sonuçlarına Eğitim Grupları sayfasından gidilir). */
 const TRAINING_SUBPAGES = [...TRAINING_NAV.filter((n) => n.href !== '/admin/egitim').map((n) => n.href), '/admin/egitim/sonuclar'];
 
 function isActive(pathname: string, href: string) {
+  // Eğitmen görevleri admin panelinde Eğitimciler sayfasından açılır.
+  if (href === '/admin/egitim/egitimciler') return pathname.startsWith(href) || pathname.startsWith('/admin/gorevler');
   if (href === '/admin') return pathname === '/admin' || pathname.startsWith('/admin/kuruluslar');
   if (href === '/admin/egitim/gruplar') return pathname.startsWith(href) || pathname.startsWith('/admin/egitim/sonuclar');
   if (href === '/admin/egitim') {
@@ -43,7 +49,10 @@ function isActive(pathname: string, href: string) {
 
 /** Eğitimci (platform yöneticisi değil) bu sayfayı görebilir mi. */
 const trainerAllowed = (pathname: string) =>
-  pathname === '/admin/profil' || (pathname.startsWith('/admin/egitim') && !pathname.startsWith('/admin/egitim/egitimciler'));
+  pathname === '/admin/profil' ||
+  pathname === '/admin/gorevler' ||
+  pathname === '/admin/bildirimler' ||
+  (pathname.startsWith('/admin/egitim') && !pathname.startsWith('/admin/egitim/egitimciler'));
 
 /**
  * Yönetim paneli. Platform yöneticileri kuruluşları, doküman şablonlarını ve eğitim modülünü; eğitimciler
@@ -55,6 +64,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState(0);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     if (!loading && !me) router.replace(`/giris?sonra=${encodeURIComponent(pathname)}`);
@@ -94,6 +104,25 @@ export function AdminShell({ children }: { children: ReactNode }) {
     };
   }, [isAdmin]);
 
+  // Eğitmenin okunmamış bildirim sayısı dakikada bir yenilenir.
+  const isTrainerPanel = panelRole === 'trainer';
+  useEffect(() => {
+    if (!isTrainerPanel) return;
+    let stopped = false;
+    const load = () =>
+      api<{ unreadCount: number }>('training-admin/notifications', { query: { unread: true } })
+        .then((r) => !stopped && setUnread(r.unreadCount))
+        .catch(() => undefined);
+    load();
+    const timer = setInterval(load, 60_000);
+    window.addEventListener('kvkk:notifications', load);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      window.removeEventListener('kvkk:notifications', load);
+    };
+  }, [isTrainerPanel]);
+
   // Eğitimcinin açılış sayfası eğitimlerdir.
   const trainerHome = panelRole === 'trainer' && pathname === '/admin';
   useEffect(() => {
@@ -107,6 +136,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <Link key={n.href} href={n.href} className={`nav-link${isActive(pathname, n.href) ? ' active' : ''}`}>
       {n.label}
       {n.href === '/admin/destek' && openTickets > 0 && <span className="nav-badge">{openTickets}</span>}
+      {n.href === '/admin/bildirimler' && unread > 0 && <span className="nav-badge">{unread}</span>}
     </Link>
   );
 
@@ -129,6 +159,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
         {isAdmin && <div className="nav-group">{NAV.map(link)}</div>}
         {panelRole && <div className="nav-group">{TRAINING_NAV.filter((n) => isAdmin || n.trainer).map(link)}</div>}
         {isAdmin && <div className="nav-group">{SUPPORT_NAV.map(link)}</div>}
+        {isTrainerPanel &&
+          TRAINER_WORK_NAV.map((g) => (
+            <div key={g[0].href} className="nav-group">
+              {g.map(link)}
+            </div>
+          ))}
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
           <div>{isAdmin ? 'Platform yöneticisi' : panelRole === 'trainer' ? 'Eğitmen' : ''}</div>

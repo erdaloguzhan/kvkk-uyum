@@ -207,6 +207,53 @@ describe('Uzaktan eğitim', () => {
     await request(server).get('/api/v1/training-admin/trainings').set('authorization', `Bearer ${outsider.accessToken}`).expect(403);
   });
 
+  it('platform yöneticisi eğitmene görev atar; eğitmen görevini ve bildirimini görür, tamamlar', async () => {
+    const email = uniqueEmail('egitimci-gorev');
+    const created = await asAdmin(request(server).post('/api/v1/training-admin/trainers'))
+      .send({ nationalId: nationalId(), firstName: 'Ayşe', lastName: 'Kurt', email })
+      .expect(201);
+    const code = extractCode(lastMailTo(app, email).text);
+    await request(server).post('/api/v1/auth/password-reset/confirm').send({ token: code, password: PASSWORD }).expect(204);
+    const trainer = await login(app, email);
+    const auth = (req: request.Test) => req.set('authorization', `Bearer ${trainer.accessToken}`);
+    const due = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+
+    // Görevi yalnızca platform yöneticisi atar, yalnızca aktif eğitmene.
+    await auth(request(server).post('/api/v1/training-admin/trainer-tasks'))
+      .send({ title: 'Kasım eğitimi hazırlığı', assigneeId: trainer.user.id, dueDate: due })
+      .expect(403);
+    await asAdmin(request(server).post('/api/v1/training-admin/trainer-tasks'))
+      .send({ title: 'Yanlış kişi', assigneeId: admin.user.id, dueDate: due })
+      .expect(403);
+    const task = await asAdmin(request(server).post('/api/v1/training-admin/trainer-tasks'))
+      .send({ title: 'Kasım eğitimi hazırlığı', description: 'Sunumu güncelle', assigneeId: created.body.userId, dueDate: due })
+      .expect(201);
+    expect(task.body).toMatchObject({ status: 'open', assignee: { id: trainer.user.id }, reminderDays: [7, 1] });
+    expect(lastMailTo(app, email).subject).toContain('Yeni görev: Kasım eğitimi hazırlığı');
+
+    const mine = await auth(request(server).get('/api/v1/training-admin/trainer-tasks')).expect(200);
+    expect(mine.body.items.map((t: any) => t.id)).toEqual([task.body.id]);
+    const notes = await auth(request(server).get('/api/v1/training-admin/notifications')).expect(200);
+    expect(notes.body.unreadCount).toBe(1);
+    expect(notes.body.items[0]).toMatchObject({ kind: 'task_assigned', taskId: task.body.id });
+    await auth(request(server).post(`/api/v1/training-admin/notifications/${notes.body.items[0].id}/read`)).expect(204);
+
+    // Eğitmen görevleri kuruluş görevlerine karışmaz.
+    const orgTasks = await request(server)
+      .get('/api/v1/tasks')
+      .set('authorization', `Bearer ${admin.accessToken}`)
+      .set('x-organization-id', orgId);
+    expect((orgTasks.body.items ?? []).some((t: any) => t.id === task.body.id)).toBe(false);
+
+    await auth(request(server).post(`/api/v1/training-admin/trainer-tasks/${task.body.id}/cancel`)).send({}).expect(403);
+    const done = await auth(request(server).post(`/api/v1/training-admin/trainer-tasks/${task.body.id}/complete`))
+      .send({ note: 'Hazır' })
+      .expect(200);
+    expect(done.body).toMatchObject({ status: 'done', completionNote: 'Hazır' });
+    await auth(request(server).post(`/api/v1/training-admin/trainer-tasks/${task.body.id}/complete`)).send({}).expect(409);
+    await asAdmin(request(server).delete(`/api/v1/training-admin/trainers/${created.body.id}`)).expect(204);
+  });
+
   describe('eğitim akışı', () => {
     let trainingId: string;
     let groupId: string;
