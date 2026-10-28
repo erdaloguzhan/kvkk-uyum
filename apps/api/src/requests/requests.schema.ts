@@ -183,7 +183,11 @@ export const answerBody = z.object({
   summary: z.string().trim().min(3, 'Cevabın özetini veya ret gerekçesini yazınız').max(5000),
 });
 
-export const formSettingsBody = z.object({ enabled: z.boolean() });
+export const formSettingsBody = z
+  .object({ enabled: z.boolean().optional(), assigneeId: z.string().uuid().nullable().optional() })
+  .refine((b) => b.enabled !== undefined || b.assigneeId !== undefined, { message: 'Değiştirilecek ayar yok' });
+
+export const assigneeBody = z.object({ assigneeId: z.string().uuid() });
 
 /** Multer sınırları; kurallar ayrıca serviste dosya içeriğine göre kontrol edilir. */
 export const uploadLimits = {

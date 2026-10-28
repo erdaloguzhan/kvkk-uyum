@@ -1,5 +1,5 @@
 {
-  "id": "b82a6535-39b3-479d-a193-1c1015bb1fb9",
+  "id": "e710090c-16f5-4e96-9075-70e9d98b2d42",
   "prevId": "b4b3db0f-9f48-404a-9a6a-dbc158b60304",
   "version": "7",
   "dialect": "postgresql",
@@ -3316,80 +3316,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.inventory_template_options": {
-      "name": "inventory_template_options",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "field": {
-          "name": "field",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "examples": {
-          "name": "examples",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "special": {
-          "name": "special",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "inventory_template_options_field_value_unique": {
-          "name": "inventory_template_options_field_value_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "field",
-            "value"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.login_challenges": {
       "name": "login_challenges",
       "schema": "",
@@ -3591,7 +3517,7 @@
           "name": "organization_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
@@ -3838,6 +3764,12 @@
           "notNull": true,
           "default": true
         },
+        "request_assignee_id": {
+          "name": "request_assignee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "license_status": {
           "name": "license_status",
           "type": "text",
@@ -3864,24 +3796,6 @@
           "notNull": true,
           "default": 6
         },
-        "logo": {
-          "name": "logo",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "logo_mime": {
-          "name": "logo_mime",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "logo_updated_at": {
-          "name": "logo_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -3907,7 +3821,21 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "organizations_request_assignee_id_users_id_fk": {
+          "name": "organizations_request_assignee_id_users_id_fk",
+          "tableFrom": "organizations",
+          "tableTo": "users",
+          "columnsFrom": [
+            "request_assignee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -4651,7 +4579,7 @@
           "name": "organization_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "type": {
           "name": "type",

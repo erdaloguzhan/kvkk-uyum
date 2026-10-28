@@ -222,6 +222,7 @@ export const DSR_EVENT_KINDS = {
   answer_updated: 'Cevap bilgisi güncellendi',
   note: 'Not',
   file_added: 'Dosya eklendi',
+  reassigned: 'Sorumlu değişti',
 } as const;
 
 export type DsrEventKind = keyof typeof DSR_EVENT_KINDS;

@@ -159,8 +159,15 @@
     {
       "idx": 22,
       "version": "7",
-      "when": 1793202527929,
-      "tag": "0022_menus_logo_trainer_tasks_inventory_template",
+      "when": 1793187325778,
+      "tag": "0022_request_assignee",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793203289127,
+      "tag": "0023_menus_logo_trainer_tasks_inventory_template",
       "breakpoints": true
     }
   ]

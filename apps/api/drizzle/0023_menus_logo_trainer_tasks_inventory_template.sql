@@ -14,7 +14,8 @@ ALTER TABLE "notifications" ALTER COLUMN "organization_id" DROP NOT NULL;--> sta
 ALTER TABLE "tasks" ALTER COLUMN "organization_id" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN "logo" "bytea";--> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN "logo_mime" text;--> statement-breakpoint
-ALTER TABLE "organizations" ADD COLUMN "logo_updated_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "organizations" ADD COLUMN "logo_updated_at" timestamp with time zone;
+--> statement-breakpoint
 -- Kişisel Veri Envanteri (şablon): şimdiye kadar koddaki seçenekler (Erdal'ın listeleri ve TBL-010 örnekleri), aynı sırayla.
 INSERT INTO "inventory_template_options" ("field", "value", "examples", "special", "sort_order") VALUES
 ('department', 'İdari', NULL, false, 1),
