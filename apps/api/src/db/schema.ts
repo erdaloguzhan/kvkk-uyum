@@ -61,6 +61,8 @@ export const organizations = pgTable('organizations', {
     .default('trial'),
   licenseExpiresAt: timestamp('license_expires_at', { withTimezone: true }),
   setupCompletedAt: timestamp('setup_completed_at', { withTimezone: true }),
+  /** Saklama ve İmha Politikasında belirlenen periyodik imha süresi (ay). */
+  destructionPeriodMonths: integer('destruction_period_months').notNull().default(6),
   createdAt: createdAt(),
 });
 
@@ -329,7 +331,9 @@ export const tasks = pgTable(
     recurrenceMonths: integer('recurrence_months'),
     status: text('status', { enum: ['open', 'done', 'cancelled'] }).notNull().default('open'),
     /** Bağlı kayıt (ör. gözden geçirilecek doküman). */
-    entityType: text('entity_type', { enum: ['document', 'inventory_entry', 'inventory_approval', 'incident'] }),
+    entityType: text('entity_type', {
+      enum: ['document', 'inventory_entry', 'inventory_approval', 'incident', 'destruction_plan', 'destruction_item'],
+    }),
     entityId: uuid('entity_id'),
     previousTaskId: uuid('previous_task_id').references((): AnyPgColumn => tasks.id, { onDelete: 'set null' }),
     completionNote: text('completion_note'),
@@ -898,5 +902,126 @@ export const documentReads = pgTable(
   (t) => [
     uniqueIndex('document_reads_version_employee_unique').on(t.versionId, t.employeeId),
     index('document_reads_document_idx').on(t.documentId),
+  ],
+);
+
+/**
+ * İmha sorumlusu. Her satır bir dönemi gösterir; bitiş tarihi boş olan güncel sorumludur. Yeni sorumlu atanınca
+ * öncekinin dönemi kapanır, kayıt silinmez; böylece geçmiş dönemlerin sorumluları korunur.
+ */
+export const destructionOfficers = pgTable(
+  'destruction_officers',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    /** Çalışanlar listesinden seçildiyse; ad soyad yine de aşağıda saklanır (çalışan silinse de kaybolmaz). */
+    employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'set null' }),
+    fullName: text('full_name').notNull(),
+    title: text('title'),
+    startDate: date('start_date', { mode: 'string' }).notNull(),
+    endDate: date('end_date', { mode: 'string' }),
+    note: text('note'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('destruction_officers_org_start_idx').on(t.organizationId, t.startDate)],
+);
+
+/** Dönemsel imha planı. Sorumlu hazırlar, Yönetici onaylar. */
+export const destructionPlans = pgTable(
+  'destruction_plans',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    periodStart: date('period_start', { mode: 'string' }).notNull(),
+    periodEnd: date('period_end', { mode: 'string' }).notNull(),
+    description: text('description'),
+    status: text('status', { enum: ['draft', 'pending', 'approved', 'rejected'] }).notNull().default('draft'),
+    /** Son onay talebi: onaylayacak kişi, onay görevi, talep notu ve karar. */
+    approverId: uuid('approver_id').references(() => users.id, { onDelete: 'set null' }),
+    approvalTaskId: uuid('approval_task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    requestedAt: timestamp('requested_at', { withTimezone: true }),
+    requestNote: text('request_note'),
+    decisionNote: text('decision_note'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('destruction_plans_org_period_idx').on(t.organizationId, t.periodStart)],
+);
+
+/**
+ * Plandaki bir imha işi. Sorumlunun adı kayıtta da saklanır; sorumlu sonradan değişse de bu iş için kim
+ * sorumlu olduğu kaybolmaz. Hatırlatmalar `data_destruction` türündeki görevle gönderilir.
+ */
+export const destructionItems = pgTable(
+  'destruction_items',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => destructionPlans.id, { onDelete: 'cascade' }),
+    inventoryEntryId: uuid('inventory_entry_id').references(() => inventoryEntries.id, { onDelete: 'set null' }),
+    /** İmha edilecek veri (envanterden seçildiyse departman / faaliyet / kategori). */
+    dataDescription: text('data_description').notNull(),
+    storageMedium: text('storage_medium', { enum: ['physical', 'digital', 'both'] }),
+    retentionPeriod: text('retention_period'),
+    plannedDate: date('planned_date', { mode: 'string' }).notNull(),
+    operationType: text('operation_type', { enum: ['deletion', 'destruction', 'anonymization'] }).notNull(),
+    method: text('method'),
+    officerId: uuid('officer_id').references(() => destructionOfficers.id, { onDelete: 'set null' }),
+    officerName: text('officer_name'),
+    status: text('status', { enum: ['planned', 'done', 'cancelled'] }).notNull().default('planned'),
+    cancelReason: text('cancel_reason'),
+    /** Hatırlatma görevi ve görevin atandığı kullanıcı. */
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('destruction_items_plan_idx').on(t.planId, t.plannedDate)],
+);
+
+/** Gerçekleşen imha işlemi kaydı. Plandaki iş tamamlanınca açılır; plan dışı imhalar elle eklenir. */
+export const destructionRecords = pgTable(
+  'destruction_records',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    itemId: uuid('item_id').references(() => destructionItems.id, { onDelete: 'set null' }),
+    planId: uuid('plan_id').references(() => destructionPlans.id, { onDelete: 'set null' }),
+    /** Plan silinse de kayıtta hangi plandan geldiği okunabilsin. */
+    planTitle: text('plan_title'),
+    inventoryEntryId: uuid('inventory_entry_id').references(() => inventoryEntries.id, { onDelete: 'set null' }),
+    dataDescription: text('data_description').notNull(),
+    storageMedium: text('storage_medium', { enum: ['physical', 'digital', 'both'] }),
+    plannedDate: date('planned_date', { mode: 'string' }),
+    performedDate: date('performed_date', { mode: 'string' }).notNull(),
+    operationType: text('operation_type', { enum: ['deletion', 'destruction', 'anonymization'] }).notNull(),
+    /** Yapılan işlem (yöntem, kullanılan araç, tutanak no vb.). */
+    performedNote: text('performed_note').notNull(),
+    officerId: uuid('officer_id').references(() => destructionOfficers.id, { onDelete: 'set null' }),
+    officerName: text('officer_name'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('destruction_records_org_date_idx').on(t.organizationId, t.performedDate),
+    uniqueIndex('destruction_records_item_unique').on(t.itemId),
   ],
 );
