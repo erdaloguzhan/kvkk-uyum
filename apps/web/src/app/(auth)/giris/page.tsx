@@ -111,7 +111,7 @@ function LoginForm() {
             text: `KVK Uyum Yönetim Sistemi ${account.roleLabel ? `${account.roleLabel} ` : ''}hesabınıza giriş için doğrulama kodunu girin.`,
           }
         }
-        subtitle={<>{sentTo} 6 haneli bir kod gönderdik. Kod 10 dakika geçerlidir.</>}
+        subtitle={<>{sentTo} 6 haneli bir kod gönderdik. Kod 10 dakika geçerlidir.{sentTo?.endsWith('adresine') && ' Gelen kutunuzda göremezseniz Gereksiz/Spam klasörüne de bakın.'}</>}
       >
         <form className="form" onSubmit={submitCode}>
           <ErrorAlert error={error} />

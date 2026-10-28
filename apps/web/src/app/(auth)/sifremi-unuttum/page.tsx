@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
     <AuthCard title="Şifremi unuttum" subtitle="E-posta adresinize şifre sıfırlama kodu gönderelim.">
       {sent ? (
         <>
-          <Alert kind="success">Bu adresle kayıtlı bir hesap varsa sıfırlama kodu gönderildi. Kod 1 saat geçerlidir.</Alert>
+          <Alert kind="success">Bu adresle kayıtlı bir hesap varsa sıfırlama kodu gönderildi. Kod 1 saat geçerlidir. Gelen kutunuzda göremezseniz Gereksiz/Spam klasörüne de bakın.</Alert>
           <Link className="btn btn-primary" href="/sifre-belirle">
             Kodu girip yeni şifre belirle
           </Link>
