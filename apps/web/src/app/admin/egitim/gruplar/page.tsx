@@ -27,6 +27,9 @@ export default function GroupsPage() {
         description="Bir kuruluşun seçilen çalışanlarına bir eğitim atayın. Eğitim başlatılınca katılımcılara eğitim bağlantısı SMS ile gider; portala cep telefonu ve SMS koduyla girerler."
         actions={
           <>
+            <Link className="btn btn-small" href="/admin/egitim/sonuclar">
+              Sınav sonuçları
+            </Link>
             <ExportButton
               fileName="Eğitim grupları"
               rows={items}

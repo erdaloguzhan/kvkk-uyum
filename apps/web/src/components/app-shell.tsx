@@ -5,31 +5,55 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { roleHome, selectableRoles, useSession } from '@/lib/session';
+import { roleHome, useSession } from '@/lib/session';
+import { OrgBrand } from './logo';
 import { Empty, Loading } from './ui';
-import { Logo } from './logo';
 
 interface NavItem {
   href: string;
   label: string;
   /** Bu yetkilerden biri varsa menüde görünür. */
   permission?: Permission | Permission[];
+  /** Yönetici panelindeki adı (Erdal'ın menü çizimi, 28.10.2026). */
+  approverLabel?: string;
 }
 
-const NAV: NavItem[] = [
-  { href: '/', label: 'Özet' },
-  { href: '/kurulus', label: 'Kuruluş bilgileri', permission: PERMISSIONS.ORG_READ },
-  { href: '/dokumanlar', label: 'Dokümanlar', permission: PERMISSIONS.DOCUMENTS_READ },
-  { href: '/envanter', label: 'Veri envanteri', permission: PERMISSIONS.INVENTORY_READ },
-  { href: '/sozlesmeler', label: 'Sözleşmeler', permission: PERMISSIONS.CONTRACTS_READ },
-  { href: '/basvurular', label: 'İlgili kişi başvuruları', permission: PERMISSIONS.REQUESTS_READ },
-  { href: '/ihlaller', label: 'Veri ihlalleri', permission: PERMISSIONS.INCIDENTS_READ },
-  { href: '/imha', label: 'Veri imha yönetimi', permission: PERMISSIONS.DESTRUCTION_READ },
-  { href: '/gorevler', label: 'Görevler', permission: PERMISSIONS.TASKS_READ },
-  { href: '/bildirimler', label: 'Bildirimler' },
-  { href: '/kayitlar', label: 'İşlem kayıtları', permission: PERMISSIONS.AUDIT_READ },
-  { href: '/destek', label: 'Destek' },
+/** Menü grupları çizimdeki sırayla; gruplar arasında ayraç çizilir. Destek menüden kalktı, Profilim sayfasından açılır. */
+const NAV_GROUPS: NavItem[][] = [
+  [
+    { href: '/', label: 'Özet' },
+    { href: '/kurulus', label: 'Kuruluş Bilgileri', permission: PERMISSIONS.ORG_READ },
+    { href: '/dokumanlar', label: 'KVK Dokümanları', permission: PERMISSIONS.DOCUMENTS_READ },
+    { href: '/envanter', label: 'Kişisel Veri Envanteri', permission: PERMISSIONS.INVENTORY_READ },
+  ],
+  [
+    { href: '/sozlesmeler', label: 'KVK Sözleşmeleri', permission: PERMISSIONS.CONTRACTS_READ },
+    { href: '/imha', label: 'Kişisel Veri İmha Yönetimi', approverLabel: 'Kişisel Veri İmha', permission: PERMISSIONS.DESTRUCTION_READ },
+  ],
+  [
+    { href: '/ihlaller', label: 'Veri İhlalleri', permission: PERMISSIONS.INCIDENTS_READ },
+    { href: '/basvurular', label: 'İlgili Kişi Başvuruları', permission: PERMISSIONS.REQUESTS_READ },
+  ],
+  [
+    { href: '/gorevler', label: 'Görevler', permission: PERMISSIONS.TASKS_READ },
+    { href: '/bildirimler', label: 'Bildirimler' },
+    { href: '/kayitlar', label: 'İşlem Kayıtları', permission: PERMISSIONS.AUDIT_READ },
+  ],
 ];
+
+/** Yönetici panelinde imha grubu ihlal/başvuru grubunun altına iner (çizimdeki sıra). */
+const APPROVER_GROUPS: NavItem[][] = [NAV_GROUPS[0], [...NAV_GROUPS[2], NAV_GROUPS[1][1]], NAV_GROUPS[3]];
+
+/** Menüde olmayan ama yetki kontrolü yapılan bölümler. */
+const EXTRA: NavItem[] = [{ href: '/destek', label: 'Destek' }];
+const NAV = [...NAV_GROUPS.flat(), ...EXTRA];
+
+/** Panel başlığındaki rol adı. */
+const PANEL_TITLE: Record<string, string> = {
+  kvkk_officer: 'KVK Sorumlusu Paneli',
+  approver: 'KVK Yöneticisi Paneli',
+  officer_approver: 'KVK Sorumlusu ve Yöneticisi Paneli',
+};
 
 const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
@@ -71,7 +95,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (loading || !me || toAdmin) return <Loading />;
 
   const allowed = (n: NavItem) => !n.permission || [n.permission].flat().some(can);
-  const items = NAV.filter(allowed);
+  const isApprover = org?.role.key === 'approver';
+  const groups = (isApprover ? APPROVER_GROUPS : NAV_GROUPS).map((g) => g.filter(allowed)).filter((g) => g.length > 0);
+  const panelTitle = (org && PANEL_TITLE[org.role.key]) ?? 'Paneli';
   // Menüde görünmeyen bir bölümün adresine doğrudan gidilirse sayfa yerine tek bir yetki mesajı gösterilir.
   const blocked = NAV.some((n) => n.href !== '/' && isActive(pathname, n.href) && !allowed(n));
 
@@ -81,28 +107,26 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Menü" onClick={() => setMenuOpen(true)}>
           ☰
         </button>
-        <Logo height={34} onDark />
         <strong>KVK Uyum Yönetim Sistemi</strong>
       </header>
       {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
       <nav className={`sidebar${menuOpen ? ' open' : ''}`} aria-label="Ana menü">
         <div className="brand">
-          <Logo onDark />
+          {org && <OrgBrand name={org.name} logoUpdatedAt={org.logoUpdatedAt} />}
           KVK Uyum Yönetim Sistemi
-          <small>KVKK uyum yönetimi</small>
+          <small>{panelTitle}</small>
         </div>
         {org &&
-          items.map((n) => (
-            <Link key={n.href} href={n.href} className={`nav-link${isActive(pathname, n.href) ? ' active' : ''}`}>
-              {n.label}
-              {n.href === '/bildirimler' && unread > 0 && <span className="nav-badge">{unread}</span>}
-            </Link>
+          groups.map((g, i) => (
+            <div key={i} className="nav-group">
+              {g.map((n) => (
+                <Link key={n.href} href={n.href} className={`nav-link${isActive(pathname, n.href) ? ' active' : ''}`}>
+                  {(isApprover && n.approverLabel) || n.label}
+                  {n.href === '/bildirimler' && unread > 0 && <span className="nav-badge">{unread}</span>}
+                </Link>
+              ))}
+            </div>
           ))}
-        {selectableRoles(me).length > 1 && (
-          <Link href="/rol-sec" className="nav-link">
-            Rol değiştir
-          </Link>
-        )}
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
           {org && (
@@ -112,10 +136,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
           <div className="sidebar-actions">
             <Link href="/profil" className={pathname === '/profil' ? 'active' : undefined}>
-              Profilim / şifre değiştir
+              Profil
             </Link>
             <button type="button" onClick={logout}>
-              Çıkış yap
+              Çıkış
             </button>
           </div>
         </div>

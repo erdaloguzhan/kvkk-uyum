@@ -3,116 +3,62 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { PortalShell } from '@/components/portal-shell';
-import { Badge, Empty, ErrorAlert, Loading, PageHeader } from '@/components/ui';
+import { ErrorAlert, Loading, PageHeader, Stat } from '@/components/ui';
 import { errorText } from '@/lib/api';
-import { formatDate } from '@/lib/labels';
 import { portalApi } from '@/lib/portal-api';
-import type { PortalAssignment, PortalDocument } from '@/lib/types';
-import { DOCUMENT_CATEGORIES } from '@kvkk/shared';
+import type { PortalAssignment, PortalDocument, PortalProfile } from '@/lib/types';
 
-/** Katılımcıya gönderilmiş eğitimler ve kuruluşunun yayınlanmış KVKK dokümanları. */
+/** Çalışan paneli özeti: bekleyen eğitimler ve okuma onayı bekleyen dokümanlar. */
 export default function PortalHomePage() {
+  const [profile, setProfile] = useState<PortalProfile | null>(null);
   const [items, setItems] = useState<PortalAssignment[] | null>(null);
   const [docs, setDocs] = useState<PortalDocument[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    portalApi<{ items: PortalAssignment[] }>('assignments').then(
-      (r) => setItems(r.items),
-      (err) => setError(errorText(err)),
-    );
-    portalApi<{ items: PortalDocument[] }>('documents').then(
-      (r) => setDocs(r.items),
-      (err) => setError(errorText(err)),
-    );
+    const fail = (err: unknown) => setError(errorText(err));
+    portalApi<PortalProfile>('me').then(setProfile, fail);
+    portalApi<{ items: PortalAssignment[] }>('assignments').then((r) => setItems(r.items), fail);
+    portalApi<{ items: PortalDocument[] }>('documents').then((r) => setDocs(r.items), fail);
   }, []);
-  const multipleOrgs = new Set(docs?.map((d) => d.organizationId)).size > 1;
+
+  const pendingTrainings = items?.filter((a) => !a.completedAt).length ?? 0;
+  const unreadDocs = docs?.filter((d) => !d.confirmedAt).length ?? 0;
 
   return (
     <PortalShell>
-      <PageHeader title="Eğitimlerim" />
+      <PageHeader
+        title={profile?.fullName ? `Merhaba, ${profile.fullName.split(' ')[0]}` : 'Özet'}
+        description={profile?.organizations.join(', ')}
+      />
       <ErrorAlert error={error} />
-      {!items && !error && <Loading />}
-      {items && items.length === 0 && (
-        <div className="card">
-          <Empty title="Size atanmış eğitim yok" />
-        </div>
-      )}
-      {items?.map((a) => (
-        <div className="card" key={a.id}>
-          <div className="card-header">
-            <div>
-              <h2>{a.trainingName}</h2>
-              <div className="muted small">
-                {a.organizationName} · {formatDate(a.sentAt)} tarihinde gönderildi
-              </div>
-            </div>
-            {a.completedAt ? (
-              <Badge kind="success">Tamamlandı · {formatDate(a.completedAt)}</Badge>
+      {(!items || !docs) && !error ? (
+        <Loading />
+      ) : (
+        <>
+          <div className="grid grid-4" style={{ marginBottom: 16 }}>
+            {items && <Stat label="Tamamlanmamış eğitim" value={pendingTrainings} tone={pendingTrainings ? 'warn' : undefined} />}
+            {docs && <Stat label="Okuma onayı bekleyen doküman" value={unreadDocs} tone={unreadDocs ? 'warn' : undefined} />}
+          </div>
+          <div className="card">
+            {pendingTrainings === 0 && unreadDocs === 0 ? (
+              <p style={{ margin: 0 }}>Bekleyen eğitiminiz veya okumanız gereken dokümanınız yok.</p>
             ) : (
-              <Link className="btn btn-primary" href={`/egitim/ders/${a.id}`}>
-                {a.startedAt ? 'Eğitime devam et' : 'Eğitime başla'}
-              </Link>
+              <ul style={{ margin: 0 }}>
+                {pendingTrainings > 0 && (
+                  <li>
+                    <Link href="/egitim/egitimlerim">Eğitimlerim</Link> sayfasından {pendingTrainings} eğitimi tamamlayın.
+                  </li>
+                )}
+                {unreadDocs > 0 && (
+                  <li>
+                    <Link href="/egitim/dokumanlar">KVK Dokümanları</Link> sayfasından {unreadDocs} dokümanı okuyup onaylayın.
+                  </li>
+                )}
+              </ul>
             )}
           </div>
-          {!a.completedAt && (
-            <p className="muted small" style={{ margin: 0 }}>
-              Eğitim bir ön test, ders konuları ve bir son testten oluşur. Her konu belirli bir süre okunmadan sonrakine
-              geçilemez. Eğitimi bitirmeden çıkarsanız tekrar girdiğinizde konular baştan başlar.
-            </p>
-          )}
-        </div>
-      ))}
-
-      <PageHeader
-        title="KVKK dokümanları"
-        description='Kuruluşunuzun onaylanıp yayınlanmış politika, prosedür ve metinleri. Her dokümanı sonuna kadar okuyup "Okudum, anladım." onayı verin.'
-      />
-      {!docs && !error && <Loading />}
-      {docs && docs.length === 0 && (
-        <div className="card">
-          <Empty title="Yayınlanmış doküman yok" />
-        </div>
-      )}
-      {docs && docs.length > 0 && (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Kod</th>
-                <th>Doküman</th>
-                <th>Tür</th>
-                {multipleOrgs && <th>Kuruluş</th>}
-                <th>Yayın tarihi</th>
-                <th>Okuma onayı</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {docs.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.code}</td>
-                  <td>{d.title}</td>
-                  <td>{DOCUMENT_CATEGORIES[d.category] ?? d.category}</td>
-                  {multipleOrgs && <td>{d.organizationName}</td>}
-                  <td>{d.publishedAt ? formatDate(d.publishedAt) : '—'}</td>
-                  <td>
-                    {d.confirmedAt ? (
-                      <Badge kind="success">Okundu · {formatDate(d.confirmedAt)}</Badge>
-                    ) : (
-                      <Badge kind="warning">Okunmadı</Badge>
-                    )}
-                  </td>
-                  <td>
-                    <Link className={`btn btn-small${d.confirmedAt ? '' : ' btn-primary'}`} href={`/egitim/dokuman/${d.id}`}>
-                      Oku
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        </>
       )}
     </PortalShell>
   );

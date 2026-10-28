@@ -74,6 +74,10 @@ export const organizations = pgTable('organizations', {
   setupCompletedAt: timestamp('setup_completed_at', { withTimezone: true }),
   /** Saklama ve İmha Politikasında belirlenen periyodik imha süresi (ay). */
   destructionPeriodMonths: integer('destruction_period_months').notNull().default(6),
+  /** Firma logosu (PNG veya JPEG); kuruluş panellerinin menüsünde gösterilir, yoksa ünvan yazılır. */
+  logo: bytea('logo'),
+  logoMime: text('logo_mime'),
+  logoUpdatedAt: timestamp('logo_updated_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('organizations_request_form_key_unique').on(t.requestFormKey)]);
 
@@ -281,6 +285,28 @@ export const documentVersions = pgTable(
 );
 
 /**
+ * Kişisel Veri Envanteri (şablon): envanter sütunlarındaki seçenekler (Erdal, 28.10.2026). Platform yöneticisi
+ * düzenler; değişiklik sonraki girişlerde görünür, mevcut envanter satırlarındaki değerler değişmez.
+ */
+export const inventoryTemplateOptions = pgTable(
+  'inventory_template_options',
+  {
+    id: id(),
+    /** Envanter sütunu (InventoryField; Fiziksel/Dijital hariç). */
+    field: text('field').notNull(),
+    value: text('value').notNull(),
+    /** Veri kategorisinde örnekler (seçerken gösterilir). */
+    examples: text('examples'),
+    /** Veri kategorisi özel nitelikli mi (KVKK md. 6). */
+    special: boolean('special').notNull().default(false),
+    sortOrder: integer('sort_order').notNull(),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('inventory_template_options_field_value_unique').on(t.field, t.value)],
+);
+
+/**
  * Kişisel veri envanteri satırı (TBL-010'un bir satırı): bir departmanın bir faaliyetinde
  * işlenen bir veri kategorisi. Sütunlar @kvkk/shared INVENTORY_COLUMNS ile aynı sıradadır.
  */
@@ -323,8 +349,8 @@ export const tasks = pgTable(
   'tasks',
   {
     id: id(),
+    /** Boşsa kuruluşa bağlı olmayan görevdir: platform yöneticisinin eğitmene atadığı görev. */
     organizationId: uuid('organization_id')
-      .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
     type: text('type', {
       enum: ['general', 'document_review', 'inventory_review', 'data_destruction', 'approval', 'data_subject_request'],
@@ -456,7 +482,6 @@ export const notifications = pgTable(
   {
     id: id(),
     organizationId: uuid('organization_id')
-      .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
     userId: uuid('user_id')
       .notNull()

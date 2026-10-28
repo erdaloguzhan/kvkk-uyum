@@ -42,7 +42,8 @@ export interface SystemRoleDefinition {
 /**
  * Müşteri kuruluşlarında yalnızca bu sabit roller vardır; özel rol tanımlanamaz.
  * Sorumlu tüm işi yapar; dokümanları, veri envanterindeki değişiklikleri ve imha planlarını Yöneticinin onayına gönderir.
- * Yönetici dokümanları, envanter değişikliklerini, veri ihlali bildirimlerini ve imha planlarını onaylar, görev atar; başka bir şeyi değiştiremez.
+ * Yönetici dokümanları, envanter değişikliklerini, veri ihlali bildirimlerini ve imha planlarını onaylar, görev atar; kuruluş
+ * bilgilerini ve işlem kayıtlarını görür, başka bir şeyi değiştiremez.
  * Aynı kişi (aynı e-posta) her ikisi olacaksa "Sorumlu + Yönetici" rolü atanır.
  * Çalışanlar yayınlanmış dokümanları ayrı bir rol yerine eğitim portalı hesaplarıyla görür.
  */
@@ -67,6 +68,9 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
     key: 'approver',
     name: 'Yönetici',
     permissions: [
+      // Kuruluş bilgilerini yalnızca okur; işlem kayıtlarını görür (Erdal'ın menü çizimi, 28.10.2026).
+      PERMISSIONS.ORG_READ,
+      PERMISSIONS.AUDIT_READ,
       PERMISSIONS.DOCUMENTS_READ,
       PERMISSIONS.DOCUMENTS_APPROVE,
       PERMISSIONS.INVENTORY_READ,

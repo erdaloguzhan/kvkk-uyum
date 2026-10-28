@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import request from 'supertest';
-import { addMember, createApp, createOrg, extractCode, lastMailTo, login, registerAndLogin, uniqueEmail } from './helpers';
+import { addMember, createApp, createOrg, extractCode, lastMailTo, login, makePlatformAdmin, registerAndLogin, uniqueEmail } from './helpers';
 
 /** TBL-010'daki ilk örnek satırın bir kısmı. */
 const ENTRY = {
@@ -104,6 +104,48 @@ describe('Kişisel Veri Envanteri', () => {
     expect(again.body.suggestions.department).toEqual(['İdari', 'Muhasebe', 'Satış']);
     expect(again.body.suggestions.technicalMeasures).toHaveLength(18);
     expect(again.body.suggestions.technicalMeasures[17]).toBe('Biyometrik giriş kontrolü');
+  });
+
+  it('seçenekler Kişisel Veri Envanteri (şablon) tablosundan gelir; şablonu yalnızca platform yöneticisi değiştirir', async () => {
+    const { admin, as } = await setupOrg();
+    const platform = await registerAndLogin(app);
+    await makePlatformAdmin(app, platform.user.id);
+    const asPlatform = { Authorization: `Bearer ${platform.accessToken}` };
+
+    await request(server).get('/api/v1/admin/inventory-template').set(as(admin.accessToken)).expect(403);
+    const list = await request(server).get('/api/v1/admin/inventory-template').set(asPlatform).expect(200);
+    expect(list.body.columns).toHaveLength(15);
+    const kimlik = list.body.items.find((o: any) => o.field === 'dataCategory' && o.value === 'Kimlik');
+    expect(kimlik).toMatchObject({ special: false, sortOrder: 1, examples: expect.stringContaining('tc kimlik no') });
+
+    const added = await request(server)
+      .post('/api/v1/admin/inventory-template')
+      .set(asPlatform)
+      .send({ field: 'retentionPeriod', value: '10 yıl' })
+      .expect(201);
+    await request(server).post('/api/v1/admin/inventory-template').set(asPlatform).send({ field: 'retentionPeriod', value: '10 yıl' }).expect(409);
+    await request(server).post('/api/v1/admin/inventory-template').set(asPlatform).send({ field: 'storageMedium', value: 'X' }).expect(400);
+    let options = await request(server).get('/api/v1/inventory/options').set(as(admin.accessToken)).expect(200);
+    expect(options.body.suggestions.retentionPeriod).toEqual(['15 yıl', '10 yıl']);
+
+    const first = list.body.items.find((o: any) => o.field === 'retentionPeriod' && o.value === '15 yıl');
+    await request(server)
+      .put('/api/v1/admin/inventory-template/order')
+      .set(asPlatform)
+      .send({ field: 'retentionPeriod', ids: [added.body.id] })
+      .expect(400);
+    await request(server)
+      .put('/api/v1/admin/inventory-template/order')
+      .set(asPlatform)
+      .send({ field: 'retentionPeriod', ids: [added.body.id, first.id] })
+      .expect(204);
+    await request(server).patch(`/api/v1/admin/inventory-template/${added.body.id}`).set(asPlatform).send({ value: '10 yıl (yasal)' }).expect(200);
+    options = await request(server).get('/api/v1/inventory/options').set(as(admin.accessToken)).expect(200);
+    expect(options.body.suggestions.retentionPeriod).toEqual(['10 yıl (yasal)', '15 yıl']);
+
+    await request(server).delete(`/api/v1/admin/inventory-template/${added.body.id}`).set(asPlatform).expect(204);
+    options = await request(server).get('/api/v1/inventory/options').set(as(admin.accessToken)).expect(200);
+    expect(options.body.suggestions.retentionPeriod).toEqual(['15 yıl']);
   });
 
   it('satırı oluşturur, eksik alanları gösterir, günceller ve loglar', async () => {

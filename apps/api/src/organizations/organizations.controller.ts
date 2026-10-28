@@ -1,4 +1,19 @@
-import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  Put,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { PERMISSIONS } from '@kvkk/shared';
 import { z } from 'zod';
 import {
@@ -52,5 +67,28 @@ export class OrganizationsController {
   @RequirePermissions(PERMISSIONS.ORG_MANAGE)
   completeSetup(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser) {
     return this.orgs.completeSetup(org.id, user.id);
+  }
+
+  /** Firma logosu; kuruluşun her üyesi görür (menüde gösterilir). */
+  @Get('current/logo')
+  @RequirePermissions()
+  async logo(@CurrentOrg() org: OrgContext, @Res() res: Response) {
+    const logo = await this.orgs.logo(org.id);
+    res.type(logo.mimeType).set('Cache-Control', 'private, no-cache').set('X-Content-Type-Options', 'nosniff').send(logo.content);
+  }
+
+  /** `file` alanında PNG veya JPEG, en fazla 1 MB. */
+  @Put('current/logo')
+  @RequirePermissions(PERMISSIONS.ORG_MANAGE)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 1024 * 1024, files: 1 } }))
+  setLogo(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File | undefined) {
+    if (!file) throw new BadRequestException('Logo dosyası gerekli');
+    return this.orgs.setLogo(org.id, user.id, file);
+  }
+
+  @Delete('current/logo')
+  @RequirePermissions(PERMISSIONS.ORG_MANAGE)
+  removeLogo(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser) {
+    return this.orgs.removeLogo(org.id, user.id);
   }
 }

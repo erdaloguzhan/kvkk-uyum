@@ -1,10 +1,8 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
-  DATA_CATEGORIES,
   INVENTORY_COLUMNS,
   INVENTORY_REQUIRED_FIELDS,
   INVENTORY_TEMPLATE_FILE,
-  INVENTORY_TEMPLATE_OPTIONS,
   InventoryField,
   STORAGE_MEDIA,
 } from '@kvkk/shared';
@@ -16,6 +14,7 @@ import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { inventoryEntries } from '../db/schema';
 import { ImportFileError, parseInventoryXlsx } from './inventory-import';
+import { InventoryTemplateService } from './inventory-template.service';
 
 type EntryRow = typeof inventoryEntries.$inferSelect;
 type EntryFields = Omit<EntryRow, 'id' | 'organizationId' | 'createdBy' | 'updatedBy' | 'createdAt' | 'updatedAt'>;
@@ -63,14 +62,19 @@ export class InventoryService {
     @InjectDb() private readonly db: Database,
     @Inject(CONFIG) private readonly config: AppConfig,
     private readonly audit: AuditService,
+    private readonly template: InventoryTemplateService,
   ) {}
 
-  /** Sütun tanımları ve her alan için öneriler: TBL-010 örnekleri + kuruluşun daha önce girdiği değerler. */
+  /**
+   * Sütun tanımları ve her alan için öneriler: Kişisel Veri Envanteri (şablon) seçenekleri + kuruluşun daha önce
+   * girdiği diğer değerler.
+   */
   async options(orgId: string) {
     const rows = await this.db.select().from(inventoryEntries).where(eq(inventoryEntries.organizationId, orgId));
+    const { byField, dataCategories } = await this.template.forInventory();
     const suggestions = Object.fromEntries(
       SUGGESTION_FIELDS.map((field) => {
-        const template = INVENTORY_TEMPLATE_OPTIONS[field] ?? [];
+        const template = byField.get(field) ?? [];
         const own = new Set<string>();
         for (const row of rows) {
           const v = row[field];
@@ -86,7 +90,7 @@ export class InventoryService {
       requiredFields: INVENTORY_REQUIRED_FIELDS,
       storageMedia: STORAGE_MEDIA,
       // Veri kategorisi seçilirken örnekleri göstermek ve özel nitelikli olanları ayırt etmek için.
-      dataCategories: DATA_CATEGORIES,
+      dataCategories,
       suggestions,
     };
   }

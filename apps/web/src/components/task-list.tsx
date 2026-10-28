@@ -6,7 +6,7 @@ import { daysLeftText, formatDay } from '@/lib/labels';
 import type { Task } from '@/lib/types';
 import { Badge } from './ui';
 
-export function dueBadge(t: Task) {
+export function dueBadge(t: Pick<Task, 'status' | 'overdue' | 'daysLeft'>) {
   if (t.status === 'done') return <Badge kind="success">Tamamlandı</Badge>;
   if (t.status === 'cancelled') return <Badge>İptal edildi</Badge>;
   const kind = t.overdue ? 'danger' : t.daysLeft !== null && t.daysLeft <= 7 ? 'warning' : 'info';

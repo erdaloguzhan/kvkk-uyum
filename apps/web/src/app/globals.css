@@ -64,6 +64,8 @@ p { margin: 0 0 0.75rem; }
 .brand .logo { width: 100%; height: auto; padding: 8px 12px; margin-bottom: 12px; }
 .topbar .logo { padding: 3px 6px; border-radius: 6px; }
 .auth-card .logo { margin-bottom: 16px; }
+/* Firma logosu yoksa menünün başında kuruluşun ünvanı yazar. */
+.org-brand-name { display: block; font-size: 1.1rem; line-height: 1.3; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
 .brand small { display: block; font-weight: 400; font-size: 0.75rem; color: var(--sidebar-text); }
 .nav-link {
   display: flex; align-items: center; justify-content: space-between;
@@ -268,6 +270,9 @@ dl.details dd { margin: 0; }
 .exam-question:last-child { border-bottom: 0; }
 .exam-question .checkbox { padding: 4px 0; }
 .timer { font-variant-numeric: tabular-nums; }
+/* Menü grupları arasında ince ayraç (Erdal'ın menü çizimi). */
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group + .nav-group { border-top: 1px solid rgba(255, 255, 255, 0.12); margin-top: 8px; padding-top: 8px; }
 .nav-section { color: var(--sidebar-text); opacity: 0.7; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 14px 12px 4px; }
 
 /* Destek talepleri */
