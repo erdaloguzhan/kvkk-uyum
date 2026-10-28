@@ -1,10 +1,11 @@
 'use client';
 
 import { PERMISSIONS } from '@kvkk/shared';
-import { useState } from 'react';
+import { ChangeEvent, useState } from 'react';
+import { useOrgLogo } from '@/components/logo';
 import { DOCUMENT_REQUIRED, OrgForm, SETUP_REQUIRED } from '@/components/org-form';
 import { Alert, Badge, ErrorAlert, Loading, PageHeader } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, errorText } from '@/lib/api';
 import { formatDate, ORG_FIELD_LABELS } from '@/lib/labels';
 import { useSession } from '@/lib/session';
 import type { Organization } from '@/lib/types';
@@ -50,6 +51,7 @@ export default function OrganizationPage() {
         </Alert>
       )}
       {!canManage && <Alert kind="info">Bu bilgileri yalnızca KVKK Sorumlusu değiştirebilir.</Alert>}
+      <LogoCard org={org} canManage={canManage} onChange={async (updated) => (setData(updated), await reload())} />
       <div className="card">
         <OrgForm
           key={org.id}
@@ -71,5 +73,74 @@ export default function OrganizationPage() {
         />
       </div>
     </>
+  );
+}
+
+/** Firma logosu: kuruluş panellerinin menüsünde gösterilir; yoksa menüde kuruluşun ünvanı yazar. */
+function LogoCard({
+  org,
+  canManage,
+  onChange,
+}: {
+  org: Organization;
+  canManage: boolean;
+  onChange: (org: Organization) => Promise<unknown>;
+}) {
+  const url = useOrgLogo(org.logoUpdatedAt);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(action: () => Promise<Organization>) {
+    setBusy(true);
+    setError(null);
+    try {
+      await onChange(await action());
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function upload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const body = new FormData();
+    body.append('file', file);
+    run(() => api<Organization>('organizations/current/logo', { method: 'PUT', body }));
+  }
+
+  if (!canManage && !url) return null;
+  return (
+    <div className="card">
+      <h2>Firma logosu</h2>
+      <p className="small muted">
+        Menünün başında gösterilir; logo yoksa kuruluşun ünvanı yazar. PNG veya JPEG, en fazla 1 MB.
+      </p>
+      <ErrorAlert error={error} />
+      {url ? (
+        <img src={url} alt="Firma logosu" style={{ maxHeight: 80, maxWidth: 240, display: 'block', marginBottom: 12 }} />
+      ) : (
+        <p className="small">Logo yüklenmedi.</p>
+      )}
+      {canManage && (
+        <div className="actions">
+          <label className="btn btn-small">
+            {busy ? 'Yükleniyor…' : url ? 'Logoyu değiştir' : 'Logo yükle'}
+            <input type="file" accept="image/png,image/jpeg" hidden disabled={busy} onChange={upload} />
+          </label>
+          {url && (
+            <button
+              className="btn btn-small btn-danger"
+              disabled={busy}
+              onClick={() => run(() => api<Organization>('organizations/current/logo', { method: 'DELETE' }))}
+            >
+              Logoyu kaldır
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

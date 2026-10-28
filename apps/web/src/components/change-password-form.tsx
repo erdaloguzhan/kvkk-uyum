@@ -1,8 +1,9 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, ReactNode, useState } from 'react';
+import Link from 'next/link';
 import { api, ApiError, ApiErrorBody, errorText, redirectToLogin } from '@/lib/api';
-import { useSession } from '@/lib/session';
+import { selectableRoles, useSession } from '@/lib/session';
 import { PASSWORD_HINT, passwordProblem } from '@/lib/password';
 import { Alert, ErrorAlert, Field, PageHeader } from './ui';
 
@@ -155,10 +156,36 @@ function PhoneForm({ phone }: { phone: string | null }) {
   );
 }
 
-export function ProfilePage({ fullName, email, phone, role }: { fullName: string; email: string; phone: string | null; role?: string }) {
+/** Profil sayfası. Rol değiştirme menüden buraya taşındı (Erdal'ın menü çizimi, 28.10.2026). */
+export function ProfilePage({
+  fullName,
+  email,
+  phone,
+  role,
+  extra,
+}: {
+  fullName: string;
+  email: string;
+  phone: string | null;
+  role?: string;
+  extra?: ReactNode;
+}) {
+  const { me, role: active } = useSession();
+  // Platform yöneticisi seçim ekranında yer almaz; admin panelinden diğer rolüne geçmek için tek seçilebilir rol yeter.
+  const canSwitch = !!me && selectableRoles(me).length > (active?.kind === 'admin' ? 0 : 1);
   return (
     <>
-      <PageHeader title="Profilim" description="Hesap bilgileriniz ve şifreniz." />
+      <PageHeader
+        title="Profilim"
+        description="Hesap bilgileriniz ve şifreniz."
+        actions={
+          canSwitch && (
+            <Link className="btn btn-small" href="/rol-sec">
+              Rol değiştir
+            </Link>
+          )
+        }
+      />
       <div className="card">
         <h2>Hesap</h2>
         <dl className="details">
@@ -182,6 +209,7 @@ export function ProfilePage({ fullName, email, phone, role }: { fullName: string
         <h2>Şifre değiştir</h2>
         <ChangePasswordForm />
       </div>
+      {extra}
     </>
   );
 }

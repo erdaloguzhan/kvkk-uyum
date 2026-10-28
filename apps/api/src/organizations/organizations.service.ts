@@ -1,6 +1,6 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ORG_ADMIN_ROLE_KEY, SYSTEM_ROLES } from '@kvkk/shared';
-import { eq } from 'drizzle-orm';
+import { eq, getTableColumns } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
@@ -27,6 +27,15 @@ const REQUIRED_FOR_SETUP: (keyof OrganizationProfile)[] = [
   'taxNumber',
 ];
 
+/** Yanıtlarda dönen kuruluş alanları: logo dosyası ayrı uçtan verilir, yerine `logoUpdatedAt` döner. */
+const { logo: _logo, logoMime: _logoMime, ...ORG_COLUMNS } = getTableColumns(organizations);
+
+/** Firma logosu; menüde ve PDF'lerde sorunsuz gösterilebilmesi için yalnızca PNG veya JPEG. */
+const LOGO_TYPES: Record<string, (b: Buffer) => boolean> = {
+  'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+};
+
 @Injectable()
 export class OrganizationsService {
   constructor(
@@ -48,7 +57,7 @@ export class OrganizationsService {
           licenseStatus: 'trial',
           licenseExpiresAt: new Date(Date.now() + this.config.trialDays * 24 * 60 * 60 * 1000),
         })
-        .returning();
+        .returning(ORG_COLUMNS);
       const createdRoles = await tx
         .insert(roles)
         .values(
@@ -78,7 +87,7 @@ export class OrganizationsService {
   }
 
   async get(orgId: string) {
-    const [org] = await this.db.select().from(organizations).where(eq(organizations.id, orgId));
+    const [org] = await this.db.select(ORG_COLUMNS).from(organizations).where(eq(organizations.id, orgId));
     return org;
   }
 
@@ -87,7 +96,7 @@ export class OrganizationsService {
       .update(organizations)
       .set(changes)
       .where(eq(organizations.id, orgId))
-      .returning();
+      .returning(ORG_COLUMNS);
     await this.audit.record({
       action: 'organization.updated',
       organizationId: orgId,
@@ -113,8 +122,38 @@ export class OrganizationsService {
       .update(organizations)
       .set({ setupCompletedAt: org.setupCompletedAt ?? new Date() })
       .where(eq(organizations.id, orgId))
-      .returning();
+      .returning(ORG_COLUMNS);
     await this.audit.record({ action: 'organization.setup_completed', organizationId: orgId, userId });
     return updated;
+  }
+
+  async logo(orgId: string) {
+    const [row] = await this.db
+      .select({ content: organizations.logo, mimeType: organizations.logoMime })
+      .from(organizations)
+      .where(eq(organizations.id, orgId));
+    if (!row?.content || !row.mimeType) throw new NotFoundException('Logo yok');
+    return { content: row.content, mimeType: row.mimeType };
+  }
+
+  async setLogo(orgId: string, userId: string, file: { buffer: Buffer; mimetype: string }) {
+    if (!LOGO_TYPES[file.mimetype]?.(file.buffer)) throw new BadRequestException('Logo PNG veya JPEG görsel olmalı');
+    const [org] = await this.db
+      .update(organizations)
+      .set({ logo: file.buffer, logoMime: file.mimetype, logoUpdatedAt: new Date() })
+      .where(eq(organizations.id, orgId))
+      .returning(ORG_COLUMNS);
+    await this.audit.record({ action: 'organization.logo_set', organizationId: orgId, userId, entityType: 'organization', entityId: orgId });
+    return org;
+  }
+
+  async removeLogo(orgId: string, userId: string) {
+    const [org] = await this.db
+      .update(organizations)
+      .set({ logo: null, logoMime: null, logoUpdatedAt: null })
+      .where(eq(organizations.id, orgId))
+      .returning(ORG_COLUMNS);
+    await this.audit.record({ action: 'organization.logo_removed', organizationId: orgId, userId, entityType: 'organization', entityId: orgId });
+    return org;
   }
 }

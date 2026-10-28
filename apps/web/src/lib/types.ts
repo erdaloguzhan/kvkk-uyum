@@ -36,6 +36,8 @@ export interface OrgMembership {
   licenseStatus: 'trial' | 'active' | 'expired';
   licenseExpiresAt: string | null;
   setupCompletedAt: string | null;
+  /** Firma logosunun yüklendiği zaman; boşsa logo yoktur. */
+  logoUpdatedAt: string | null;
   role: { key: string; name: string; permissions: Permission[] };
 }
 
@@ -65,6 +67,7 @@ export interface Organization {
   licenseStatus: string;
   licenseExpiresAt: string | null;
   setupCompletedAt: string | null;
+  logoUpdatedAt: string | null;
 }
 
 export interface DocumentVersion {
@@ -419,6 +422,14 @@ export interface PortalAssignment {
   sentAt: string;
   startedAt: string | null;
   completedAt: string | null;
+}
+
+/** Çalışan paneli profili (cep telefonuna bağlı aktif çalışan kayıtlarından). */
+export interface PortalProfile {
+  phone: string;
+  fullName: string | null;
+  email: string | null;
+  organizations: string[];
 }
 
 export interface PortalDocument {

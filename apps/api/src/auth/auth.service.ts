@@ -283,6 +283,8 @@ export class AuthService {
         licenseStatus: organizations.licenseStatus,
         licenseExpiresAt: organizations.licenseExpiresAt,
         setupCompletedAt: organizations.setupCompletedAt,
+        /** Doluysa menüde firma logosu, boşsa ünvan gösterilir. */
+        logoUpdatedAt: organizations.logoUpdatedAt,
         role: { key: roles.key, name: roles.name, permissions: roles.permissions },
       })
       .from(memberships)

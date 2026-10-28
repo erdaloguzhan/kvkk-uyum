@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { selectableRoles, useSession } from '@/lib/session';
+import { useSession } from '@/lib/session';
 import { Empty, Loading } from './ui';
 import { Logo } from './logo';
 
@@ -15,23 +15,26 @@ interface NavItem {
   trainer?: boolean;
 }
 
+/** Menü grupları Erdal'ın menü çizimindeki sırayla (28.10.2026). */
 const NAV: NavItem[] = [
   { href: '/admin', label: 'Kuruluşlar' },
-  { href: '/admin/sablonlar', label: 'Doküman şablonları' },
-  { href: '/admin/destek', label: 'Destek talepleri' },
+  { href: '/admin/sablonlar', label: 'KVK Dokümanları (şablon)' },
 ];
 
 const TRAINING_NAV: NavItem[] = [
   { href: '/admin/egitim', label: 'Eğitimler', trainer: true },
-  { href: '/admin/egitim/gruplar', label: 'Eğitim grupları', trainer: true },
-  { href: '/admin/egitim/sonuclar', label: 'Sınav sonuçları', trainer: true },
+  { href: '/admin/egitim/gruplar', label: 'Eğitim Grupları', trainer: true },
   { href: '/admin/egitim/egitimciler', label: 'Eğitimciler' },
 ];
 
-const TRAINING_SUBPAGES = TRAINING_NAV.filter((n) => n.href !== '/admin/egitim').map((n) => n.href);
+const SUPPORT_NAV: NavItem[] = [{ href: '/admin/destek', label: 'Destek Talepleri' }];
+
+/** Menüde olmayan eğitim alt sayfaları (sınav sonuçlarına Eğitim Grupları sayfasından gidilir). */
+const TRAINING_SUBPAGES = [...TRAINING_NAV.filter((n) => n.href !== '/admin/egitim').map((n) => n.href), '/admin/egitim/sonuclar'];
 
 function isActive(pathname: string, href: string) {
   if (href === '/admin') return pathname === '/admin' || pathname.startsWith('/admin/kuruluslar');
+  if (href === '/admin/egitim/gruplar') return pathname.startsWith(href) || pathname.startsWith('/admin/egitim/sonuclar');
   if (href === '/admin/egitim') {
     return pathname.startsWith('/admin/egitim') && !TRAINING_SUBPAGES.some((p) => pathname.startsWith(p));
   }
@@ -99,7 +102,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
   if (loading || !me || trainerHome) return <Loading />;
   const allowed = isAdmin || (panelRole === 'trainer' && trainerAllowed(pathname)) || pathname === '/admin/profil';
-  const otherRoles = selectableRoles(me).length > (panelRole === 'trainer' ? 1 : 0);
+  const panelTitle = isAdmin ? 'Admin Paneli' : panelRole === 'trainer' ? 'Eğitmen Paneli' : 'Yönetim Paneli';
   const link = (n: NavItem) => (
     <Link key={n.href} href={n.href} className={`nav-link${isActive(pathname, n.href) ? ' active' : ''}`}>
       {n.label}
@@ -114,36 +117,27 @@ export function AdminShell({ children }: { children: ReactNode }) {
           ☰
         </button>
         <Logo height={34} onDark />
-        <strong>Yönetim Paneli</strong>
+        <strong>{panelTitle}</strong>
       </header>
       {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}
       <nav className={`sidebar${menuOpen ? ' open' : ''}`} aria-label="Yönetim menüsü">
         <div className="brand">
           <Logo onDark />
           KVK Uyum Yönetim Sistemi
-          <small>Yönetim paneli</small>
+          <small>{panelTitle}</small>
         </div>
-        {isAdmin && NAV.map(link)}
-        {panelRole && (
-          <>
-            <div className="nav-section">Uzaktan eğitim</div>
-            {TRAINING_NAV.filter((n) => isAdmin || n.trainer).map(link)}
-          </>
-        )}
-        {otherRoles && (
-          <Link href="/rol-sec" className="nav-link">
-            Rol değiştir
-          </Link>
-        )}
+        {isAdmin && <div className="nav-group">{NAV.map(link)}</div>}
+        {panelRole && <div className="nav-group">{TRAINING_NAV.filter((n) => isAdmin || n.trainer).map(link)}</div>}
+        {isAdmin && <div className="nav-group">{SUPPORT_NAV.map(link)}</div>}
         <div className="sidebar-footer">
           <div style={{ color: '#fff' }}>{me.fullName}</div>
           <div>{isAdmin ? 'Platform yöneticisi' : panelRole === 'trainer' ? 'Eğitmen' : ''}</div>
           <div className="sidebar-actions">
             <Link href="/admin/profil" className={pathname === '/admin/profil' ? 'active' : undefined}>
-              Profilim / şifre değiştir
+              Profil
             </Link>
             <button type="button" onClick={logout}>
-              Çıkış yap
+              Çıkış
             </button>
           </div>
         </div>

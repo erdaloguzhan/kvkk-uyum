@@ -72,6 +72,10 @@ export const organizations = pgTable('organizations', {
   setupCompletedAt: timestamp('setup_completed_at', { withTimezone: true }),
   /** Saklama ve İmha Politikasında belirlenen periyodik imha süresi (ay). */
   destructionPeriodMonths: integer('destruction_period_months').notNull().default(6),
+  /** Firma logosu (PNG veya JPEG); kuruluş panellerinin menüsünde gösterilir, yoksa ünvan yazılır. */
+  logo: bytea('logo'),
+  logoMime: text('logo_mime'),
+  logoUpdatedAt: timestamp('logo_updated_at', { withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('organizations_request_form_key_unique').on(t.requestFormKey)]);
 

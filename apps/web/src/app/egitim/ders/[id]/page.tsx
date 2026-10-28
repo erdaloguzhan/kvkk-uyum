@@ -84,7 +84,7 @@ export default function PortalLessonPage() {
                 <strong>Tebrikler. Eğitimi başarıyla tamamladınız.</strong>
                 {view.lastPostTest && <> Son test notunuz: {view.lastPostTest.score}.</>}
               </Alert>
-              <Link className="btn" href="/egitim/panel">
+              <Link className="btn" href="/egitim/egitimlerim">
                 Eğitimlerime dön
               </Link>
             </div>

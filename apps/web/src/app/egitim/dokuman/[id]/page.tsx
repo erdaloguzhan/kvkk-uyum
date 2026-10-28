@@ -67,7 +67,7 @@ export default function PortalDocumentPage() {
   return (
     <PortalShell>
       <p className="small">
-        <Link href="/egitim/panel">← Eğitimlerim ve dokümanlar</Link>
+        <Link href="/egitim/dokumanlar">← KVK Dokümanları</Link>
       </p>
       {!doc && !error && <Loading />}
       <ErrorAlert error={error} />
@@ -76,11 +76,6 @@ export default function PortalDocumentPage() {
           <PageHeader
             title={`${doc.code} ${doc.title}`}
             description={`${doc.organizationName} · Sürüm ${doc.versionNo}${doc.publishedAt ? ` · Yayın: ${formatDate(doc.publishedAt)}` : ''}`}
-            actions={
-              <a className="btn btn-small" href={`/api/portal/documents/${doc.id}/file`} download>
-                Word dosyasını indir
-              </a>
-            }
           />
           <div className="card">
             <SafeHtml html={doc.html} className="markdown document-body" />

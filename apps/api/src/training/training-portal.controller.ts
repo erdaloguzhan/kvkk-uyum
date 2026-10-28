@@ -1,11 +1,9 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common';
-import type { Response } from 'express';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { CaptchaService } from '../auth/captcha.service';
 import { AppRequest, clientInfo, Public } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
-import { sendFile } from './files';
 import { PortalAuthService, TraineeToken } from './portal-auth.service';
 import { PortalDocumentsService } from './portal-documents.service';
 import { PortalService } from './portal.service';
@@ -16,8 +14,6 @@ const codeBody = z.object({ phone: mobileLogin, captchaToken: z.string().max(200
 const loginBody = z.object({ challengeId: z.uuid(), code: z.string().regex(/^\d{6}$/, 'Kod 6 haneli olmalı') });
 const nextBody = z.object({ topicIndex: z.number().int().min(0) });
 const readBody = z.object({ versionId: z.uuid() });
-
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
 
@@ -52,8 +48,8 @@ export class TrainingPortalController {
 
   @Get('me')
   @UseGuards(TraineeGuard)
-  me(@CurrentTrainee() trainee: TraineeToken) {
-    return { phone: trainee.sub };
+  async me(@CurrentTrainee() trainee: TraineeToken) {
+    return { phone: trainee.sub, ...(await this.documents.profile(trainee)) };
   }
 
   @Get('assignments')
@@ -87,13 +83,6 @@ export class TrainingPortalController {
     @Body(new ZodPipe(readBody)) body: z.infer<typeof readBody>,
   ) {
     return this.documents.confirmRead(trainee, id, body.versionId, clientInfo(req));
-  }
-
-  @Get('documents/:id/file')
-  @UseGuards(TraineeGuard)
-  async documentFile(@CurrentTrainee() trainee: TraineeToken, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
-    const file = await this.documents.file(trainee, id);
-    sendFile(res, file.content, file.fileName, DOCX_MIME);
   }
 
   @Get('assignments/:id')

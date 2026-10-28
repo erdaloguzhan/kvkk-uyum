@@ -125,8 +125,10 @@ describe('İş akışı ve alarmlar', () => {
     // Yönetici envanteri ve dokümanları değiştiremez, kuruluş bilgilerine ve loglara erişemez.
     await request(server).post('/api/v1/inventory').set(y).send({ department: 'İK', activity: 'İşe alım', dataCategory: 'Kimlik' }).expect(403);
     await request(server).post('/api/v1/documents/setup').set(y).expect(403);
-    await request(server).get('/api/v1/organizations/current').set(y).expect(403);
-    await request(server).get('/api/v1/audit-logs').set(y).expect(403);
+    // Kuruluş bilgilerini ve işlem kayıtlarını yalnızca okur (Erdal'ın menü çizimi, 28.10.2026).
+    await request(server).get('/api/v1/organizations/current').set(y).expect(200);
+    await request(server).patch('/api/v1/organizations/current').set(y).send({ phone: '1' }).expect(403);
+    await request(server).get('/api/v1/audit-logs').set(y).expect(200);
     await request(server).get('/api/v1/contracts').set(y).expect(403);
   });
 

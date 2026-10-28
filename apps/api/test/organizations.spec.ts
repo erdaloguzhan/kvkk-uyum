@@ -107,20 +107,55 @@ describe('Kuruluşlar, üyeler ve roller', () => {
         .expect(404);
     }
 
-    // Yönetici dokümanları ve envanteri görür, görev atamak için kullanıcıları listeler.
+    // Yönetici dokümanları ve envanteri görür, görev atamak için kullanıcıları listeler; kuruluş bilgilerini ve işlem
+    // kayıtlarını yalnızca okur.
     for (const user of [approver]) {
       await request(server).get('/api/v1/documents').set(as(user.accessToken)).expect(200);
       await request(server).get('/api/v1/inventory').set(as(user.accessToken)).expect(200);
       await request(server).get('/api/v1/members').set(as(user.accessToken)).expect(200);
-      await request(server).get('/api/v1/organizations/current').set(as(user.accessToken)).expect(403);
+      await request(server).get('/api/v1/organizations/current').set(as(user.accessToken)).expect(200);
+      await request(server).patch('/api/v1/organizations/current').set(as(user.accessToken)).send({ phone: '1' }).expect(403);
       await request(server).patch(`/api/v1/members/${approver.membershipId}`).set(as(user.accessToken)).send({ roleKey: 'officer_approver' }).expect(404);
-      await request(server).get('/api/v1/audit-logs').set(as(user.accessToken)).expect(403);
+      await request(server).get('/api/v1/audit-logs').set(as(user.accessToken)).expect(200);
       await request(server).post('/api/v1/documents/setup').set(as(user.accessToken)).expect(403);
     }
 
     // Devre dışı bırakılan üye erişemez.
     await app.get(MembersService).update(orgId, null, approver.membershipId, { status: 'disabled' });
     await request(server).get('/api/v1/documents').set(as(approver.accessToken)).expect(403);
+  });
+
+  it('firma logosunu Sorumlu yükler, kuruluşun her üyesi görür', async () => {
+    const { admin, orgId, as } = await setupOrg();
+    const approver = await addMember(app, orgId, 'approver');
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
+
+    await request(server).get('/api/v1/organizations/current/logo').set(as(admin.accessToken)).expect(404);
+    await request(server)
+      .put('/api/v1/organizations/current/logo')
+      .set(as(admin.accessToken))
+      .attach('file', Buffer.from('<svg/>'), { filename: 'logo.svg', contentType: 'image/svg+xml' })
+      .expect(400);
+    await request(server)
+      .put('/api/v1/organizations/current/logo')
+      .set(as(approver.accessToken))
+      .attach('file', png, { filename: 'logo.png', contentType: 'image/png' })
+      .expect(403);
+    const set = await request(server)
+      .put('/api/v1/organizations/current/logo')
+      .set(as(admin.accessToken))
+      .attach('file', png, { filename: 'logo.png', contentType: 'image/png' })
+      .expect(200);
+    expect(set.body.logoUpdatedAt).toEqual(expect.any(String));
+    expect(set.body).not.toHaveProperty('logo');
+
+    const me = await request(server).get('/api/v1/auth/me').set('Authorization', `Bearer ${approver.accessToken}`).expect(200);
+    expect(me.body.organizations[0].logoUpdatedAt).toEqual(expect.any(String));
+    const logo = await request(server).get('/api/v1/organizations/current/logo').set(as(approver.accessToken)).expect(200);
+    expect(logo.headers['content-type']).toContain('image/png');
+
+    await request(server).delete('/api/v1/organizations/current/logo').set(as(admin.accessToken)).expect(200);
+    await request(server).get('/api/v1/organizations/current/logo').set(as(approver.accessToken)).expect(404);
   });
 
   it('kuruluşta Sorumlu ve Yönetici yetkisi olan birer aktif kişi kalır', async () => {

@@ -91,16 +91,25 @@ export class PortalDocumentsService {
     return row;
   }
 
-  async file(token: TraineeToken, documentId: string) {
-    const doc = await this.published(token, documentId);
-    await this.audit.record({
-      action: 'document.portal_downloaded',
-      organizationId: doc.organizationId,
-      entityType: 'document',
-      entityId: doc.id,
-      metadata: { employeeId: doc.employeeId, versionNo: doc.versionNo, account: token.sub },
-    });
-    return doc;
+  /** Çalışan paneli profili: ad soyad, e-posta ve çalıştığı kuruluşlar (cep telefonuna bağlı aktif çalışan kayıtları). */
+  async profile(token: TraineeToken) {
+    const rows = await this.db
+      .select({
+        firstName: employees.firstName,
+        lastName: employees.lastName,
+        email: employees.email,
+        organizationName: organizations.name,
+      })
+      .from(employees)
+      .innerJoin(organizations, eq(organizations.id, employees.organizationId))
+      .where(this.activeEmployment(token.sub))
+      .orderBy(asc(organizations.name));
+    const first = rows[0];
+    return {
+      fullName: first ? `${first.firstName} ${first.lastName}` : null,
+      email: rows.find((r) => r.email)?.email ?? null,
+      organizations: rows.map((r) => r.organizationName),
+    };
   }
 
   /**

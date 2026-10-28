@@ -485,13 +485,15 @@ describe('Uzaktan eğitim', () => {
     expect(list.body.items).toEqual([
       expect.objectContaining({ id: published.id, code: 'PRS-010', organizationName: 'Doküman Müşteri A.Ş.', versionNo: 1 }),
     ]);
-    const file = await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}/file`))
-      .buffer(true)
-      .parse(binary)
-      .expect(200);
-    expect(file.body.subarray(0, 2).toString()).toBe('PK');
+    await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}`)).expect(200);
+    const me = await portal(request(server).get('/api/v1/training-portal/me')).expect(200);
+    expect(me.body).toEqual(
+      expect.objectContaining({ phone, fullName: expect.any(String), organizations: ['Doküman Müşteri A.Ş.'] }),
+    );
+    // Çalışan paneli Word dosyası indirmez (Erdal'ın menü çizimi, 28.10.2026).
+    await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}/file`)).expect(404);
     for (const d of [hidden, draft]) {
-      await portal(request(server).get(`/api/v1/training-portal/documents/${d.id}/file`)).expect(404);
+      await portal(request(server).get(`/api/v1/training-portal/documents/${d.id}`)).expect(404);
     }
     // Yönetim belirteci portal dokümanlarında geçmez.
     await request(server).get('/api/v1/training-portal/documents').set('authorization', `Bearer ${owner.accessToken}`).expect(401);
@@ -502,7 +504,7 @@ describe('Uzaktan eğitim', () => {
       .expect(200);
     const after = await portal(request(server).get('/api/v1/training-portal/documents')).expect(200);
     expect(after.body.items).toEqual([]);
-    await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}/file`)).expect(404);
+    await portal(request(server).get(`/api/v1/training-portal/documents/${published.id}`)).expect(404);
   });
 
   it('çalışan dokümanı portalda sonuna kadar okur ve "Okudum, anladım." onayı okunan sürümle kaydedilir', async () => {
