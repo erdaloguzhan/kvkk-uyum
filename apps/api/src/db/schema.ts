@@ -1,3 +1,4 @@
+import type { IncidentForm } from '@kvkk/shared';
 import { sql } from 'drizzle-orm';
 import { decryptField, encryptField } from '../common/field-crypto';
 import {
@@ -328,7 +329,7 @@ export const tasks = pgTable(
     recurrenceMonths: integer('recurrence_months'),
     status: text('status', { enum: ['open', 'done', 'cancelled'] }).notNull().default('open'),
     /** Bağlı kayıt (ör. gözden geçirilecek doküman). */
-    entityType: text('entity_type', { enum: ['document', 'inventory_entry', 'inventory_approval'] }),
+    entityType: text('entity_type', { enum: ['document', 'inventory_entry', 'inventory_approval', 'incident'] }),
     entityId: uuid('entity_id'),
     previousTaskId: uuid('previous_task_id').references((): AnyPgColumn => tasks.id, { onDelete: 'set null' }),
     completionNote: text('completion_note'),
@@ -453,12 +454,15 @@ export const notifications = pgTable(
         'task_overdue',
         'approval_requested',
         'approval_decided',
+        'incident_recorded',
+        'incident_deadline',
       ],
     }).notNull(),
     title: text('title').notNull(),
     body: text('body').notNull(),
     taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }),
     approvalRequestId: uuid('approval_request_id').references(() => approvalRequests.id, { onDelete: 'cascade' }),
+    incidentId: uuid('incident_id').references((): AnyPgColumn => incidents.id, { onDelete: 'cascade' }),
     dedupeKey: text('dedupe_key'),
     readAt: timestamp('read_at', { withTimezone: true }),
     createdAt: createdAt(),
@@ -497,6 +501,57 @@ export const contracts = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('contracts_org_status_idx').on(t.organizationId, t.status)],
+);
+
+/**
+ * Veri ihlali olay kaydı (PRS-030). FRM-020'nin cevapları `form` içinde, akış ve raporlama için gereken
+ * alanlar sütun olarak tutulur. Sorumlu doldurur ve Yöneticinin onayına gönderir; onaylanan bildirim
+ * Kurula gönderildikten sonra "bildirildi" olarak kapatılır. Takip bildirimi ilk bildirimin kopyasıdır (`parentId`).
+ */
+export const incidents = pgTable(
+  'incidents',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    /** Kuruluş içinde sıra numarası (İhlal #1, #2...). */
+    number: integer('number').notNull(),
+    title: text('title').notNull(),
+    notificationType: text('notification_type', { enum: ['initial', 'follow_up'] }).notNull().default('initial'),
+    parentId: uuid('parent_id').references((): AnyPgColumn => incidents.id, { onDelete: 'set null' }),
+    /** Takip bildirimlerinde Kurulun verdiği takip numarası. */
+    followUpRef: text('follow_up_ref'),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }),
+    detectedAt: timestamp('detected_at', { withTimezone: true }).notNull(),
+    form: jsonb('form').$type<IncidentForm>().notNull(),
+    status: text('status', { enum: ['draft', 'pending_approval', 'approved', 'notified', 'closed'] })
+      .notNull()
+      .default('draft'),
+    approverId: uuid('approver_id').references(() => users.id, { onDelete: 'set null' }),
+    taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    submittedBy: uuid('submitted_by').references(() => users.id, { onDelete: 'set null' }),
+    /** Son onay kararı (ret gerekçesi kayıt yeniden düzenlenirken görünür kalır). */
+    decision: text('decision', { enum: ['approved', 'rejected'] }),
+    decisionNote: text('decision_note'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decidedBy: uuid('decided_by').references(() => users.id, { onDelete: 'set null' }),
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    /** Kurula bildirildiğinde not (ör. gönderilen e-posta, Kurulun verdiği numara) veya bildirim yapılmama gerekçesi. */
+    closingNote: text('closing_note'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    closedBy: uuid('closed_by').references(() => users.id, { onDelete: 'set null' }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: createdAt(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('incidents_org_number_unique').on(t.organizationId, t.number),
+    index('incidents_org_detected_idx').on(t.organizationId, t.detectedAt),
+    index('incidents_status_idx').on(t.status),
+  ],
 );
 
 // ---------------------------------------------------------------------------------------------

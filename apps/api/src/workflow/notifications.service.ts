@@ -14,6 +14,7 @@ export interface NewNotification {
   body: string;
   taskId?: string | null;
   approvalRequestId?: string | null;
+  incidentId?: string | null;
   /** Verilirse aynı anahtarla ikinci bildirim oluşturulmaz. */
   dedupeKey?: string;
 }
