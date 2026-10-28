@@ -181,6 +181,32 @@ function FormSettingsCard({ canManage }: { canManage: boolean }) {
           Kopyala
         </button>
       </p>
+      <div className="small" style={{ marginTop: 8 }}>
+        <label htmlFor="request-assignee">Yeni başvurular kime atansın: </label>
+        {canManage ? (
+          <select
+            id="request-assignee"
+            value={s.assignee?.id ?? ''}
+            disabled={busy}
+            onChange={(e) =>
+              act(
+                () => api<RequestFormSettings>('data-subject-requests/form-settings', { method: 'PATCH', body: { assigneeId: e.target.value || null } }),
+                'Atama ayarı kaydedildi. Açık başvuruların sorumlusunu başvuru sayfasından değiştirebilirsiniz.',
+              )
+            }
+          >
+            <option value="">Otomatik (KVKK Sorumlusu){!s.assignee && s.effectiveAssignee ? `: ${s.effectiveAssignee.fullName}` : ''}</option>
+            {s.candidates.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.fullName} ({c.roleName})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <strong>{s.effectiveAssignee?.fullName ?? '—'}</strong>
+        )}
+        {!s.effectiveAssignee && <span className="muted"> Başvuruları yönetebilecek aktif kullanıcı yok; görev açılamaz.</span>}
+      </div>
       {message && <Alert kind="success">{message}</Alert>}
       <ErrorAlert error={error} />
       {open && (
@@ -188,7 +214,7 @@ function FormSettingsCard({ canManage }: { canManage: boolean }) {
           <p className="small muted" style={{ margin: 0 }}>
             Bu bağlantıyı kurumunuzun web sitesine “KVKK Başvuru Formu” bağlantısı veya düğmesi olarak koyabilirsiniz. Formu sayfanın
             içinde göstermek isterseniz aşağıdaki kodu web sitenizin ilgili sayfasına ekleyin. Dışarıdan erişilebilen yalnızca bu formdur;
-            başvurular buraya düşer ve KVKK Sorumlusuna görev olarak atanır.
+            başvurular buraya düşer ve yukarıda seçilen kişiye görev olarak atanır.
           </p>
           <textarea className="embed-code" rows={3} readOnly value={s.embedCode} onFocus={(e) => e.target.select()} />
           <div className="actions">

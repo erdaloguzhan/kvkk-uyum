@@ -21,7 +21,7 @@ import { Alert, ErrorAlert, Field, Loading, PageHeader } from '@/components/ui';
 import { api, download, errorText } from '@/lib/api';
 import { formatBytes, formatDateTime, formatDay, todayIso } from '@/lib/labels';
 import { useSession } from '@/lib/session';
-import type { DataSubjectRequestDetail } from '@/lib/types';
+import type { DataSubjectRequestDetail, RequestFormSettings } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 const ITEMS = new Map(DSR_REQUEST_ITEMS.map((i) => [i.no, i]));
@@ -103,14 +103,25 @@ export default function RequestDetailPage() {
                 </dd>
               </>
             )}
-            {r.task && (
-              <>
-                <dt>Görev</dt>
-                <dd>
-                  <Link href={`/gorevler/${r.task.id}`}>{r.task.assignee.fullName}</Link> · {r.task.status === 'open' ? 'açık' : 'kapandı'}
-                </dd>
-              </>
-            )}
+            <dt>Sorumlu</dt>
+            <dd>
+              {r.task ? (
+                <>
+                  <Link href={`/gorevler/${r.task.id}`}>{r.task.assignee.fullName}</Link> · görev {r.task.status === 'open' ? 'açık' : 'kapandı'}
+                </>
+              ) : (
+                <span className="muted">Atanmadı</span>
+              )}
+              {canManage && r.status !== 'answered' && (
+                <AssigneePicker
+                  current={r.task?.assignee.id ?? null}
+                  busy={busy}
+                  onPick={(assigneeId, name) =>
+                    act(() => api(`${base}/assignee`, { method: 'POST', body: { assigneeId } }), `Başvuru ${name} kişisine atandı.`)
+                  }
+                />
+              )}
+            </dd>
             {r.status === 'answered' && (
               <>
                 <dt>Cevap süresi</dt>
@@ -260,6 +271,32 @@ export default function RequestDetailPage() {
         {canManage && <NoteForm busy={busy} onAdd={(note) => act(() => api<DataSubjectRequestDetail>(`${base}/notes`, { method: 'POST', body: { note } }), 'Not eklendi.')} />}
       </div>
     </>
+  );
+}
+
+function AssigneePicker({ current, busy, onPick }: { current: string | null; busy: boolean; onPick: (id: string, name: string) => void }) {
+  const settings = useApi<RequestFormSettings>('data-subject-requests/form-settings');
+  const others = (settings.data?.candidates ?? []).filter((c) => c.id !== current);
+  if (others.length === 0) return null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <select
+        aria-label="Sorumluyu değiştir"
+        value=""
+        disabled={busy}
+        onChange={(e) => {
+          const c = others.find((o) => o.id === e.target.value);
+          if (c) onPick(c.id, c.fullName);
+        }}
+      >
+        <option value="">Sorumluyu değiştir…</option>
+        {others.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.fullName} ({c.roleName})
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 

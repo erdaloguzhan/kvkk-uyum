@@ -331,6 +331,40 @@ export class RequestsService {
     return this.get(orgId, id, now);
   }
 
+  /** Açık başvurunun görevini başka bir kullanıcıya aktarır; görev yoksa (kuruluşta yetkili kimse yokken gelmişse) açar. */
+  async reassign(orgId: string, userId: string, id: string, assigneeId: string, now = new Date()) {
+    const request = await this.find(orgId, id);
+    if (request.status === 'answered') throw new ConflictException('Cevaplanmış başvurunun sorumlusu değiştirilemez');
+    const candidate = (await this.assigneeCandidates(orgId)).find((c) => c.id === assigneeId);
+    if (!candidate) throw new BadRequestException('Seçilen kişi bu kuruluşta başvuruları yönetme yetkisine sahip aktif bir kullanıcı değil');
+    const [current] = request.taskId
+      ? await this.db.select({ assigneeId: tasks.assigneeId }).from(tasks).where(eq(tasks.id, request.taskId))
+      : [];
+    if (current?.assigneeId === assigneeId) return this.get(orgId, id, now);
+    const taskId = await this.db.transaction(async (tx) => {
+      let taskId = request.taskId;
+      if (taskId) {
+        await tx.update(tasks).set({ assigneeId, updatedAt: now }).where(eq(tasks.id, taskId));
+      } else {
+        const [task] = await tx.insert(tasks).values(this.taskValues(orgId, request, assigneeId, userId)).returning({ id: tasks.id });
+        taskId = task.id;
+        await tx.update(dataSubjectRequests).set({ taskId, updatedAt: now }).where(eq(dataSubjectRequests.id, id));
+      }
+      await tx.insert(dataSubjectRequestEvents).values({ requestId: id, kind: 'reassigned', userId, note: candidate.fullName });
+      return taskId;
+    });
+    await this.audit.record({
+      action: 'data_subject_request.reassigned',
+      organizationId: orgId,
+      userId,
+      entityType: 'data_subject_request',
+      entityId: id,
+      metadata: { assigneeId, from: current?.assigneeId ?? null },
+    });
+    if (assigneeId !== userId) await this.notifyAssignee(orgId, assigneeId, request, taskId);
+    return this.get(orgId, id, now);
+  }
+
   async addNote(orgId: string, userId: string, id: string, note: string, now = new Date()) {
     await this.find(orgId, id);
     await this.db.insert(dataSubjectRequestEvents).values({ requestId: id, kind: 'note', userId, note });
@@ -488,28 +522,55 @@ export class RequestsService {
 
   async formSettings(orgId: string) {
     const [org] = await this.db
-      .select({ key: organizations.requestFormKey, enabled: organizations.requestFormEnabled })
+      .select({ key: organizations.requestFormKey, enabled: organizations.requestFormEnabled, assigneeId: organizations.requestAssigneeId })
       .from(organizations)
       .where(eq(organizations.id, orgId));
     if (!org) throw new NotFoundException('Kuruluş bulunamadı');
+    const candidates = await this.assigneeCandidates(orgId);
+    const chosen = candidates.find((c) => c.id === org.assigneeId) ?? null;
     const url = `${this.config.appUrl}/basvuru/${org.key}`;
     return {
       enabled: org.enabled,
       key: org.key,
       url,
       embedCode: `<iframe src="${url}?gomulu=1" title="Kişisel Veri Başvuru Formu" style="width:100%;min-height:1600px;border:0" loading="lazy"></iframe>`,
+      assignee: chosen,
+      /** Seçim yapılmadıysa (veya seçilen kişi artık uygun değilse) yeni başvurunun düşeceği kişi. */
+      effectiveAssignee: chosen ?? candidates[0] ?? null,
+      candidates,
     };
   }
 
-  async setFormEnabled(orgId: string, userId: string, enabled: boolean) {
-    await this.db.update(organizations).set({ requestFormEnabled: enabled }).where(eq(organizations.id, orgId));
-    await this.audit.record({
-      action: enabled ? 'data_subject_request.form_enabled' : 'data_subject_request.form_disabled',
-      organizationId: orgId,
-      userId,
-      entityType: 'organization',
-      entityId: orgId,
-    });
+  async updateFormSettings(orgId: string, userId: string, input: { enabled?: boolean; assigneeId?: string | null }) {
+    if (input.assigneeId) {
+      const candidates = await this.assigneeCandidates(orgId);
+      if (!candidates.some((c) => c.id === input.assigneeId)) {
+        throw new BadRequestException('Seçilen kişi bu kuruluşta başvuruları yönetme yetkisine sahip aktif bir kullanıcı değil');
+      }
+    }
+    const changes: Partial<typeof organizations.$inferInsert> = {};
+    if (input.enabled !== undefined) changes.requestFormEnabled = input.enabled;
+    if (input.assigneeId !== undefined) changes.requestAssigneeId = input.assigneeId;
+    if (Object.keys(changes).length) await this.db.update(organizations).set(changes).where(eq(organizations.id, orgId));
+    if (input.enabled !== undefined) {
+      await this.audit.record({
+        action: input.enabled ? 'data_subject_request.form_enabled' : 'data_subject_request.form_disabled',
+        organizationId: orgId,
+        userId,
+        entityType: 'organization',
+        entityId: orgId,
+      });
+    }
+    if (input.assigneeId !== undefined) {
+      await this.audit.record({
+        action: 'data_subject_request.default_assignee_changed',
+        organizationId: orgId,
+        userId,
+        entityType: 'organization',
+        entityId: orgId,
+        metadata: { assigneeId: input.assigneeId },
+      });
+    }
     return this.formSettings(orgId);
   }
 
@@ -626,21 +687,7 @@ export class RequestsService {
       if (!officer) return created;
       const [task] = await tx
         .insert(tasks)
-        .values({
-          organizationId: orgId,
-          type: 'data_subject_request',
-          title: `İlgili kişi başvurusu ${dsrNumber(next)} değerlendirilip cevaplanmalı`,
-          description:
-            `Başvuru ${formatDate(receivedOn)} tarihinde alındı (${DSR_CHANNELS[input.channel]}). ` +
-            `Kurum içi cevap hedefi ${formatDate(targetDate)}, yasal son gün ${formatDate(legalDueDate)}. ` +
-            `Cevap verildiğinde başvuru sayfasından cevap bilgisi kaydedilir; görev kendiliğinden kapanır.`,
-          assigneeId: officer.id,
-          dueDate: targetDate,
-          reminderDays: [7, 1],
-          entityType: 'data_subject_request',
-          entityId: created.id,
-          createdBy: userId,
-        })
+        .values(this.taskValues(orgId, created, officer.id, userId))
         .returning();
       const [withTask] = await tx
         .update(dataSubjectRequests)
@@ -652,40 +699,72 @@ export class RequestsService {
     if (!officer) {
       this.logger.warn(`Başvuru ${request.id}: kuruluşta başvuruları yönetebilecek aktif kullanıcı yok, görev açılamadı`);
     } else if (officer.id !== userId) {
-      // Bildirim ve e-postada başvuranın kişisel verisi yer almaz; ayrıntı sistemde görülür.
-      await this.notifications.notify({
-        organizationId: orgId,
-        userId: officer.id,
-        kind: 'task_assigned',
-        title: `Yeni ilgili kişi başvurusu: ${dsrNumber(request.number)}`,
-        body:
-          `Kuruluşunuza yeni bir ilgili kişi başvurusu geldi (${DSR_CHANNELS[input.channel]}): ${dsrNumber(request.number)}\n` +
-          `Kurum içi cevap hedefi: ${formatDate(targetDate)}\nYasal son gün: ${formatDate(legalDueDate)}\n\n` +
-          `${this.config.appUrl}/basvurular/${request.id}\n`,
-        taskId: request.taskId,
-      });
+      await this.notifyAssignee(orgId, officer.id, request, request.taskId);
     }
     return request;
   }
 
+  private taskValues(orgId: string, r: RequestRow, assigneeId: string, userId: string | null): typeof tasks.$inferInsert {
+    const receivedOn = dateIn(r.receivedAt);
+    return {
+      organizationId: orgId,
+      type: 'data_subject_request',
+      title: `İlgili kişi başvurusu ${dsrNumber(r.number)} değerlendirilip cevaplanmalı`,
+      description:
+        `Başvuru ${formatDate(receivedOn)} tarihinde alındı (${DSR_CHANNELS[r.channel]}). ` +
+        `Kurum içi cevap hedefi ${formatDate(r.targetDate)}, yasal son gün ${formatDate(r.legalDueDate)}. ` +
+        `Cevap verildiğinde başvuru sayfasından cevap bilgisi kaydedilir; görev kendiliğinden kapanır.`,
+      assigneeId,
+      dueDate: r.targetDate,
+      reminderDays: [7, 1],
+      entityType: 'data_subject_request',
+      entityId: r.id,
+      createdBy: userId,
+    };
+  }
+
+  /** Bildirim ve e-postada başvuranın kişisel verisi yer almaz; ayrıntı sistemde görülür. */
+  private async notifyAssignee(orgId: string, assigneeId: string, r: RequestRow, taskId: string | null) {
+    await this.notifications.notify({
+      organizationId: orgId,
+      userId: assigneeId,
+      kind: 'task_assigned',
+      title: `İlgili kişi başvurusu size atandı: ${dsrNumber(r.number)}`,
+      body:
+        `Kuruluşunuza gelen ilgili kişi başvurusu (${DSR_CHANNELS[r.channel]}) size atandı: ${dsrNumber(r.number)}\n` +
+        `Kurum içi cevap hedefi: ${formatDate(r.targetDate)}\nYasal son gün: ${formatDate(r.legalDueDate)}\n\n` +
+        `${this.config.appUrl}/basvurular/${r.id}\n`,
+      taskId,
+    });
+  }
+
   /**
-   * Görevin atanacağı KVKK Sorumlusu: önce "KVKK Sorumlusu", yoksa "KVKK Sorumlusu + Yönetici" rolündeki
-   * en eski aktif üye; ikisi de yoksa başvuruları yönetme yetkisi olan herhangi bir üye.
+   * Başvuruları yönetme yetkisi olan aktif üyeler, varsayılan atama sırasıyla: önce "KVKK Sorumlusu",
+   * sonra "KVKK Sorumlusu + Yönetici", sonra diğerleri; aynı roldekiler arasında en eski üye önce.
    */
-  private async findOfficer(orgId: string) {
+  private async assigneeCandidates(orgId: string) {
     const rows = await this.db
-      .select({ id: users.id, roleKey: roles.key, permissions: roles.permissions, since: memberships.createdAt })
+      .select({ id: users.id, fullName: users.fullName, roleKey: roles.key, roleName: roles.name, permissions: roles.permissions, since: memberships.createdAt })
       .from(memberships)
       .innerJoin(users, eq(users.id, memberships.userId))
       .innerJoin(roles, eq(roles.id, memberships.roleId))
       .where(and(eq(memberships.organizationId, orgId), eq(memberships.status, 'active'), eq(users.isActive, true)))
       .orderBy(asc(memberships.createdAt));
     const rank = (key: string) => (key === 'kvkk_officer' ? 0 : key === 'officer_approver' ? 1 : 2);
-    return (
-      rows
-        .filter((r) => r.permissions.includes(PERMISSIONS.REQUESTS_MANAGE))
-        .sort((a, b) => rank(a.roleKey) - rank(b.roleKey) || a.since.getTime() - b.since.getTime())[0] ?? null
-    );
+    return rows
+      .filter((r) => r.permissions.includes(PERMISSIONS.REQUESTS_MANAGE))
+      .sort((a, b) => rank(a.roleKey) - rank(b.roleKey) || a.since.getTime() - b.since.getTime())
+      .map((r) => ({ id: r.id, fullName: r.fullName, roleName: r.roleName }));
+  }
+
+  /** Yeni başvurunun görevini alacak kişi: form ayarlarında seçilen kişi (hâlâ uygunsa), yoksa sıradaki ilk aday. */
+  private async findOfficer(orgId: string) {
+    const [org] = await this.db
+      .select({ assigneeId: organizations.requestAssigneeId })
+      .from(organizations)
+      .where(eq(organizations.id, orgId));
+    const candidates = await this.assigneeCandidates(orgId);
+    return candidates.find((c) => c.id === org?.assigneeId) ?? candidates[0] ?? null;
   }
 
   private async insertFiles(

@@ -18,7 +18,9 @@ ve `content/prosedurler/PRS-010 İlgili Kişi İşlemleri Prosedürü.docx`. For
 
 1. Başvuru kaydedilir (online form veya Sorumlunun elden/noter/posta/KEP/e-posta ile gelen başvuruyu girmesi), kuruluş içinde
    sıralı numara alır (B-0001).
-2. KVKK Sorumlusuna "İlgili kişi başvurusu" görevi açılır (önce KVKK Sorumlusu, yoksa Sorumlu + Yönetici rolündeki en eski üye).
+2. "İlgili kişi başvurusu" görevi açılır. Görev, Başvurular sayfasındaki "Yeni başvurular kime atansın" ayarında seçilen kişiye düşer;
+   seçim yoksa önce KVKK Sorumlusu, yoksa Sorumlu + Yönetici rolündeki en eski üyeye. Açık başvurunun sorumlusu başvuru
+   sayfasından değiştirilebilir (görev yeni kişiye geçer, işlem geçmişine yazılır).
 3. Süreler başvurunun alındığı günden sayılır: kurum içi hedef 20 gün (görevin son tarihi), yasal son gün 30 gün (Kanun md. 13).
    Hedefe 7 ve 1 gün kala hatırlatma; hedef geçince yasal son güne kadar her gün, yasal süre de geçerse haftada bir uyarı.
 4. "Ek bilgi bekleniyor" durumunda süre durur (FRM-010: bilgi ve belgeler tamamlanana kadar süre askıya alınır); bilgi gelince
