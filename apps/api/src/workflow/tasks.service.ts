@@ -10,7 +10,7 @@ import { and, asc, eq, getTableColumns, gte, lt, SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { AuditService } from '../audit/audit.service';
 import { Database, InjectDb } from '../db/db.module';
-import { documents, inventoryApprovals, inventoryEntries, tasks, users } from '../db/schema';
+import { dataSubjectRequests, documents, inventoryApprovals, inventoryEntries, tasks, users } from '../db/schema';
 import { addDays, addMonths, dateIn, daysBetween, formatDate, IsoDate } from './dates';
 import { requireActiveMember } from './members';
 import { NotificationsService } from './notifications.service';
@@ -18,7 +18,7 @@ import { NotificationsService } from './notifications.service';
 type TaskRow = typeof tasks.$inferSelect;
 
 export interface TaskInput {
-  type: Exclude<TaskType, 'approval'>;
+  type: Exclude<TaskType, 'approval' | 'data_subject_request'>;
   title: string;
   description?: string | null;
   assigneeId: string;
@@ -133,6 +133,10 @@ export class TasksService {
     const changed = (Object.keys(input) as (keyof TaskUpdate)[]).filter(
       (k) => input[k] !== undefined && JSON.stringify(before[k]) !== JSON.stringify(input[k]),
     );
+    // Başvuru görevinin son tarihi ve bağlı kaydı başvurudan gelir; yalnızca atanan kişi, başlık vb. değişir.
+    if (before.type === 'data_subject_request' && changed.some((k) => ['dueDate', 'entityType', 'entityId', 'recurrenceMonths'].includes(k))) {
+      throw new ConflictException('Başvuru görevinin son tarihi başvurunun alındığı günden hesaplanır; değiştirilemez');
+    }
     if (changed.length === 0) return this.get(orgId, { userId, canReadAll: true, canManage: true }, id, now);
     if (input.dueDate && changed.includes('dueDate') && input.dueDate < dateIn(now)) {
       throw new BadRequestException('Son tarih geçmiş bir gün olamaz');
@@ -173,6 +177,9 @@ export class TasksService {
     const task = await this.findOpen(orgId, id, viewer);
     if (task.type === 'approval') {
       throw new ConflictException('Onay görevi, onay talebi onaylanarak veya reddedilerek kapanır');
+    }
+    if (task.type === 'data_subject_request') {
+      throw new ConflictException('Başvuru görevi, başvurunun cevabı kaydedilince kapanır');
     }
     if (task.assigneeId !== viewer.userId && !viewer.canManage) {
       throw new ForbiddenException('Bu görevi yalnızca atanan kişi tamamlayabilir');
@@ -227,6 +234,7 @@ export class TasksService {
   async cancel(orgId: string, userId: string, id: string, now = new Date()) {
     const task = await this.findOpen(orgId, id);
     if (task.type === 'approval') throw new ConflictException('Onay görevi, onay talebi iptal edilerek kapanır');
+    if (task.type === 'data_subject_request') throw new ConflictException('Başvuru görevi, başvurunun cevabı kaydedilince kapanır');
     await this.db.update(tasks).set({ status: 'cancelled', updatedAt: now }).where(eq(tasks.id, id));
     await this.audit.record({ action: 'task.cancelled', organizationId: orgId, userId, entityType: 'task', entityId: id });
     return this.get(orgId, { userId, canReadAll: true, canManage: true }, id, now);
@@ -265,7 +273,13 @@ export class TasksService {
   private async checkEntity(orgId: string, entityType?: TaskEntityType | null, entityId?: string | null) {
     if (!entityType || !entityId) return;
     const table =
-      entityType === 'document' ? documents : entityType === 'inventory_entry' ? inventoryEntries : inventoryApprovals;
+      entityType === 'document'
+        ? documents
+        : entityType === 'inventory_entry'
+          ? inventoryEntries
+          : entityType === 'data_subject_request'
+            ? dataSubjectRequests
+            : inventoryApprovals;
     const [row] = await this.db
       .select({ id: table.id })
       .from(table)

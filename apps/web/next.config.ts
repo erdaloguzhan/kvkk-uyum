@@ -8,7 +8,7 @@ import type { NextConfig } from 'next';
  * sunucusu ayrıca 'unsafe-eval' ister.
  */
 const TURNSTILE = 'https://challenges.cloudflare.com';
-const csp = [
+const cspFor = (frameAncestors: string) => [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' ${TURNSTILE}${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
@@ -17,19 +17,27 @@ const csp = [
   "font-src 'self' data:",
   "connect-src 'self'",
   `frame-src ${TURNSTILE}`,
-  "frame-ancestors 'none'",
+  `frame-ancestors ${frameAncestors}`,
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
 ].join('; ');
 
-const securityHeaders = [
-  { key: 'Content-Security-Policy', value: csp },
+const commonHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
-  { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
 ];
+const securityHeaders = [
+  { key: 'Content-Security-Policy', value: cspFor("'none'") },
+  { key: 'X-Frame-Options', value: 'DENY' },
+  ...commonHeaders,
+];
+/**
+ * İlgili kişi başvuru formu (/basvuru/<kod>) kuruluşların kendi web sitelerine çerçeve (iframe) ile
+ * eklenebilsin diye her siteden çerçeve içinde açılabilir; başka hiçbir sayfa açılamaz.
+ */
+const embeddableHeaders = [{ key: 'Content-Security-Policy', value: cspFor('*') }, ...commonHeaders];
 
 const nextConfig: NextConfig = {
   // Docker imajı için yalnızca gerekli dosyaları içeren bağımsız çıktı.
@@ -37,7 +45,10 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, '../..'),
   poweredByHeader: false,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/basvuru/:path*', headers: embeddableHeaders },
+      { source: '/((?!basvuru/).*)', headers: securityHeaders },
+    ];
   },
 };
 

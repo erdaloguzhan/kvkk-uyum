@@ -11,7 +11,7 @@ import { useSession } from '@/lib/session';
 import type { Task } from '@/lib/types';
 import { useMembers } from '@/lib/use-members';
 
-const CREATABLE = (Object.keys(TASK_TYPES) as TaskType[]).filter((t) => t !== 'approval');
+const CREATABLE = (Object.keys(TASK_TYPES) as TaskType[]).filter((t) => t !== 'approval' && t !== 'data_subject_request');
 const REMINDER_CHOICES = [30, 14, 7, 3, 1, 0];
 
 function NewTaskForm() {

@@ -25,7 +25,8 @@ export default function TaskDetailPage() {
   if (!task.data) return <ErrorAlert error={task.error} />;
   const t = task.data;
   const canManage = can(PERMISSIONS.TASKS_MANAGE);
-  const canComplete = t.status === 'open' && t.type !== 'approval' && (t.assignee.id === me?.id || canManage);
+  const systemClosed = t.type === 'approval' || t.type === 'data_subject_request';
+  const canComplete = t.status === 'open' && !systemClosed && (t.assignee.id === me?.id || canManage);
   const link = entityHref(t);
 
   async function act(fn: () => Promise<string>) {
@@ -103,6 +104,13 @@ export default function TaskDetailPage() {
             </>
           )}
           ; görev kendiliğinden kapanır.
+        </Alert>
+      )}
+
+      {t.type === 'data_subject_request' && t.status === 'open' && link && (
+        <Alert kind="info">
+          Bu görev bir ilgili kişi başvurusundan açıldı. <Link href={link}>Başvuruyu açıp</Link> değerlendirin; cevabı verdiğinizde
+          cevap bilgisini başvuru sayfasına kaydedin, görev kendiliğinden kapanır.
         </Alert>
       )}
 

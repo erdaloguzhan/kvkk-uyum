@@ -18,6 +18,9 @@ export const PERMISSIONS = {
   INCIDENTS_MANAGE: 'incidents.manage',
   CONTRACTS_READ: 'contracts.read',
   CONTRACTS_MANAGE: 'contracts.manage',
+  /** İlgili kişi başvuruları (FRM-010). */
+  REQUESTS_READ: 'requests.read',
+  REQUESTS_MANAGE: 'requests.manage',
   DESTRUCTION_MANAGE: 'destruction.manage',
   REPORTS_READ: 'reports.read',
 } as const;
@@ -64,6 +67,8 @@ export const SYSTEM_ROLES: SystemRoleDefinition[] = [
       PERMISSIONS.TASKS_READ,
       PERMISSIONS.TASKS_MANAGE,
       PERMISSIONS.USERS_READ,
+      // İlgili kişi başvurularını ve raporlarını görür; cevabı Sorumlu kaydeder.
+      PERMISSIONS.REQUESTS_READ,
     ],
   },
 ];

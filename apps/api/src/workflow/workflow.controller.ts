@@ -31,9 +31,11 @@ const bool = z
   .transform((v) => (v === undefined ? undefined : v === 'true'));
 const note = z.string().trim().max(2000).nullish();
 
-const creatableTypes = keys(TASK_TYPES).filter((t) => t !== 'approval') as [
-  Exclude<TaskType, 'approval'>,
-  ...Exclude<TaskType, 'approval'>[],
+/** Onay ve başvuru görevleri sistem tarafından açılır. */
+type CreatableType = Exclude<TaskType, 'approval' | 'data_subject_request'>;
+const creatableTypes = keys(TASK_TYPES).filter((t) => t !== 'approval' && t !== 'data_subject_request') as [
+  CreatableType,
+  ...CreatableType[],
 ];
 const taskFields = {
   title: z.string().trim().min(2).max(200),

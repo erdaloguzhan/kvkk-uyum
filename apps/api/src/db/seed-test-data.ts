@@ -8,6 +8,7 @@ import { hashPassword } from '../common/crypto';
 import { ContractsService } from '../contracts/contracts.service';
 import { DocumentsService } from '../documents/documents.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { RequestsService } from '../requests/requests.service';
 import { EmployeesService } from '../training/employees.service';
 import { GroupsService } from '../training/groups.service';
 import { PortalDocumentsService } from '../training/portal-documents.service';
@@ -273,6 +274,48 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
   await groups.send(admin.id, group.id);
   // Gruba girmeyen çalışanlara yalnızca doküman okuması için portal erişimi.
   await portalDocs.sendAccess(admin.id, orgA);
+
+  // İlgili kişi başvuruları: biri online formdan yeni, biri ek bilgi bekliyor, biri cevaplanmış.
+  const requests = app.get(RequestsService);
+  const [{ key }] = await db.select({ key: organizations.requestFormKey }).from(organizations).where(eq(organizations.id, orgA));
+  const applicant = {
+    birthDate: '1988-05-20',
+    email: null,
+    address: 'Test Mah. Deneme Sok. No:1 Ankara',
+    relationshipDetail: null,
+    description: null,
+  };
+  await requests.submitPublic(
+    key,
+    { ...applicant, fullName: 'Kemal Test', nationalId: nationalId('123456780'), phone: '05325550101', relationship: 'customer', responseMethod: 'postal', items: [{ no: 1 }, { no: 2 }] },
+    [],
+    { ip: '127.0.0.1', userAgent: 'test' },
+  );
+  const waiting = await requests.createManual(orgA, sorumlu, {
+    ...applicant,
+    fullName: 'Leyla Deneme',
+    nationalId: nationalId('234567890'),
+    phone: '05325550102',
+    relationship: 'former_employee',
+    relationshipDetail: '2018-2022',
+    responseMethod: 'in_person',
+    items: [{ no: 6, option: 'a' }],
+    channel: 'in_person',
+    receivedOn: day(-12),
+  }, []);
+  await requests.setStatus(orgA, sorumlu, waiting.id, 'awaiting_info', 'Kimlik fotokopisi istendi (test)');
+  const done = await requests.createManual(orgA, sorumlu, {
+    ...applicant,
+    fullName: 'Murat Örnek',
+    nationalId: null,
+    phone: null,
+    relationship: 'visitor',
+    responseMethod: 'postal',
+    items: [{ no: 5, detail: 'Telefon numaram yanlış kayıtlı' }],
+    channel: 'notary',
+    receivedOn: day(-25),
+  }, []);
+  await requests.answer(orgA, sorumlu, done.id, { answeredOn: day(-8), outcome: 'accepted', method: 'postal', summary: 'Telefon numarası düzeltildi (test).' }, []);
 
   // Herkes aynı test şifresiyle hemen girebilsin.
   const hash = await hashPassword(TEST_PASSWORD);
