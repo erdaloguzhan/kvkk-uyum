@@ -41,6 +41,11 @@ export const users = pgTable(
     isPlatformAdmin: boolean('is_platform_admin').notNull().default(false),
     failedLoginCount: integer('failed_login_count').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    /**
+     * Bu andan önce verilmiş erişim belirteçleri geçersizdir (şifre değişikliği). Belirteç 15 dakika geçerli
+     * olduğu için bu olmadan eski oturum şifre değiştikten sonra da bir süre çalışırdı.
+     */
+    sessionsRevokedAt: timestamp('sessions_revoked_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('users_email_unique').on(sql`lower(${t.email})`)],
@@ -159,6 +164,22 @@ export const passwordResetTokens = pgTable(
   },
   (t) => [uniqueIndex('password_reset_tokens_hash_unique').on(t.tokenHash)],
 );
+
+/**
+ * "Şifremi unuttum" için cep telefonuna SMS ile giden 6 haneli kod. Kod kısa olduğu için tek başına aranmaz:
+ * istekte dönen kimlikle birlikte doğrulanır ve deneme sayısı sınırlıdır.
+ */
+export const passwordResetCodes = pgTable('password_reset_codes', {
+  id: id(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  codeHash: text('code_hash').notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
 
 /** Sistem hareketlerinin tarihçesi. */
 export const auditLogs = pgTable(

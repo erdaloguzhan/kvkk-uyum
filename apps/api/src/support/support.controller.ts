@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Res
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { z } from 'zod';
+import { AllowExpiredLicense } from '../common/license';
 import { AuthUser, CurrentOrg, CurrentUser, OrgContext, RequirePermissions } from '../common/request-context';
 import { AuditMode } from '../audit/audit.interceptor';
 import { ZodPipe } from '../common/zod.pipe';
@@ -30,6 +31,8 @@ export class SupportController {
   /** Çok parçalı form: subject, category, body ve `files` alanında en fazla 5 ek. */
   @Post('tickets')
   @RequirePermissions()
+  // Lisans süresi dolan kuruluş yenileme için destek talebi açabilmeli.
+  @AllowExpiredLicense()
   @UseInterceptors(FilesInterceptor('files', undefined, uploadLimits))
   create(
     @CurrentOrg() org: OrgContext,

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Body, Controller, Get, HttpCode, Logger, Post, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
@@ -7,7 +8,7 @@ import { AppRequest, AuthUser, clientInfo, CurrentUser, Public } from '../common
 import { ZodPipe } from '../common/zod.pipe';
 import { AuthService } from './auth.service';
 import { CaptchaService } from './captcha.service';
-import { PasswordResetService } from './password-reset.service';
+import { PasswordResetService, RESET_CODE_TTL_MS } from './password-reset.service';
 
 const loginBody = z.object({
   email: z.email().max(254),
@@ -22,6 +23,7 @@ const changePasswordBody = z.object({
   newPassword: passwordSchema,
 });
 const resetConfirmBody = z.object({ token: z.string().min(1).max(200), password: passwordSchema });
+const resetCodeBody = z.object({ challengeId: z.uuid(), code: z.string().regex(/^\d{6}$/), password: passwordSchema });
 const resetInfoBody = z.object({ token: z.string().min(1).max(200) });
 
 // Kimlik doğrulama uç noktaları için sıkı hız sınırı: dakikada 10 istek.
@@ -83,9 +85,22 @@ export class AuthController {
   ) {
     const client = clientInfo(req);
     await this.captcha.verify(body.captchaToken, client.ip);
-    // Yanıt e-postanın gönderilmesini beklemez: kayıtlı ve kayıtsız adresler aynı sürede yanıtlanır,
-    // yanıt süresinden adresin sistemde olup olmadığı anlaşılamaz.
-    void this.passwordReset.request(body.email, client).catch((err) => this.logger.error(`Şifre sıfırlama e-postası gönderilemedi: ${err}`));
+    // Yanıt e-postanın ve SMS'in gönderilmesini beklemez: kayıtlı ve kayıtsız adresler aynı sürede yanıtlanır,
+    // yanıt süresinden adresin sistemde olup olmadığı anlaşılamaz. SMS kodunun kimliği her durumda döner.
+    const challengeId = randomUUID();
+    void this.passwordReset
+      .request(body.email, client, challengeId)
+      .catch((err) => this.logger.error(`Şifre sıfırlama e-postası gönderilemedi: ${err}`));
+    return { challengeId, expiresInSeconds: RESET_CODE_TTL_MS / 1000 };
+  }
+
+  /** "Şifremi unuttum": cep telefonuna SMS ile gelen kodla yeni şifre belirleme. */
+  @Public()
+  @Throttle(AUTH_THROTTLE)
+  @Post('password-reset/confirm-code')
+  @HttpCode(204)
+  async confirmResetCode(@Req() req: AppRequest, @Body(new ZodPipe(resetCodeBody)) body: z.infer<typeof resetCodeBody>) {
+    await this.passwordReset.confirmCode(body, clientInfo(req));
   }
 
   /** Şifre belirleme penceresindeki hitap: bağlantıdaki koda ait kişinin adı ve rolü. */

@@ -1,16 +1,21 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, gt, isNull, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
-import { generateToken, hashPassword, sha256 } from '../common/crypto';
+import { generateNumericCode, generateToken, hashPassword, safeEqualHex, sha256 } from '../common/crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
-import { passwordResetTokens, refreshTokens, users } from '../db/schema';
+import { passwordResetCodes, passwordResetTokens, refreshTokens, users } from '../db/schema';
 import { accountRoleLabel, salutation, SYSTEM_NAME } from './account-label';
 import { MailerService } from './mailer.service';
 import { SmsService } from './sms.service';
 
 const RESET_TTL_MS = 60 * 60 * 1000;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const RESET_CODE_TTL_MS = 10 * 60 * 1000;
+const MAX_CODE_ATTEMPTS = 5;
+/** Bir hesaba gönderilebilecek sıfırlama SMS'i: SMS yağdırmayı ve faturanın şişmesini önler. */
+const CODES_PER_10_MIN = 3;
+const CODES_PER_DAY = 10;
 
 @Injectable()
 export class PasswordResetService {
@@ -24,24 +29,100 @@ export class PasswordResetService {
     @Inject(CONFIG) private readonly config: AppConfig,
   ) {}
 
-  /** Kullanıcı yoksa da aynı yanıt döner (e-posta adresi sızdırılmaz). */
-  async request(email: string, client: { ip: string | null; userAgent: string | null }) {
+  /**
+   * Kullanıcı yoksa da aynı yanıt döner (e-posta adresi sızdırılmaz). E-postaya sıfırlama bağlantısı gider;
+   * cep telefonu kayıtlıysa ayrıca SMS ile 6 haneli kod gönderilir (Erdal, 29.10.2026: e-posta gereksiz
+   * klasörüne düşebiliyor). Kod, `challengeId` kimliğiyle saklanır; kimlik istek yanıtında kullanıcıya her
+   * durumda döndüğü için telefonun kayıtlı olup olmadığı anlaşılamaz.
+   */
+  async request(email: string, client: { ip: string | null; userAgent: string | null }, challengeId?: string) {
     const [user] = await this.db
-      .select({ id: users.id, email: users.email, fullName: users.fullName, isActive: users.isActive })
+      .select({ id: users.id, email: users.email, fullName: users.fullName, phone: users.phone, isActive: users.isActive })
       .from(users)
       .where(sql`lower(${users.email}) = lower(${email.trim()})`);
     if (!user?.isActive) return;
 
     const token = await this.createToken(user.id, RESET_TTL_MS);
+    const viaSms = challengeId ? await this.sendSmsCode(user, challengeId) : false;
     await this.mailer.send({
       to: user.email,
       subject: `${SYSTEM_NAME} şifre sıfırlama`,
       text:
         `${salutation(user.fullName)}\n\n${await this.accountPhrase(user.id)} şifresini sıfırlamak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
-        'Bağlantı 1 saat geçerlidir.\n\n' +
-        'Bu isteği siz yapmadıysanız bu e-postayı dikkate almayın.',
+        'Bağlantı 1 saat geçerlidir.' +
+        (viaSms ? ' Cep telefonunuza SMS ile gelen kodla da sıfırlayabilirsiniz.' : '') +
+        '\n\nBu isteği siz yapmadıysanız bu e-postayı dikkate almayın.',
     });
-    await this.audit.record({ action: 'auth.password_reset_requested', userId: user.id, ...client });
+    await this.audit.record({
+      action: 'auth.password_reset_requested',
+      userId: user.id,
+      metadata: { channel: viaSms ? 'sms+email' : 'email' },
+      ...client,
+    });
+  }
+
+  /** SMS ile sıfırlama kodu gönderir; telefon yoksa, sınır aşıldıysa veya SMS gönderilemezse false. */
+  private async sendSmsCode(user: { id: string; phone: string | null }, challengeId: string) {
+    if (!user.phone || !this.sms.available) return false;
+    const now = Date.now();
+    const [recent] = await this.db
+      .select({ day: count(), short: sql<number>`count(*) filter (where ${passwordResetCodes.createdAt} > ${new Date(now - 10 * 60 * 1000)})` })
+      .from(passwordResetCodes)
+      .where(and(eq(passwordResetCodes.userId, user.id), gt(passwordResetCodes.createdAt, new Date(now - 24 * 60 * 60 * 1000))));
+    if (Number(recent.short) >= CODES_PER_10_MIN || recent.day >= CODES_PER_DAY) return false;
+
+    // Önceki kodlar geçersiz olur: aynı anda birden çok kod üzerinde deneme yapılamaz.
+    await this.db
+      .update(passwordResetCodes)
+      .set({ consumedAt: new Date() })
+      .where(and(eq(passwordResetCodes.userId, user.id), isNull(passwordResetCodes.consumedAt)));
+    const code = generateNumericCode();
+    await this.db
+      .insert(passwordResetCodes)
+      .values({ id: challengeId, userId: user.id, codeHash: sha256(code), expiresAt: new Date(now + RESET_CODE_TTL_MS) });
+    try {
+      await this.sms.send({
+        to: user.phone,
+        text: `KVK Uyum şifre sıfırlama kodunuz: ${code}\nKod 10 dakika geçerlidir, kimseyle paylaşmayın. Bu isteği siz yapmadıysanız dikkate almayın.`,
+      });
+      return true;
+    } catch (err) {
+      // SMS gönderilemezse e-postadaki bağlantı yine geçerlidir.
+      this.logger.error(`Şifre sıfırlama kodu SMS ile gönderilemedi: ${err}`);
+      return false;
+    }
+  }
+
+  /** SMS kodu ile şifre sıfırlama. */
+  async confirmCode(
+    input: { challengeId: string; code: string; password: string },
+    client: { ip: string | null; userAgent: string | null },
+  ) {
+    const invalid = () => new BadRequestException('Kod hatalı veya süresi dolmuş');
+    const [challenge] = await this.db.select().from(passwordResetCodes).where(eq(passwordResetCodes.id, input.challengeId));
+    if (!challenge || challenge.consumedAt || challenge.expiresAt < new Date() || challenge.attempts >= MAX_CODE_ATTEMPTS) {
+      throw invalid();
+    }
+    if (!safeEqualHex(sha256(input.code), challenge.codeHash)) {
+      await this.db
+        .update(passwordResetCodes)
+        .set({ attempts: sql`${passwordResetCodes.attempts} + 1` })
+        .where(eq(passwordResetCodes.id, challenge.id));
+      await this.audit.record({ action: 'auth.password_reset_code_failed', userId: challenge.userId, ...client });
+      throw invalid();
+    }
+    // Kodun yalnızca bir kez kullanılabilmesi için koşullu güncelleme.
+    const consumed = await this.db
+      .update(passwordResetCodes)
+      .set({ consumedAt: new Date() })
+      .where(and(eq(passwordResetCodes.id, challenge.id), isNull(passwordResetCodes.consumedAt)))
+      .returning({ id: passwordResetCodes.id });
+    if (consumed.length === 0) throw invalid();
+    const [user] = await this.db.select({ isActive: users.isActive }).from(users).where(eq(users.id, challenge.userId));
+    if (!user?.isActive) throw invalid();
+
+    await this.setPassword(challenge.userId, input.password);
+    await this.audit.record({ action: 'auth.password_changed', userId: challenge.userId, metadata: { via: 'sms' }, ...client });
   }
 
   /**
@@ -145,16 +226,29 @@ export class PasswordResetService {
       .returning({ userId: passwordResetTokens.userId });
     if (!used) throw new BadRequestException('Kod geçersiz veya süresi dolmuş');
 
+    await this.setPassword(used.userId, newPassword);
+    await this.audit.record({ action: 'auth.password_changed', userId: used.userId, ...client });
+  }
+
+  /**
+   * Yeni şifreyi kaydeder. Tüm açık oturumlar kapatılır (erişim belirteçleri de hemen geçersiz olur) ve bekleyen
+   * diğer sıfırlama bağlantıları ile SMS kodları kullanılamaz hale gelir.
+   */
+  private async setPassword(userId: string, password: string) {
+    const now = new Date();
     await this.db
       .update(users)
-      .set({ passwordHash: await hashPassword(newPassword), failedLoginCount: 0, lockedUntil: null })
-      .where(eq(users.id, used.userId));
-    // Şifre değişince tüm açık oturumlar kapatılır.
+      .set({ passwordHash: await hashPassword(password), failedLoginCount: 0, lockedUntil: null, sessionsRevokedAt: now })
+      .where(eq(users.id, userId));
     await this.db
       .update(refreshTokens)
       .set({ revokedAt: now })
-      .where(and(eq(refreshTokens.userId, used.userId), isNull(refreshTokens.revokedAt)));
-    await this.audit.record({ action: 'auth.password_changed', userId: used.userId, ...client });
+      .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
+    await this.revokePending(userId);
+    await this.db
+      .update(passwordResetCodes)
+      .set({ consumedAt: now })
+      .where(and(eq(passwordResetCodes.userId, userId), isNull(passwordResetCodes.consumedAt)));
   }
 
   private async createToken(userId: string, ttlMs: number) {

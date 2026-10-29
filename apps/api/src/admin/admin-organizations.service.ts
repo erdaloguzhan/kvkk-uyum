@@ -118,4 +118,35 @@ export class AdminOrganizationsService {
     });
     return { email: owner.email };
   }
+
+  /**
+   * Lisans durumunu ve bitiş tarihini değiştirir. Bitiş tarihi geçmiş veya durum "Süresi doldu" ise kuruluş
+   * kullanıcıları kayıtları görebilir ama değişiklik yapamaz (common/license.ts).
+   */
+  async updateLicense(adminId: string, orgId: string, input: { status: 'trial' | 'active' | 'expired'; expiresAt: string | null }) {
+    // Tarih günün sonuna kadar geçerlidir (İstanbul saati).
+    const expiresAt = input.expiresAt ? new Date(`${input.expiresAt}T23:59:59+03:00`) : null;
+    if (input.status === 'trial' && !expiresAt) {
+      throw new BadRequestException('Deneme lisansı için bitiş tarihi girin');
+    }
+    const [before] = await this.db
+      .select({ status: organizations.licenseStatus, expiresAt: organizations.licenseExpiresAt })
+      .from(organizations)
+      .where(eq(organizations.id, orgId));
+    if (!before) throw new NotFoundException('Kuruluş bulunamadı');
+    const [org] = await this.db
+      .update(organizations)
+      .set({ licenseStatus: input.status, licenseExpiresAt: expiresAt })
+      .where(eq(organizations.id, orgId))
+      .returning({ id: organizations.id, licenseStatus: organizations.licenseStatus, licenseExpiresAt: organizations.licenseExpiresAt });
+    await this.audit.record({
+      action: 'admin.license_updated',
+      organizationId: orgId,
+      userId: adminId,
+      entityType: 'organization',
+      entityId: orgId,
+      metadata: { before, after: { status: org.licenseStatus, expiresAt: org.licenseExpiresAt } },
+    });
+    return org;
+  }
 }
