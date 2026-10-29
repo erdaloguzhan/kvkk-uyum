@@ -18,6 +18,9 @@ export interface ApiErrorBody {
   missing?: string[];
 }
 
+/** Oturum sağlayıcısının kullanıcı ve rol bilgisini sunucudan yeniden okumasını isteyen olay. */
+export const SESSION_CHECK_EVENT = 'kvkk:session-check';
+
 let currentOrgId: string | null = null;
 
 /** Kuruluş bağlamındaki isteklere eklenecek kuruluş (oturum sağlayıcısı ayarlar). */
@@ -75,15 +78,16 @@ export async function apiFetch(path: string, opts: RequestOptions = {}): Promise
   try {
     res = await send();
     if (res.status === 401 && opts.auth !== false) {
-      if (await refreshSession()) {
-        res = await send();
-      } else if (opts.redirect !== false) {
-        redirectToLogin();
-      }
+      // Yenilemeden sonra da 401 dönüyorsa oturum geçersizdir (ör. başka sekmede çıkış yapıldı).
+      if (await refreshSession()) res = await send();
+      if (res.status === 401 && opts.redirect !== false) redirectToLogin();
     }
   } catch {
     throw new ApiError(0, { message: 'Sunucuya ulaşılamıyor. İnternet bağlantınızı kontrol edin.' });
   }
+  // Yetki reddi, ekrandaki rol bilgisinin eskidiğini gösterebilir (ör. rol admin panelinden değişti);
+  // oturum sağlayıcısı kullanıcı bilgisini yeniden okur.
+  if (res.status === 403 && typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_CHECK_EVENT));
   if (!res.ok) {
     const errBody = (await res.json().catch(() => ({}))) as ApiErrorBody;
     throw new ApiError(res.status, errBody);
