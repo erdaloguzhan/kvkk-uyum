@@ -3,7 +3,7 @@
 # Dosyalar OFFSITE_PASSPHRASE ile şifrelidir; parola olmadan açılamaz. Ayrıntılar: docs/FELAKET-KURTARMA.md
 # SSH bağlantısı ~/.ssh/config içindeki "kvkk" kısayolunu kullanır (anahtarla, şifre sormadan girmeli).
 
-$Hedef = 'C:\KVKK-Yedek'          # OneDrive gibi bulutla eşitlenen bir klasör OLMAMALI
+$Hedef = 'C:\Users\erdal\Documents\KVKUyum-sunucu-yedek'          # OneDrive gibi bulutla eşitlenen bir klasör OLMAMALI
 $Uzak = '/opt/kvkk/yedekler/sifreli'
 $SaklaGun = 90
 $PingUrl = ''                      # isteğe bağlı: healthchecks.io adresi; yedek inmezse e-posta gelir
