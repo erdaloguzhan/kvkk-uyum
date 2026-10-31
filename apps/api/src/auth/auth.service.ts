@@ -250,7 +250,7 @@ export class AuthService {
     const now = new Date();
     await this.db
       .update(users)
-      .set({ passwordHash: await hashPassword(input.newPassword), failedLoginCount: 0, lockedUntil: null })
+      .set({ passwordHash: await hashPassword(input.newPassword), failedLoginCount: 0, lockedUntil: null, sessionsRevokedAt: now })
       .where(eq(users.id, user.id));
     await this.db
       .update(refreshTokens)
@@ -298,7 +298,8 @@ export class AuthService {
 
   private async issueTokens(user: { id: string; email: string; fullName: string }) {
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, email: user.email, typ: 'access' },
+      // iatMs: şifre değişince eski belirteçlerin aynı saniye içinde verilmiş olsa da ayırt edilebilmesi için.
+      { sub: user.id, email: user.email, typ: 'access', iatMs: Date.now() },
       { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
     );
     const refreshToken = generateToken();

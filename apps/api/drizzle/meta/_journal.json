@@ -169,6 +169,13 @@
       "when": 1793203289127,
       "tag": "0023_menus_logo_trainer_tasks_inventory_template",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793300538243,
+      "tag": "0024_sms_password_reset_sessions_revoked",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,9 @@ import { ReactNode, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { roleHome, useSession } from '@/lib/session';
 import { OrgBrand } from './logo';
-import { Empty, Loading } from './ui';
+import { Alert, Empty, Loading } from './ui';
+import { formatDate } from '@/lib/labels';
+import type { OrgMembership } from '@/lib/types';
 
 interface NavItem {
   href: string;
@@ -152,7 +154,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Empty>
           </div>
         ) : org || pathname === '/profil' ? (
-          children
+          <>
+            {org && <LicenseNotice org={org} />}
+            {children}
+          </>
         ) : (
           <div className="card">
             <Empty title="Hesabınız henüz bir kuruluşa bağlı değil">
@@ -163,5 +168,36 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       </main>
     </div>
+  );
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** Lisans bitmeden bu kadar gün önce uyarı gösterilir. */
+const LICENSE_WARNING_DAYS = 14;
+
+/**
+ * Lisans süresi dolduysa kuruluş yalnızca okuma kipindedir (API değişiklikleri reddeder); bitişe az kaldıysa
+ * hatırlatma gösterilir.
+ */
+function LicenseNotice({ org }: { org: OrgMembership }) {
+  const expiresAt = org.licenseExpiresAt ? new Date(org.licenseExpiresAt) : null;
+  const date = org.licenseExpiresAt ? formatDate(org.licenseExpiresAt) : null;
+  const what = org.licenseStatus === 'trial' ? 'Deneme süreniz' : 'Lisans süreniz';
+  if (org.licenseStatus === 'expired' || (expiresAt && expiresAt.getTime() < Date.now())) {
+    return (
+      <Alert kind="warning">
+        {what} {date ? `${date} tarihinde ` : ''}doldu. Kayıtlarınızı görüntüleyip indirebilirsiniz, ancak yeni kayıt ekleyemez ve
+        değişiklik yapamazsınız. Lisansınızı yenilemek için <Link href="/destek">Destek</Link> bölümünden bize yazın.
+      </Alert>
+    );
+  }
+  if (!expiresAt) return null;
+  const days = Math.ceil((expiresAt.getTime() - Date.now()) / DAY_MS);
+  if (days > LICENSE_WARNING_DAYS) return null;
+  return (
+    <Alert kind="info">
+      {what} {date} tarihinde doluyor ({days} gün kaldı). Süre dolunca kayıtlarınızı yalnızca görüntüleyebilirsiniz; yenilemek için{' '}
+      <Link href="/destek">Destek</Link> bölümünden bize yazın.
+    </Alert>
   );
 }

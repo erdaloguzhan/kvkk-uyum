@@ -56,6 +56,12 @@ const updateMemberBody = z
   .partial()
   .refine((v) => Object.keys(v).length > 0, { message: 'Güncellenecek alan yok' });
 
+const licenseBody = z.object({
+  status: z.enum(['trial', 'active', 'expired']),
+  /** Son geçerli gün (YYYY-AA-GG); boşsa süresiz. */
+  expiresAt: z.iso.date('Tarih YYYY-AA-GG biçiminde olmalı').nullable(),
+});
+
 const categories = Object.keys(DOCUMENT_CATEGORIES) as [DocumentCategory, ...DocumentCategory[]];
 /** Çok parçalı formdan gelen "true"/"false" değerleri. */
 const formBoolean = z.preprocess((v) => (typeof v === 'string' ? v === 'true' || v === 'on' : v), z.boolean());
@@ -112,6 +118,15 @@ export class AdminController {
   @HttpCode(200)
   resendInvite(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.orgs.resendInvite(user.id, id);
+  }
+
+  @Patch('organizations/:id/license')
+  updateLicense(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(licenseBody)) body: z.infer<typeof licenseBody>,
+  ) {
+    return this.orgs.updateLicense(user.id, id, body);
   }
 
   /** Kuruluşun kullanıcıları; müşteri kuruluşlar kullanıcı ekleyemediği için buradan yönetilir. */

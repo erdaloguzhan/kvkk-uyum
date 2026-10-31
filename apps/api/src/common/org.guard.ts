@@ -10,7 +10,8 @@ import type { Permission } from '@kvkk/shared';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { Database, InjectDb } from '../db/db.module';
-import { memberships, roles } from '../db/schema';
+import { memberships, organizations, roles } from '../db/schema';
+import { ALLOW_EXPIRED_LICENSE, isLicenseExpired, LICENSE_EXPIRED_MESSAGE } from './license';
 import { AppRequest, ORG_PERMISSIONS } from './request-context';
 
 export const ORG_HEADER = 'x-organization-id';
@@ -36,9 +37,15 @@ export class OrgGuard implements CanActivate {
     }
 
     const [row] = await this.db
-      .select({ roleKey: roles.key, permissions: roles.permissions })
+      .select({
+        roleKey: roles.key,
+        permissions: roles.permissions,
+        licenseStatus: organizations.licenseStatus,
+        licenseExpiresAt: organizations.licenseExpiresAt,
+      })
       .from(memberships)
       .innerJoin(roles, eq(roles.id, memberships.roleId))
+      .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
       .where(
         and(
           eq(memberships.userId, req.user!.id),
@@ -51,6 +58,14 @@ export class OrgGuard implements CanActivate {
     const granted = row.permissions as Permission[];
     if (!required.every((p) => granted.includes(p))) {
       throw new ForbiddenException('Bu işlem için yetkiniz yok');
+    }
+    const readOnly = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    if (
+      !readOnly &&
+      isLicenseExpired(row) &&
+      !this.reflector.getAllAndOverride<boolean>(ALLOW_EXPIRED_LICENSE, [ctx.getHandler(), ctx.getClass()])
+    ) {
+      throw new ForbiddenException(LICENSE_EXPIRED_MESSAGE);
     }
     req.org = { id: orgId, roleKey: row.roleKey, permissions: granted };
     return true;

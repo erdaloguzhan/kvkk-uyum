@@ -14,7 +14,7 @@ Bu plan, canlı sunucu kısmen veya tamamen kaybolduğunda sistemin nasıl geri 
 | Ne | Nerede | Kim erişebilir |
 | --- | --- | --- |
 | Günlük veritabanı yedeği (son 14 gün) | Canlı sunucu, `yedekler/` klasörü | Sunucuya SSH ile girenler |
-| Şifreli yedek kopyası (son 30 gün) | Sunucu dışı hedef (ikinci sunucu veya nesne depolama, Türkiye'de) | Hedefin hesabı olanlar; parola olmadan açılamaz |
+| Şifreli yedek kopyası (son 30 gün sunucuda, 90 gün bilgisayarda) | Yöneticinin Windows bilgisayarı (`C:\Users\erdal\Documents\KVKUyum-sunucu-yedek`); başka hedef de seçilebilir (ikinci sunucu veya nesne depolama, Türkiye'de) | Hedefin hesabı olanlar; parola olmadan açılamaz |
 | `.env` (veritabanı şifresi, `JWT_SECRET`, `DATA_ENCRYPTION_KEY`) | Canlı sunucu + **şifre yöneticisi** | Yalnızca sistem yöneticisi |
 | `offsite.env` (`OFFSITE_PASSPHRASE`, hedefin erişim bilgileri) | Canlı sunucu + **şifre yöneticisi** | Yalnızca sistem yöneticisi |
 | Uygulama kodu ve doküman şablonları | GitHub (`erdaloguzhan/kvkk-uyum`) | Depoya erişimi olanlar |
@@ -39,7 +39,8 @@ Bu plan, canlı sunucu kısmen veya tamamen kaybolduğunda sistemin nasıl geri 
    docker compose -f docker-compose.prod.yml -f docker-compose.offsite.yml exec offsite bash /offsite-backup.sh now
    ```
    `sunucu dışına kopyalandı` satırlarını görmelisiniz.
-6. Sağlayıcının panelinde sunucu **anlık görüntü (snapshot)** özelliği varsa haftalık olarak açın. Bu, yedekten bağımsız ikinci bir güvencedir.
+6. **Hedef yöneticinin Windows bilgisayarıysa** (Seçenek C): `offsite.env` içinde `RCLONE_CONFIG_OFFSITE_TYPE=local` ve `OFFSITE_PATH=/backups/sifreli` olur; şifreli kopyalar sunucuda `yedekler/sifreli` klasöründe birikir. Bilgisayarda `deploy/yedek-cek.ps1` Görev Zamanlayıcı ile her gün çalıştırılır ve yeni dosyaları `C:\Users\erdal\Documents\KVKUyum-sunucu-yedek` klasörüne indirir (OneDrive gibi bulutla eşitlenen bir klasöre değil). Bilgisayarın diski BitLocker ile şifreli olmalı. Bu hedefte kopya bilgisayar açıkken iner; geri yüklemede dosya yeni sunucuya `scp` ile gönderilir ve 3. adımdaki `gpg` komutuyla açılır.
+7. Sağlayıcının panelinde sunucu **anlık görüntü (snapshot)** özelliği varsa haftalık olarak açın. Bu, yedekten bağımsız ikinci bir güvencedir.
 
 Bundan sonra her gün 03:00'te yedek alınır, 04:30'da şifrelenip sunucu dışına kopyalanır.
 

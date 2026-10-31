@@ -17,6 +17,7 @@ import {
   TaskType,
 } from '@kvkk/shared';
 import { z } from 'zod';
+import { AllowExpiredLicense } from '../common/license';
 import { AuthUser, CurrentOrg, CurrentUser, OrgContext, RequirePermissions } from '../common/request-context';
 import { ZodPipe } from '../common/zod.pipe';
 import { MAX_REMINDER_DAYS } from './alarms.service';
@@ -272,6 +273,7 @@ export class NotificationsController {
   @Post('read-all')
   @HttpCode(204)
   @RequirePermissions()
+  @AllowExpiredLicense()
   async readAll(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser) {
     await this.notifications.markAllRead(org.id, user.id);
   }
@@ -279,6 +281,7 @@ export class NotificationsController {
   @Post(':id/read')
   @HttpCode(204)
   @RequirePermissions()
+  @AllowExpiredLicense()
   async read(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     await this.notifications.markRead(org.id, user.id, id);
   }
