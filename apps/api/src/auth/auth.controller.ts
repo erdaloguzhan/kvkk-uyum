@@ -54,7 +54,7 @@ export class AuthController {
   @HttpCode(200)
   async login(@Req() req: AppRequest, @Body(new ZodPipe(loginBody)) body: z.infer<typeof loginBody>) {
     const client = clientInfo(req);
-    await this.captcha.verify(body.captchaToken, client.ip);
+    await this.captcha.verify(body.captchaToken);
     return this.auth.login(body, client);
   }
 
@@ -84,7 +84,7 @@ export class AuthController {
     @Body(new ZodPipe(resetRequestBody)) body: z.infer<typeof resetRequestBody>,
   ) {
     const client = clientInfo(req);
-    await this.captcha.verify(body.captchaToken, client.ip);
+    await this.captcha.verify(body.captchaToken);
     // Yanıt e-postanın ve SMS'in gönderilmesini beklemez: kayıtlı ve kayıtsız adresler aynı sürede yanıtlanır,
     // yanıt süresinden adresin sistemde olup olmadığı anlaşılamaz. SMS kodunun kimliği her durumda döner.
     const challengeId = randomUUID();

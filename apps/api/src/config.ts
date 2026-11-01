@@ -11,7 +11,6 @@ const envSchema = z.object({
     'DATA_ENCRYPTION_KEY 32 baytlık base64 bir değer olmalı (openssl rand -base64 32)',
   ),
   PORT: z.coerce.number().default(3000),
-  CAPTCHA_SECRET: z.string().optional(),
   TRIAL_DAYS: z.coerce.number().int().positive().default(30),
   CONTENT_DIR: z.string().optional(),
   ALARM_INTERVAL_MINUTES: z.coerce.number().int().min(0).default(60),
@@ -28,7 +27,6 @@ export interface AppConfig {
   databaseUrl: string;
   jwtSecret: string;
   port: number;
-  captchaSecret?: string;
   trialDays: number;
   /** Doküman şablonlarının bulunduğu klasör (depodaki content/). */
   contentDir: string;
@@ -55,7 +53,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: e.DATABASE_URL,
     jwtSecret: e.JWT_SECRET,
     port: e.PORT,
-    captchaSecret: e.CAPTCHA_SECRET || undefined,
     trialDays: e.TRIAL_DAYS,
     contentDir: e.CONTENT_DIR || path.resolve(__dirname, '../../../content'),
     alarmIntervalMinutes: e.ALARM_INTERVAL_MINUTES,
