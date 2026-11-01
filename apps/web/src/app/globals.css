@@ -201,8 +201,8 @@ tbody tr:hover { background: #fafbfc; }
 .auth-card { background: #fff; border-radius: 12px; padding: 32px; width: 100%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
 .auth-card h1 { margin-bottom: 4px; }
 .auth-card .greeting { margin: 8px 0 10px; line-height: 1.5; }
-.auth-below { width: 100%; max-width: 420px; margin-top: 20px; color: #fff; font-size: 0.9rem; line-height: 1.5; text-align: center; }
-.auth-below a { color: #fff; text-decoration: underline; word-break: break-all; }
+.auth-below { width: 100%; max-width: 420px; margin-top: 16px; background: #fff; border-radius: 12px; padding: 16px 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); color: var(--text-2); font-size: 0.9rem; line-height: 1.5; text-align: center; }
+.auth-below a { color: var(--primary); text-decoration: underline; word-break: break-all; }
 .auth-card .brand-line { color: var(--primary); font-weight: 700; margin-bottom: 18px; }
 .auth-links { margin-top: 18px; display: flex; justify-content: space-between; font-size: 0.9rem; flex-wrap: wrap; gap: 8px; }
 
