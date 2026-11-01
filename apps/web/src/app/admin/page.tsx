@@ -20,6 +20,7 @@ export default function AdminOrganizationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [licenseOrg, setLicenseOrg] = useState<AdminOrganization | null>(null);
+  const [deleteOrg, setDeleteOrg] = useState<AdminOrganization | null>(null);
 
   if (orgs.loading && !orgs.data) return <Loading />;
   const items = orgs.data?.items ?? [];
@@ -86,6 +87,11 @@ export default function AdminOrganizationsPage() {
                     <td>
                       <Badge kind={LICENSE[effectiveStatus(o)].kind}>{LICENSE[effectiveStatus(o)].label}</Badge>
                       {o.licenseExpiresAt && <div className="small muted">{formatDate(o.licenseExpiresAt)}</div>}
+                      {deletionDue(o) && (
+                        <div>
+                          <Badge kind="danger">Silinmeli</Badge>
+                        </div>
+                      )}
                     </td>
                     <td className="nowrap">{formatDate(o.createdAt)}</td>
                     <td className="nowrap">
@@ -98,6 +104,11 @@ export default function AdminOrganizationsPage() {
                       {o.email && (
                         <button className="btn btn-small" onClick={() => resend(o)} disabled={busy !== null}>
                           {busy === o.id ? 'Gönderiliyor…' : 'Daveti yeniden gönder'}
+                        </button>
+                      )}{' '}
+                      {effectiveStatus(o) === 'expired' && (
+                        <button className="btn btn-small btn-danger" onClick={() => setDeleteOrg(o)} disabled={busy !== null}>
+                          Verileri sil
                         </button>
                       )}
                     </td>
@@ -119,8 +130,36 @@ export default function AdminOrganizationsPage() {
           }}
         />
       )}
+      {deleteOrg && (
+        <DeleteDialog
+          org={deleteOrg}
+          onClose={() => setDeleteOrg(null)}
+          onDeleted={(r) => {
+            setMessage(
+              `${r.name} ve bütün verileri silindi${r.deletedUsers ? ` (${r.deletedUsers} kullanıcı hesabı dahil)` : ''}. Yedeklerdeki kopyalar 14 gün içinde kendiliğinden silinir.`,
+            );
+            setDeleteOrg(null);
+            orgs.reload();
+          }}
+        />
+      )}
     </>
   );
+}
+
+/** Sözleşme: abonelik bitince müşteri 15 gün içinde verisini isteyebilir, sonra canlı sistemden silinir. */
+const DELETE_AFTER_DAYS = 15;
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Verinin silinmesi gereken gün (bitiş tarihi yoksa bilinmez). */
+function deletionDate(o: AdminOrganization) {
+  return o.licenseExpiresAt ? new Date(new Date(o.licenseExpiresAt).getTime() + DELETE_AFTER_DAYS * DAY) : null;
+}
+
+function deletionDue(o: AdminOrganization) {
+  if (effectiveStatus(o) !== 'expired') return false;
+  const date = deletionDate(o);
+  return !date || date.getTime() <= Date.now();
 }
 
 /** Bitiş tarihi geçmişse durum "Deneme" veya "Aktif" görünse de süre dolmuştur. */
@@ -177,6 +216,63 @@ function LicenseDialog({ org, onClose, onSaved }: { org: AdminOrganization; onCl
           </button>
           <button className="btn btn-primary" disabled={busy}>
             {busy ? 'Kaydediliyor…' : 'Kaydet'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function DeleteDialog({
+  org,
+  onClose,
+  onDeleted,
+}: {
+  org: AdminOrganization;
+  onClose: () => void;
+  onDeleted: (r: { name: string; deletedUsers: number }) => void;
+}) {
+  const [confirmName, setConfirmName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const due = deletionDate(org);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onDeleted(await api<{ name: string; deletedUsers: number }>(`admin/organizations/${org.id}`, { method: 'DELETE', body: { confirmName } }));
+    } catch (err) {
+      setError(errorText(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Verileri sil: ${org.name}`}>
+      <Alert kind="error">
+        Kuruluşun bütün verisi kalıcı olarak silinir: dokümanlar, envanter, görevler, başvurular, ihlal ve imha kayıtları,
+        sözleşmeler, çalışanlar ve eğitim sonuçları, destek talepleri, işlem kayıtları ve başka kuruluşa üye olmayan
+        kullanıcı hesapları. <strong>Geri alınamaz.</strong> Yedeklerdeki kopyalar 14 gün içinde kendiliğinden silinir.
+      </Alert>
+      <p className="muted">
+        {org.licenseExpiresAt ? `Abonelik bitişi: ${formatDate(org.licenseExpiresAt)}. ` : ''}
+        {due
+          ? `Sözleşmeye göre veriler ${formatDate(due.toISOString())} tarihinde silinmeli; müşteri verisini istediyse önce teslim edin.`
+          : 'Müşteri verisini istediyse silmeden önce teslim edin.'}
+      </p>
+      <form className="form" onSubmit={submit}>
+        <ErrorAlert error={error} />
+        <Field label={`Onay için kuruluş adını yazın: ${org.name}`} htmlFor="delete-confirm">
+          <input id="delete-confirm" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} autoComplete="off" />
+        </Field>
+        <div className="dialog-actions">
+          <button type="button" className="btn" onClick={onClose}>
+            Vazgeç
+          </button>
+          <button className="btn btn-danger" disabled={busy || confirmName.trim() !== org.name.trim()}>
+            {busy ? 'Siliniyor…' : 'Kalıcı olarak sil'}
           </button>
         </div>
       </form>

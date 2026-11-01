@@ -14,7 +14,7 @@ Bu plan, canlı sunucu kısmen veya tamamen kaybolduğunda sistemin nasıl geri 
 | Ne | Nerede | Kim erişebilir |
 | --- | --- | --- |
 | Günlük veritabanı yedeği (son 14 gün) | Canlı sunucu, `yedekler/` klasörü | Sunucuya SSH ile girenler |
-| Şifreli yedek kopyası (son 30 gün sunucuda, 90 gün bilgisayarda) | Yöneticinin Windows bilgisayarı (`C:\Users\erdal\Documents\KVKUyum-sunucu-yedek`); başka hedef de seçilebilir (ikinci sunucu veya nesne depolama, Türkiye'de) | Hedefin hesabı olanlar; parola olmadan açılamaz |
+| Şifreli yedek kopyası (son 14 gün sunucuda ve bilgisayarda) | Yöneticinin Windows bilgisayarı (`C:\Users\erdal\Documents\KVKUyum-sunucu-yedek`); başka hedef de seçilebilir (ikinci sunucu veya nesne depolama, Türkiye'de) | Hedefin hesabı olanlar; parola olmadan açılamaz |
 | `.env` (veritabanı şifresi, `JWT_SECRET`, `DATA_ENCRYPTION_KEY`) | Canlı sunucu + **şifre yöneticisi** | Yalnızca sistem yöneticisi |
 | `offsite.env` (`OFFSITE_PASSPHRASE`, hedefin erişim bilgileri) | Canlı sunucu + **şifre yöneticisi** | Yalnızca sistem yöneticisi |
 | Uygulama kodu ve doküman şablonları | GitHub (`erdaloguzhan/kvkk-uyum`) | Depoya erişimi olanlar |
@@ -43,6 +43,13 @@ Bu plan, canlı sunucu kısmen veya tamamen kaybolduğunda sistemin nasıl geri 
 7. Sağlayıcının panelinde sunucu **anlık görüntü (snapshot)** özelliği varsa haftalık olarak açın. Bu, yedekten bağımsız ikinci bir güvencedir.
 
 Bundan sonra her gün 03:00'te yedek alınır, 04:30'da şifrelenip sunucu dışına kopyalanır.
+
+## Saklama süresi ve müşteri verisinin silinmesi
+
+Müşteri sözleşmesine göre abonelik bitiminden en geç 1 ay sonra müşterinin bütün verisi, işlem kayıtları ve yedekler dahil, silinir. Bunun için:
+
+- Yönetim panelinde **Kuruluşlar** listesinde "Silinmeli" etiketi çıkan kuruluşu (bitişten 15 gün sonra) **Verileri sil** düğmesiyle silin. Müşteri verisini istediyse önce teslim edin.
+- Bütün yedekler en fazla 14 gün tutulur (sunucuda `BACKUP_KEEP_DAYS`, sunucu dışı `OFFSITE_KEEP_DAYS`, bilgisayarda `yedek-cek.ps1` içindeki `$SaklaGun`). Böylece 15. günde silinen verinin son kopyası 30. gün dolmadan gider. Bu süreleri 14'ten büyük yapmayın.
 
 ## Senaryolar
 

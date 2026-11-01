@@ -62,6 +62,8 @@ const licenseBody = z.object({
   expiresAt: z.iso.date('Tarih YYYY-AA-GG biçiminde olmalı').nullable(),
 });
 
+const deleteOrgBody = z.object({ confirmName: z.string().max(300) });
+
 const categories = Object.keys(DOCUMENT_CATEGORIES) as [DocumentCategory, ...DocumentCategory[]];
 /** Çok parçalı formdan gelen "true"/"false" değerleri. */
 const formBoolean = z.preprocess((v) => (typeof v === 'string' ? v === 'true' || v === 'on' : v), z.boolean());
@@ -127,6 +129,16 @@ export class AdminController {
     @Body(new ZodPipe(licenseBody)) body: z.infer<typeof licenseBody>,
   ) {
     return this.orgs.updateLicense(user.id, id, body);
+  }
+
+  /** Aboneliği biten kuruluşu bütün verisiyle kalıcı olarak siler (gövdede kuruluş adı onayı). */
+  @Delete('organizations/:id')
+  removeOrganization(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(deleteOrgBody)) body: z.infer<typeof deleteOrgBody>,
+  ) {
+    return this.orgs.remove(user.id, id, body.confirmName);
   }
 
   /** Kuruluşun kullanıcıları; müşteri kuruluşlar kullanıcı ekleyemediği için buradan yönetilir. */

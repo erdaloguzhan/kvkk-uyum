@@ -5,7 +5,7 @@
 
 $Hedef = 'C:\Users\erdal\Documents\KVKUyum-sunucu-yedek'          # OneDrive gibi bulutla eşitlenen bir klasör OLMAMALI
 $Uzak = '/opt/kvkk/yedekler/sifreli'
-$SaklaGun = 90
+$SaklaGun = 14                     # müşteri sözleşmesi: abonelik bitiminden en geç 1 ay sonra yedeklerden de silinir
 $PingUrl = ''                      # isteğe bağlı: healthchecks.io adresi; yedek inmezse e-posta gelir
 
 New-Item -ItemType Directory -Force $Hedef | Out-Null

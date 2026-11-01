@@ -13,7 +13,7 @@ take_backup() {
     rm -f "$file.tmp"
     echo "$(date -Is) HATA: yedek alınamadı" >&2
   fi
-  find /backups -name 'kvkk-*.dump' -mtime +"$BACKUP_KEEP_DAYS" -print -delete
+  find /backups -name 'kvkk-*.dump' -mmin +$((BACKUP_KEEP_DAYS * 1440)) -print -delete
 }
 
 if [ "${1:-}" = "now" ]; then
