@@ -6,6 +6,7 @@ export function AuthCard({
   subtitle,
   brand = 'KVK Uyum Yönetim Sistemi',
   greeting,
+  below,
   children,
 }: {
   title: string;
@@ -13,6 +14,8 @@ export function AuthCard({
   brand?: string;
   /** Kişiye hitap: "Sayın Ad Soyad," ve altında pencerenin amacı. */
   greeting?: { fullName: string; text: ReactNode } | null;
+  /** Kartın dışında, hemen altında gösterilen içerik. */
+  below?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -31,6 +34,7 @@ export function AuthCard({
         {subtitle && <p className="muted">{subtitle}</p>}
         {children}
       </div>
+      {below && <div className="auth-below">{below}</div>}
     </main>
   );
 }

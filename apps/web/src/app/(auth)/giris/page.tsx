@@ -105,6 +105,7 @@ function LoginForm() {
     return (
       <AuthCard
         title="Doğrulama kodu"
+        below={<PurchaseNote />}
         greeting={
           account && {
             fullName: account.fullName,
@@ -146,7 +147,7 @@ function LoginForm() {
   }
 
   return (
-    <AuthCard title="Giriş">
+    <AuthCard title="Giriş" below={<PurchaseNote />}>
       <form className="form" onSubmit={submitPassword}>
         <ErrorAlert error={error} />
         <Field label="E-posta" htmlFor="email">
@@ -181,5 +182,19 @@ export default function LoginPage() {
     <Suspense>
       <LoginForm />
     </Suspense>
+  );
+}
+
+const PURCHASE_URL = 'https://www.biartidanismanlik.com/product-page/kvkk-uyum-y%C3%B6netim-sistemi';
+
+function PurchaseNote() {
+  return (
+    <>
+      Henüz uygulamaya sahip değilseniz,{' '}
+      <a href={PURCHASE_URL} target="_blank" rel="noopener noreferrer">
+        &quot;{decodeURI(PURCHASE_URL)}&quot;
+      </a>{' '}
+      adresinde ürün detaylarını inceleyebilir ve kredi kartı ile satın alabilirsiniz.
+    </>
   );
 }
