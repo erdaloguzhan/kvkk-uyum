@@ -34,7 +34,7 @@ export class TrainingPortalController {
   @HttpCode(200)
   async requestCode(@Req() req: AppRequest, @Body(new ZodPipe(codeBody)) body: z.infer<typeof codeBody>) {
     const client = clientInfo(req);
-    await this.captcha.verify(body.captchaToken, client.ip);
+    await this.captcha.verify(body.captchaToken);
     return this.auth.requestCode(body.phone, client);
   }
 

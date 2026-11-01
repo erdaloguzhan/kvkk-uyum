@@ -69,7 +69,7 @@ export class RequestFormController {
     @Body(new ZodPipe(publicSubmitBody)) body: z.infer<typeof publicSubmitBody>,
   ) {
     const client = clientInfo(req);
-    await this.captcha.verify(body.captchaToken, client.ip);
+    await this.captcha.verify(body.captchaToken);
     const { consent: _consent, captchaToken: _token, ...input } = body;
     return this.requests.submitPublic(key, input, toAttachments(files), client);
   }

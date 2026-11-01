@@ -3,20 +3,19 @@ import type { NextConfig } from 'next';
 
 /**
  * Tarayıcıya verilen güvenlik kuralları (CSP): sayfa yalnızca kendi sunucusundan betik, stil ve veri yükler;
- * başka bir site bu sayfaları çerçeve içinde açamaz. Cloudflare Turnstile (CAPTCHA) için kendi adresine
- * izin verilir. Next.js sayfaya satır içi betik eklediği için 'unsafe-inline' gereklidir; geliştirme
+ * başka bir site bu sayfaları çerçeve içinde açamaz. Bot koruması (CAPTCHA) sunucunun kendisinde çalıştığı
+ * için dış betik veya çerçeveye izin yoktur. Next.js sayfaya satır içi betik eklediği için 'unsafe-inline' gereklidir; geliştirme
  * sunucusu ayrıca 'unsafe-eval' ister.
  */
-const TURNSTILE = 'https://challenges.cloudflare.com';
 const cspFor = (frameAncestors: string) => [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${TURNSTILE}${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   // Ders anlatımlarında başka sitelerdeki (https) görseller de gösterilebilir.
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "connect-src 'self'",
-  `frame-src ${TURNSTILE}`,
+  "frame-src 'none'",
   `frame-ancestors ${frameAncestors}`,
   "base-uri 'self'",
   "form-action 'self'",

@@ -2,8 +2,6 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { AppConfig, CONFIG } from '../config';
 
-const TURNSTILE_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
-
 /** Tarayıcının deneyeceği en büyük sayı; ortalama yarısı kadar SHA-256 hesabı (birkaç yüz milisaniye) sürer. */
 export const CAPTCHA_MAX_NUMBER = 100_000;
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
@@ -33,9 +31,6 @@ const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
  * Tarayıcı imzalı bir soru alır ve arka planda sha256(salt + n) = challenge eşitliğini sağlayan n'i bulur;
  * bu, toplu otomatik denemeleri pahalı hale getirir. Ziyaretçi verisi hiçbir dış servise gönderilmez.
  * Her çözüm bir kez kullanılabilir ve 5 dakika geçerlidir.
- *
- * `CAPTCHA_SECRET` tanımlıysa bunun yerine Cloudflare Turnstile doğrulanır (web arayüzünde Turnstile bileşeni
- * olmadığı için web ile kullanılamaz; ziyaretçi IP'si yurt dışına gider).
  */
 @Injectable()
 export class CaptchaService {
@@ -56,8 +51,7 @@ export class CaptchaService {
     return { algorithm: 'SHA-256', challenge, salt, maxnumber: CAPTCHA_MAX_NUMBER, signature: this.sign(challenge) };
   }
 
-  async verify(token: string | undefined, ip?: string | null): Promise<void> {
-    if (this.config.captchaSecret) return this.verifyTurnstile(token, ip);
+  async verify(token: string | undefined): Promise<void> {
     if (!this.enabled) return;
     if (!token || !this.verifySolution(token)) {
       throw new BadRequestException('Güvenlik doğrulaması başarısız oldu. Sayfayı yenileyip tekrar deneyin.');
@@ -97,14 +91,5 @@ export class CaptchaService {
 
   private sign(challenge: string) {
     return createHmac('sha256', this.hmacKey).update(challenge).digest('hex');
-  }
-
-  private async verifyTurnstile(token: string | undefined, ip?: string | null) {
-    if (!token) throw new BadRequestException('CAPTCHA doğrulaması gerekli');
-    const body = new URLSearchParams({ secret: this.config.captchaSecret!, response: token });
-    if (ip) body.set('remoteip', ip);
-    const res = await fetch(TURNSTILE_URL, { method: 'POST', body });
-    const data = (await res.json()) as { success: boolean };
-    if (!data.success) throw new BadRequestException('CAPTCHA doğrulaması başarısız');
   }
 }
