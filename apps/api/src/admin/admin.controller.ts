@@ -26,6 +26,9 @@ import { TemplatesService } from '../templates/templates.service';
 import { MembersService } from '../members/members.service';
 import { optionalMobile } from '../training/training.schema';
 import { AdminOrganizationsService } from './admin-organizations.service';
+import { OrganizationExportService } from './organization-export';
+import { AuditService } from '../audit/audit.service';
+import { sendFile } from '../training/files';
 import { PlatformAdminGuard } from './platform-admin.guard';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -100,6 +103,8 @@ export class AdminController {
     private readonly orgs: AdminOrganizationsService,
     private readonly members: MembersService,
     private readonly templates: TemplatesService,
+    private readonly exporter: OrganizationExportService,
+    private readonly audit: AuditService,
   ) {}
 
   @Get('organizations')
@@ -129,6 +134,22 @@ export class AdminController {
     @Body(new ZodPipe(licenseBody)) body: z.infer<typeof licenseBody>,
   ) {
     return this.orgs.updateLicense(user.id, id, body);
+  }
+
+  /** Kuruluşun bütün verisi tek ZIP dosyasında (Excel + doküman ve ek dosyaları), müşteriye teslim için. */
+  @AuditMode('skip')
+  @Get('organizations/:id/export')
+  async exportOrganization(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    const file = await this.exporter.build(id);
+    await this.audit.record({
+      action: 'admin.organization_exported',
+      organizationId: id,
+      userId: user.id,
+      entityType: 'organization',
+      entityId: id,
+      metadata: file.stats,
+    });
+    sendFile(res, file.content, file.fileName, 'application/zip');
   }
 
   /** Aboneliği biten kuruluşu bütün verisiyle kalıcı olarak siler (gövdede kuruluş adı onayı). */

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Alert, Badge, Empty, ErrorAlert, Field, Loading, Modal, PageHeader } from '@/components/ui';
-import { api, errorText } from '@/lib/api';
+import { api, download, errorText } from '@/lib/api';
 import { formatDate } from '@/lib/labels';
 import type { AdminOrganization } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
@@ -24,6 +24,19 @@ export default function AdminOrganizationsPage() {
 
   if (orgs.loading && !orgs.data) return <Loading />;
   const items = orgs.data?.items ?? [];
+
+  async function exportData(o: AdminOrganization) {
+    setBusy(`export-${o.id}`);
+    setError(null);
+    setMessage(null);
+    try {
+      await download(`admin/organizations/${o.id}/export`, `${o.name} veri aktarimi.zip`);
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function resend(o: AdminOrganization) {
     if (!confirm(`${o.email} adresine yeni bir şifre oluşturma bağlantısı gönderilsin mi? Önceki bağlantı geçersiz olur.`)) return;
@@ -106,6 +119,9 @@ export default function AdminOrganizationsPage() {
                           {busy === o.id ? 'Gönderiliyor…' : 'Daveti yeniden gönder'}
                         </button>
                       )}{' '}
+                      <button className="btn btn-small" onClick={() => exportData(o)} disabled={busy !== null}>
+                        {busy === `export-${o.id}` ? 'Hazırlanıyor…' : 'Verileri indir'}
+                      </button>{' '}
                       {effectiveStatus(o) === 'expired' && (
                         <button className="btn btn-small btn-danger" onClick={() => setDeleteOrg(o)} disabled={busy !== null}>
                           Verileri sil
@@ -260,7 +276,8 @@ function DeleteDialog({
         {org.licenseExpiresAt ? `Abonelik bitişi: ${formatDate(org.licenseExpiresAt)}. ` : ''}
         {due
           ? `Sözleşmeye göre veriler ${formatDate(due.toISOString())} tarihinde silinmeli; müşteri verisini istediyse önce teslim edin.`
-          : 'Müşteri verisini istediyse silmeden önce teslim edin.'}
+          : 'Müşteri verisini istediyse silmeden önce teslim edin.'}{' '}
+        Kuruluşun bütün verisini listedeki <strong>Verileri indir</strong> düğmesiyle tek ZIP dosyası olarak alabilirsiniz.
       </p>
       <form className="form" onSubmit={submit}>
         <ErrorAlert error={error} />

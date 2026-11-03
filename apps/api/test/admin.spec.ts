@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { DOCUMENT_TEMPLATES, ORGANIZATION_PLACEHOLDERS } from '@kvkk/shared';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import ExcelJS from 'exceljs';
 import PizZip from 'pizzip';
 import request from 'supertest';
 import { templateTags, UNSUPPORTED_PLACEHOLDERS } from '../src/documents/template-renderer';
@@ -231,6 +232,42 @@ describe('Yönetim paneli', () => {
       const outsider = await registerAndLogin(app);
       await request(server).get(base).set(auth(outsider.accessToken)).expect(403);
     });
+  });
+
+  it('kuruluşun bütün verisi tek ZIP dosyasında dışa aktarılır', async () => {
+    const owner = await registerAndLogin(app);
+    const orgId = await createOrg(app, owner, { ...PROFILE, name: 'Aktarım A.Ş.' });
+    const phone = `0555${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+    await request(server)
+      .post(`/api/v1/admin/organizations/${orgId}/employees`)
+      .set(auth(admin.accessToken))
+      .send({ nationalId: '10000000146', firstName: '=Ayşe', lastName: 'Yılmaz', phone })
+      .expect(201);
+    await request(server).get(`/api/v1/admin/organizations/${orgId}/export`).set(auth(owner.accessToken)).expect(403);
+
+    const res = await request(server)
+      .get(`/api/v1/admin/organizations/${orgId}/export`)
+      .set(auth(admin.accessToken))
+      .buffer()
+      .parse(binary)
+      .expect(200);
+    expect(res.headers['content-type']).toContain('application/zip');
+    const zip = new PizZip(res.body as Buffer);
+    expect(zip.file('BENIOKU.txt')).toBeTruthy();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(zip.file('veriler.xlsx')!.asNodeBuffer() as any);
+    const employeesSheet = workbook.getWorksheet('employees')!;
+    const header = (employeesSheet.getRow(1).values as string[]).filter(Boolean);
+    expect(header).toContain('nationalId');
+    expect(header).not.toContain('nationalIdHash');
+    const row = employeesSheet.getRow(2);
+    expect(row.getCell(header.indexOf('nationalId') + 1).value).toBe('10000000146');
+    // Formül gibi başlayan metin düz metin olarak yazılır.
+    expect(row.getCell(header.indexOf('firstName') + 1).value).toBe("'=Ayşe");
+    const usersHeader = (workbook.getWorksheet('users')!.getRow(1).values as string[]).filter(Boolean);
+    expect(usersHeader).not.toContain('passwordHash');
+    expect(workbook.getWorksheet('users')!.rowCount).toBe(2);
+    expect(workbook.worksheets.map((w) => w.name)).toEqual(expect.arrayContaining(['documents', 'inventory_entries', 'audit_logs']));
   });
 
   it('aboneliği biten kuruluş bütün verisi ve yalnız ona üye kullanıcılarıyla silinir', async () => {
