@@ -1,9 +1,9 @@
 import {
-  INCIDENT_CYBER_ELEMENTS,
+  INCIDENT_BREACH_EFFECTS,
+  INCIDENT_CYBER_SOURCES,
   INCIDENT_LIKELIHOODS,
   INCIDENT_ORG_IMPACTS,
   INCIDENT_PERSONAL_DATA_CATEGORIES,
-  INCIDENT_RECOVERIES,
   INCIDENT_SOURCES,
   INCIDENT_SPECIAL_DATA_CATEGORIES,
   INCIDENT_STATUSES,
@@ -12,7 +12,6 @@ import {
   INCIDENT_SUBJECT_NOTICES,
   IncidentImpact,
   IncidentLikelihood,
-  IncidentRecovery,
   IncidentStatus,
   IncidentSubjectNotice,
 } from '@kvkk/shared';
@@ -32,7 +31,7 @@ const choice = <K extends string>(keys: [K, ...K[]]) =>
     .union([z.enum(keys), z.literal('')])
     .nullish()
     .transform((v) => (v || null) as K | null);
-/** Çoklu seçim: yalnızca FRM-020'deki seçenekler; tekrarlar atılır. "Diğer" ayrı metin alanındadır. */
+/** Çoklu seçim: yalnızca FRM-020'deki seçenekler; tekrarlar atılır. "Diğer" listededir, ayrıntısı açıklama alanındadır. */
 const options = (list: readonly string[]) =>
   z
     .array(z.enum(list as [string, ...string[]]))
@@ -51,57 +50,80 @@ const optionalDateTime = z
   .optional()
   .transform((v) => (v === '' || v === undefined ? null : v));
 
+/** Formun içindeki tarih-saatler (13. soru) ISO metin olarak saklanır. */
+const optionalIsoText = z
+  .union([z.iso.datetime({ offset: true }), z.literal(''), z.null()])
+  .optional()
+  .transform((v) => (v ? new Date(v).toISOString() : null));
+const optionalDay = z
+  .union([z.iso.date(), z.literal(''), z.null()])
+  .optional()
+  .transform((v) => v || null);
+const optionalEmail = z
+  .union([z.email().max(254), z.literal('')])
+  .nullish()
+  .transform((v) => v || null);
+
 export const formSchema = z
   .object({
     controllerName: optionalText(500),
     controllerAddress: optionalText(1000),
+    controllerWebsite: optionalText(500),
+    controllerEmail: optionalEmail,
+    controllerTaxId: optionalText(20),
+    controllerKep: optionalText(254),
+    controllerUets: optionalText(254),
     preparerName: optionalText(200),
     preparerTitle: optionalText(200),
-    preparerEmail: z
-      .union([z.email().max(254), z.literal('')])
-      .nullish()
-      .transform((v) => v || null),
+    preparerEmail: optionalEmail,
     preparerPhone: optionalText(50),
-    description: optionalText(),
+    preparerAddress: optionalText(1000),
+    processorName: optionalText(500),
+    processorAddress: optionalText(1000),
+    processorDetectedAt: optionalIsoText,
+    processorNotifiedAt: optionalIsoText,
     sources: options(INCIDENT_SOURCES),
-    sourceOther: optionalText(1000),
+    cyberSources: options(INCIDENT_CYBER_SOURCES),
+    description: optionalText(),
+    breachEffects: options(INCIDENT_BREACH_EFFECTS),
+    breachEffectDetail: optionalText(),
+    detectionMethod: optionalText(),
     personalCategories: options(INCIDENT_PERSONAL_DATA_CATEGORIES),
     specialCategories: options(INCIDENT_SPECIAL_DATA_CATEGORIES),
-    categoryOther: optionalText(1000),
+    categoryDetail: optionalText(),
     estimatedPeople: optionalCount,
     estimatedRecords: optionalCount,
+    countNote: optionalText(),
     subjectGroups: options(INCIDENT_SUBJECT_GROUPS),
     subjectGroupOther: optionalText(1000),
     subjectEffects: options(INCIDENT_SUBJECT_EFFECTS),
     subjectEffectOther: optionalText(1000),
     delayReason: optionalText(),
-    potentialEffects: optionalText(),
-    likelihood: choice<IncidentLikelihood>(keysOf(INCIDENT_LIKELIHOODS)),
-    likelihoodDetail: optionalText(1000),
-    orgImpact: choice<IncidentImpact>(keysOf(INCIDENT_ORG_IMPACTS)),
-    orgRecovery: choice<IncidentRecovery>(keysOf(INCIDENT_RECOVERIES)),
-    cyberAttack: optionalBool,
-    cyberElements: options(INCIDENT_CYBER_ELEMENTS),
-    cyberElementOther: optionalText(1000),
-    cyberImpact: choice<IncidentImpact>(keysOf(INCIDENT_ORG_IMPACTS)),
-    cyberRecovery: choice<IncidentRecovery>(keysOf(INCIDENT_RECOVERIES)),
-    staffTrained: optionalBool,
-    measuresBefore: optionalText(),
-    measuresAfter: optionalText(),
-    recurrenceSteps: optionalText(),
     subjectNotice: choice<IncidentSubjectNotice>(keysOf(INCIDENT_SUBJECT_NOTICES)),
+    subjectNoticeDetail: optionalText(),
+    subjectNoticeDate: optionalDay,
     subjectNoticeMethod: optionalText(),
     subjectContact: optionalText(1000),
     domesticInformed: optionalBool,
     domesticDetail: optionalText(),
     foreignInformed: optionalBool,
     foreignDetail: optionalText(),
+    likelihood: choice<IncidentLikelihood>(keysOf(INCIDENT_LIKELIHOODS)),
+    orgImpact: choice<IncidentImpact>(keysOf(INCIDENT_ORG_IMPACTS)),
+    staffTrainings: optionalText(),
+    measuresBeforeTechnical: optionalText(),
+    measuresBeforeAdministrative: optionalText(),
+    measuresBefore: optionalText(),
+    measuresAfterTechnical: optionalText(),
+    measuresAfterAdministrative: optionalText(),
+    measuresAfter: optionalText(),
   })
   .strict();
 
 const fields = {
   title: z.string().trim().min(1).max(300),
   occurredAt: optionalDateTime,
+  endedAt: optionalDateTime,
   detectedAt: dateTime,
   followUpRef: optionalText(200),
 };

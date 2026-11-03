@@ -698,6 +698,7 @@ export interface Incident {
   parentId: string | null;
   followUpRef: string | null;
   occurredAt: string | null;
+  endedAt: string | null;
   detectedAt: string;
   form: IncidentForm;
   status: IncidentStatus;

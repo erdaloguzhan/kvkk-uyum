@@ -6,6 +6,7 @@ import {
   INCIDENT_FIELD_LABELS,
   INCIDENT_NOTIFY_DEADLINE_HOURS,
   INCIDENT_OPEN_STATUSES,
+  INCIDENT_CYBER_SOURCES,
   INCIDENT_PERSONAL_DATA_CATEGORIES,
   INCIDENT_SOURCES,
   INCIDENT_SPECIAL_DATA_CATEGORIES,
@@ -29,6 +30,7 @@ type IncidentRow = typeof incidents.$inferSelect;
 export interface IncidentInput {
   title?: string;
   occurredAt?: Date | null;
+  endedAt?: Date | null;
   detectedAt?: Date;
   followUpRef?: string | null;
   form?: Partial<IncidentForm>;
@@ -89,7 +91,14 @@ export class IncidentsService {
   /** Yeni kaydın A bölümü: kuruluş bilgileri ve kaydı açan kişi. */
   async formDefaults(orgId: string, userId: string): Promise<Partial<IncidentForm>> {
     const [org] = await this.db
-      .select({ name: organizations.name, address: organizations.address })
+      .select({
+        name: organizations.name,
+        address: organizations.address,
+        website: organizations.website,
+        email: organizations.email,
+        taxNumber: organizations.taxNumber,
+        kepAddress: organizations.kepAddress,
+      })
       .from(organizations)
       .where(eq(organizations.id, orgId));
     const [me] = await this.db
@@ -101,11 +110,21 @@ export class IncidentsService {
     return {
       controllerName: org?.name ?? null,
       controllerAddress: org?.address ?? null,
+      controllerWebsite: org?.website ?? null,
+      controllerEmail: org?.email ?? null,
+      controllerTaxId: org?.taxNumber ?? null,
+      controllerKep: org?.kepAddress ?? null,
       preparerName: me?.fullName ?? null,
       preparerTitle: me?.role ?? null,
       preparerEmail: me?.email ?? null,
       preparerPhone: me?.phone ?? null,
     };
+  }
+
+  /** Yalnızca hazırlayan kişi alanları (8. soru). */
+  private async preparerDefaults(orgId: string, userId: string): Promise<Partial<IncidentForm>> {
+    const d = await this.formDefaults(orgId, userId);
+    return { preparerName: d.preparerName, preparerTitle: d.preparerTitle, preparerEmail: d.preparerEmail, preparerPhone: d.preparerPhone };
   }
 
   async list(orgId: string, filter: IncidentFilter = {}, now = new Date()) {
@@ -140,7 +159,7 @@ export class IncidentsService {
   }
 
   async create(orgId: string, userId: string, input: IncidentInput & { title: string; detectedAt: Date }, now = new Date()) {
-    this.checkDates(input.occurredAt ?? null, input.detectedAt, now);
+    this.checkDates(input.occurredAt ?? null, input.endedAt ?? null, input.detectedAt, now);
     const defaults = await this.formDefaults(orgId, userId);
     const given = input.form ?? {};
     const form: IncidentForm = { ...EMPTY_INCIDENT_FORM, ...given };
@@ -150,6 +169,7 @@ export class IncidentsService {
     const incident = await this.insertNumbered(orgId, {
       title: input.title,
       occurredAt: input.occurredAt ?? null,
+      endedAt: input.endedAt ?? null,
       detectedAt: input.detectedAt,
       followUpRef: input.followUpRef ?? null,
       form,
@@ -180,12 +200,13 @@ export class IncidentsService {
     this.requireStatus(before, ['draft'], 'Kayıt yalnızca hazırlanırken değiştirilebilir. Onaydaysa önce onaydan geri çekin.');
     this.checkDates(
       input.occurredAt === undefined ? before.occurredAt : input.occurredAt,
+      input.endedAt === undefined ? before.endedAt : input.endedAt,
       input.detectedAt ?? before.detectedAt,
       now,
     );
     const form: IncidentForm = { ...before.form, ...(input.form ?? {}) };
     const changed = [
-      ...(['title', 'occurredAt', 'detectedAt', 'followUpRef'] as const).filter(
+      ...(['title', 'occurredAt', 'endedAt', 'detectedAt', 'followUpRef'] as const).filter(
         (k) => input[k] !== undefined && String(input[k]) !== String(before[k]),
       ),
       ...(Object.keys(input.form ?? {}) as (keyof IncidentForm)[]).filter(
@@ -361,8 +382,10 @@ export class IncidentsService {
       parentId: rootId,
       followUpRef: source.followUpRef,
       occurredAt: source.occurredAt,
+      endedAt: source.endedAt,
       detectedAt: source.detectedAt,
-      form: { ...source.form, ...(await this.formDefaults(orgId, userId)), controllerName: source.form.controllerName, controllerAddress: source.form.controllerAddress, delayReason: null },
+      // Veri sorumlusu bilgileri ilk bildirimdeki gibi kalır; hazırlayan kişi takibi açan kişi olur.
+      form: { ...source.form, ...(await this.preparerDefaults(orgId, userId)), delayReason: null },
       createdBy: userId,
       updatedBy: userId,
     });
@@ -423,10 +446,13 @@ export class IncidentsService {
       estimatedPeople: initial.reduce((a, i) => a + (i.form.estimatedPeople ?? 0), 0),
       estimatedRecords: initial.reduce((a, i) => a + (i.form.estimatedRecords ?? 0), 0),
       specialCategoryIncidents: initial.filter((i) => i.form.specialCategories.length > 0).length,
-      cyberAttacks: initial.filter((i) => i.form.cyberAttack === true).length,
+      cyberAttacks: initial.filter((i) => (i.form.cyberSources ?? []).length > 0).length,
       bySource: tally(
-        initial.flatMap((i) => [...i.form.sources, ...(i.form.sourceOther ? ['Diğer'] : [])]),
-        [...INCIDENT_SOURCES, 'Diğer'],
+        initial.flatMap((i) => [
+          ...i.form.sources,
+          ...(i.form.cyberSources ?? []).map((s) => (s === 'Diğer' ? 'Siber saldırı: Diğer' : s)),
+        ]),
+        [...INCIDENT_SOURCES, ...INCIDENT_CYBER_SOURCES.map((s) => (s === 'Diğer' ? 'Siber saldırı: Diğer' : s))],
       ),
       byCategory: tally(
         initial.flatMap((i) => [...i.form.personalCategories, ...i.form.specialCategories]),
@@ -434,7 +460,7 @@ export class IncidentsService {
       ),
       byLikelihood: tally(
         initial.map((i) => i.form.likelihood ?? 'unset'),
-        ['high', 'medium', 'low', 'unknown', 'unset'],
+        ['very_high', 'high', 'medium', 'low', 'unknown', 'unset'],
       ),
       items,
     };
@@ -523,9 +549,9 @@ export class IncidentsService {
   private checkComplete(i: IncidentRow, now: Date) {
     const errors: { path: string; message: string }[] = [];
     const f = i.form;
-    if (!f.description) errors.push({ path: 'description', message: 'İhlal hakkında bilgi verilmeli' });
-    if (f.sources.length === 0 && !f.sourceOther) errors.push({ path: 'sources', message: 'En az bir kaynak seçilmeli' });
-    if (f.personalCategories.length + f.specialCategories.length === 0 && !f.categoryOther) {
+    if (f.sources.length + (f.cyberSources ?? []).length === 0) errors.push({ path: 'sources', message: 'En az bir kaynak seçilmeli' });
+    if (!f.description) errors.push({ path: 'description', message: 'İhlalin nasıl gerçekleştiği açıklanmalı' });
+    if (f.personalCategories.length + f.specialCategories.length === 0) {
       errors.push({ path: 'personalCategories', message: 'Etkilenen en az bir veri kategorisi seçilmeli' });
     }
     if (!f.likelihood) errors.push({ path: 'likelihood', message: 'Seçilmeli (FRM-020’de zorunlu)' });
@@ -541,12 +567,14 @@ export class IncidentsService {
     }
   }
 
-  private checkDates(occurredAt: Date | null, detectedAt: Date, now: Date) {
+  private checkDates(occurredAt: Date | null, endedAt: Date | null, detectedAt: Date, now: Date) {
     // Saat farkı ve cihaz saati sapmaları için birkaç dakika pay bırakılır.
     const future = new Date(now.getTime() + 5 * 60 * 1000);
     if (detectedAt > future) throw this.fieldError('detectedAt', 'Tespit tarihi gelecekte olamaz');
-    if (occurredAt && occurredAt > future) throw this.fieldError('occurredAt', 'Gerçekleşme tarihi gelecekte olamaz');
+    if (occurredAt && occurredAt > future) throw this.fieldError('occurredAt', 'Başlama tarihi gelecekte olamaz');
     if (occurredAt && occurredAt > detectedAt) throw this.fieldError('occurredAt', 'Tespit tarihinden sonra olamaz');
+    if (endedAt && endedAt > future) throw this.fieldError('endedAt', 'Sona erme tarihi gelecekte olamaz');
+    if (endedAt && occurredAt && endedAt < occurredAt) throw this.fieldError('endedAt', 'Başlama tarihinden önce olamaz');
   }
 
   private fieldError(path: string, message: string) {

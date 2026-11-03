@@ -8,7 +8,12 @@ const HOUR = 60 * 60 * 1000;
 
 const FORM = {
   description: 'Bordro listesi yanlışlıkla tedarikçiye e-postayla gönderildi.',
-  sources: ['Kişisel verilerin yanlış alıcılara gönderilmesi'],
+  sources: ['Kaza/ İhmal'],
+  cyberSources: ['Sosyal mühendislik'],
+  breachEffects: ['Veri gizliliği'],
+  detectionMethod: 'Tedarikçi e-postayı yanlış aldığını bildirdi.',
+  processorName: 'Örnek Bordro Ltd.',
+  processorNotifiedAt: new Date(Date.now() - 90 * 60 * 1000).toISOString(),
   personalCategories: ['Kimlik', 'Finans'],
   specialCategories: ['Sağlık Bilgileri'],
   estimatedPeople: 42,
@@ -17,9 +22,8 @@ const FORM = {
   subjectEffects: ['Finansal kayıp'],
   likelihood: 'medium',
   orgImpact: 'low',
-  orgRecovery: 'complete',
-  cyberAttack: false,
-  staffTrained: true,
+  staffTrainings: 'KVKK farkındalık eğitimi (Mart 2026)',
+  measuresAfterTechnical: 'Dış alıcıya giden e-postalarda uyarı\nEk dosyalarda şifreleme',
   measuresAfter: 'Alıcıdan e-postanın silindiğine dair yazılı teyit alındı.',
   subjectNotice: 'yes',
 };
@@ -49,10 +53,17 @@ describe('Veri ihlali olay yönetimi', () => {
     const created = await request(server)
       .post('/api/v1/incidents')
       .set(as(officer))
-      .send({ title: 'Bordro e-postası yanlış alıcıya', detectedAt, occurredAt: new Date(Date.now() - 3 * HOUR).toISOString(), form: FORM })
+      .send({
+        title: 'Bordro e-postası yanlış alıcıya',
+        detectedAt,
+        occurredAt: new Date(Date.now() - 3 * HOUR).toISOString(),
+        endedAt: new Date(Date.now() - 2.5 * HOUR).toISOString(),
+        form: FORM,
+      })
       .expect(201);
     const i = created.body;
     expect(i).toMatchObject({ number: 1, status: 'draft', notificationType: 'initial', overdue: false });
+    expect(i.endedAt).toBeTruthy();
     expect(i.hoursLeft).toBeGreaterThanOrEqual(69);
     // A bölümü kuruluş ve kaydı açan kişiden dolar.
     expect(i.form).toMatchObject({
@@ -62,6 +73,7 @@ describe('Veri ihlali olay yönetimi', () => {
       preparerTitle: 'KVKK Sorumlusu',
       preparerEmail: officer.email,
       sources: FORM.sources,
+      cyberSources: FORM.cyberSources,
     });
 
     // Yönetici kaydı görür ama açamaz/değiştiremez; kaydın açıldığı ona bildirilir.
@@ -75,6 +87,13 @@ describe('Veri ihlali olay yönetimi', () => {
       .patch(`/api/v1/incidents/${i.id}`)
       .set(as(officer))
       .send({ form: { sources: ['Bilinmeyen kaynak'] } })
+      .expect(400);
+    // Eski formdaki alanlar artık kabul edilmez.
+    await request(server).patch(`/api/v1/incidents/${i.id}`).set(as(officer)).send({ form: { cyberAttack: true } }).expect(400);
+    await request(server)
+      .patch(`/api/v1/incidents/${i.id}`)
+      .set(as(officer))
+      .send({ endedAt: new Date(Date.now() - 4 * HOUR).toISOString() })
       .expect(400);
     await request(server)
       .patch(`/api/v1/incidents/${i.id}`)
@@ -111,12 +130,18 @@ describe('Veri ihlali olay yönetimi', () => {
       .expect(200);
     expect(docx.headers['content-disposition']).toContain('FRM-020');
     const xml = new PizZip(docx.body).file('word/document.xml')!.asText();
-    expect(xml).toContain('Kişisel Veri İhlali Bildirim Formu');
+    expect(xml).toContain('Kişisel Veri İhlali Bildirimi');
     expect(xml).toContain('Örnek Sağlık A.Ş.');
-    expect(xml).toContain('☒ Kişisel verilerin yanlış alıcılara gönderilmesi');
+    expect(xml).toContain('☒ Kaza/ İhmal');
+    expect(xml).toContain('☒ Sosyal mühendislik');
     expect(xml).toContain('☐ Zararlı yazılımlar');
+    expect(xml).toContain('☒ Veri gizliliği');
     expect(xml).toContain('☒ Sağlık Bilgileri');
     expect(xml).toContain('☒ İlk bildirim');
+    expect(xml).toContain('☒ Orta');
+    expect(xml).toContain('Örnek Bordro Ltd.');
+    expect(xml).toContain('- Ek dosyalarda şifreleme');
+    expect(xml).toContain('31. İhlal sonrası almış olduğunuz');
     expect(xml).toContain('ihlalbildirimi@kvkk.gov.tr');
 
     // Yönetici de Kurula bildirildi olarak işaretleyebilir.
@@ -140,7 +165,11 @@ describe('Veri ihlali olay yönetimi', () => {
 
     const report = await request(server).get('/api/v1/incidents/report').set(as(manager)).expect(200);
     expect(report.body).toMatchObject({ total: 1, followUps: 1, notified: 1, notifiedOnTime: 1, notifiedLate: 0, estimatedPeople: 42, specialCategoryIncidents: 1 });
-    expect(report.body.bySource).toEqual([{ label: 'Kişisel verilerin yanlış alıcılara gönderilmesi', count: 1 }]);
+    expect(report.body).toMatchObject({ cyberAttacks: 1 });
+    expect(report.body.bySource).toEqual([
+      { label: 'Kaza/ İhmal', count: 1 },
+      { label: 'Sosyal mühendislik', count: 1 },
+    ]);
 
     const audit = await request(server).get('/api/v1/audit-logs').set(as(officer)).expect(200);
     expect(audit.body.items.map((a: any) => a.action)).toEqual(
@@ -162,7 +191,7 @@ describe('Veri ihlali olay yönetimi', () => {
       .set(as(officer))
       .send({ approverId: manager.user.id })
       .expect(400);
-    expect(incomplete.body.errors.map((e: any) => e.path)).toEqual(['description', 'sources', 'personalCategories', 'likelihood', 'delayReason']);
+    expect(incomplete.body.errors.map((e: any) => e.path)).toEqual(['sources', 'description', 'personalCategories', 'likelihood', 'delayReason']);
 
     await request(server)
       .patch(`/api/v1/incidents/${late.body.id}`)
