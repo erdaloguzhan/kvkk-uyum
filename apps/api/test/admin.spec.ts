@@ -2,10 +2,15 @@ import { INestApplication } from '@nestjs/common';
 import { DOCUMENT_TEMPLATES, ORGANIZATION_PLACEHOLDERS } from '@kvkk/shared';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import ExcelJS from 'exceljs';
 import PizZip from 'pizzip';
 import request from 'supertest';
 import { templateTags, UNSUPPORTED_PLACEHOLDERS } from '../src/documents/template-renderer';
 import { textToHtml } from '../src/auth/mailer.service';
+import { and, eq } from 'drizzle-orm';
+import { Database, DB } from '../src/db/db.module';
+import { auditLogs, employees, organizations, portalLoginCodes, users } from '../src/db/schema';
+import { MembersService } from '../src/members/members.service';
 import {
   createApp,
   createOrg,
@@ -14,6 +19,7 @@ import {
   lastSmsTo,
   login,
   makePlatformAdmin,
+  addMember,
   PASSWORD,
   registerAndLogin,
   uniqueEmail,
@@ -226,6 +232,89 @@ describe('Yönetim paneli', () => {
       const outsider = await registerAndLogin(app);
       await request(server).get(base).set(auth(outsider.accessToken)).expect(403);
     });
+  });
+
+  it('kuruluşun bütün verisi tek ZIP dosyasında dışa aktarılır', async () => {
+    const owner = await registerAndLogin(app);
+    const orgId = await createOrg(app, owner, { ...PROFILE, name: 'Aktarım A.Ş.' });
+    const phone = `0555${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+    await request(server)
+      .post(`/api/v1/admin/organizations/${orgId}/employees`)
+      .set(auth(admin.accessToken))
+      .send({ nationalId: '10000000146', firstName: '=Ayşe', lastName: 'Yılmaz', phone })
+      .expect(201);
+    await request(server).get(`/api/v1/admin/organizations/${orgId}/export`).set(auth(owner.accessToken)).expect(403);
+
+    const res = await request(server)
+      .get(`/api/v1/admin/organizations/${orgId}/export`)
+      .set(auth(admin.accessToken))
+      .buffer()
+      .parse(binary)
+      .expect(200);
+    expect(res.headers['content-type']).toContain('application/zip');
+    const zip = new PizZip(res.body as Buffer);
+    expect(zip.file('BENIOKU.txt')).toBeTruthy();
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(zip.file('veriler.xlsx')!.asNodeBuffer() as any);
+    const employeesSheet = workbook.getWorksheet('employees')!;
+    const header = (employeesSheet.getRow(1).values as string[]).filter(Boolean);
+    expect(header).toContain('nationalId');
+    expect(header).not.toContain('nationalIdHash');
+    const row = employeesSheet.getRow(2);
+    expect(row.getCell(header.indexOf('nationalId') + 1).value).toBe('10000000146');
+    // Formül gibi başlayan metin düz metin olarak yazılır.
+    expect(row.getCell(header.indexOf('firstName') + 1).value).toBe("'=Ayşe");
+    const usersHeader = (workbook.getWorksheet('users')!.getRow(1).values as string[]).filter(Boolean);
+    expect(usersHeader).not.toContain('passwordHash');
+    expect(workbook.getWorksheet('users')!.rowCount).toBe(2);
+    expect(workbook.worksheets.map((w) => w.name)).toEqual(expect.arrayContaining(['documents', 'inventory_entries', 'audit_logs']));
+  });
+
+  it('aboneliği biten kuruluş bütün verisi ve yalnız ona üye kullanıcılarıyla silinir', async () => {
+    const owner = await registerAndLogin(app);
+    const orgId = await createOrg(app, owner, { ...PROFILE, name: 'Silinecek Ltd. Şti.' });
+    const shared = await addMember(app, orgId, 'approver');
+    const otherOwner = await registerAndLogin(app);
+    const otherOrg = await createOrg(app, otherOwner, { ...PROFILE, name: 'Kalan A.Ş.' });
+    await app.get(MembersService).add(otherOrg, null, { email: shared.email, fullName: 'Mehmet Demir', roleKey: 'approver' });
+    const db = app.get<Database>(DB);
+    const phone = `0555${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`;
+    await request(server)
+      .post(`/api/v1/admin/organizations/${orgId}/employees`)
+      .set(auth(admin.accessToken))
+      .send({ nationalId: '10000000146', firstName: 'Ayşe', lastName: 'Yılmaz', phone })
+      .expect(201);
+    await db.insert(portalLoginCodes).values({ phone, codeHash: 'x', expiresAt: new Date(Date.now() + 60_000) });
+    await db.insert(auditLogs).values({ organizationId: orgId, userId: owner.user.id, action: 'test.action' });
+    const url = `/api/v1/admin/organizations/${orgId}`;
+
+    const active = await request(server).delete(url).set(auth(admin.accessToken)).send({ confirmName: 'Silinecek Ltd. Şti.' }).expect(400);
+    expect(active.body.message).toContain('Lisansı devam eden');
+    await request(server)
+      .patch(`${url}/license`)
+      .set(auth(admin.accessToken))
+      .send({ status: 'expired', expiresAt: null })
+      .expect(200);
+    await request(server).delete(url).set(auth(owner.accessToken)).send({ confirmName: 'Silinecek Ltd. Şti.' }).expect(403);
+    await request(server).delete(url).set(auth(admin.accessToken)).send({ confirmName: 'Silinecek' }).expect(400);
+
+    const res = await request(server).delete(url).set(auth(admin.accessToken)).send({ confirmName: 'Silinecek Ltd. Şti.' }).expect(200);
+    expect(res.body).toEqual({ name: 'Silinecek Ltd. Şti.', deletedUsers: 1 });
+
+    expect(await db.select().from(organizations).where(eq(organizations.id, orgId))).toHaveLength(0);
+    expect(await db.select().from(employees).where(eq(employees.organizationId, orgId))).toHaveLength(0);
+    expect(await db.select().from(portalLoginCodes).where(eq(portalLoginCodes.phone, phone))).toHaveLength(0);
+    expect(await db.select().from(auditLogs).where(eq(auditLogs.organizationId, orgId))).toHaveLength(0);
+    expect(await db.select().from(auditLogs).where(eq(auditLogs.userId, owner.user.id))).toHaveLength(0);
+    // Yalnız bu kuruluşa üye olan kullanıcı silinir; başka kuruluşta da olan kalır.
+    expect(await db.select().from(users).where(eq(users.id, owner.user.id))).toHaveLength(0);
+    expect(await db.select().from(users).where(eq(users.id, shared.user.id))).toHaveLength(1);
+    const [log] = await db
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.action, 'admin.organization_deleted'), eq(auditLogs.entityId, orgId)));
+    expect(log.metadata).toMatchObject({ name: 'Silinecek Ltd. Şti.', deletedUsers: 1 });
+    await request(server).delete(url).set(auth(admin.accessToken)).send({ confirmName: 'Silinecek Ltd. Şti.' }).expect(404);
   });
 
   describe('ana doküman şablonları', () => {

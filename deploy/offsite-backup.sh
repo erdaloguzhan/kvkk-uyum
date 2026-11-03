@@ -10,7 +10,7 @@ umask 077
 : "${OFFSITE_PASSPHRASE:?OFFSITE_PASSPHRASE tanımlı olmalı}"
 : "${OFFSITE_PATH:=kvkk-yedekler}"
 : "${OFFSITE_HOUR:=4}"
-: "${OFFSITE_KEEP_DAYS:=30}"
+: "${OFFSITE_KEEP_DAYS:=14}"
 SENT_LIST=/backups/.offsite-gonderilenler
 # En yeni yerel yedek bu kadar saatten eskiyse günlük yedekleme çalışmıyor demektir.
 MAX_BACKUP_AGE_HOURS=26

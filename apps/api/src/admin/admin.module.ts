@@ -5,12 +5,13 @@ import { OrganizationsModule } from '../organizations/organizations.module';
 import { TemplatesModule } from '../templates/templates.module';
 import { AdminOrganizationsService } from './admin-organizations.service';
 import { AdminController } from './admin.controller';
+import { OrganizationExportService } from './organization-export';
 import { PlatformAdminGuard } from './platform-admin.guard';
 import { PlatformAdminSeeder } from './platform-admin.seeder';
 
 @Module({
   imports: [AuthModule, MembersModule, OrganizationsModule, TemplatesModule],
   controllers: [AdminController],
-  providers: [AdminOrganizationsService, PlatformAdminGuard, PlatformAdminSeeder],
+  providers: [AdminOrganizationsService, OrganizationExportService, PlatformAdminGuard, PlatformAdminSeeder],
 })
 export class AdminModule {}

@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNotNull, notExists, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { PasswordResetService } from '../auth/password-reset.service';
 import { Database, InjectDb } from '../db/db.module';
-import { memberships, organizations, users } from '../db/schema';
+import { auditLogs, employees, memberships, organizations, portalLoginCodes, trainingGroups, users } from '../db/schema';
 import { MembersService } from '../members/members.service';
 import { OrganizationProfile, OrganizationsService } from '../organizations/organizations.service';
 
@@ -24,6 +24,9 @@ export interface NewOrganization extends OrganizationProfile {
   /** Onay veren Yönetici. E-postası Sorumlununkiyle aynıysa tek kullanıcı "Sorumlu + Yönetici" olur. */
   approver: Person;
 }
+
+/** Sözleşmeye göre abonelik bitişinden kaç gün sonra kuruluşun verisi canlı sistemden silinmeli. */
+export const DELETE_AFTER_DAYS = 15;
 
 const sameEmail = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -148,5 +151,78 @@ export class AdminOrganizationsService {
       metadata: { before, after: { status: org.licenseStatus, expiresAt: org.licenseExpiresAt } },
     });
     return org;
+  }
+
+  /**
+   * Aboneliği biten kuruluşu ve bütün verisini kalıcı olarak siler (sözleşme: bitişten en geç 1 ay sonra,
+   * yedekler dahil). Kuruluşa bağlı tüm tablolar veritabanında zincirleme silinir; ayrıca kuruluşun işlem
+   * kayıtları, başka kuruluşa üye olmayan kullanıcıları ve onların kayıtları ile çalışanların portal giriş
+   * kodları silinir. Geri alınamaz; onay için kuruluş adının aynen yazılması istenir.
+   */
+  async remove(adminId: string, orgId: string, confirmName: string) {
+    const [org] = await this.db
+      .select({ id: organizations.id, name: organizations.name, status: organizations.licenseStatus, expiresAt: organizations.licenseExpiresAt })
+      .from(organizations)
+      .where(eq(organizations.id, orgId));
+    if (!org) throw new NotFoundException('Kuruluş bulunamadı');
+    const ended = org.status === 'expired' || (org.expiresAt !== null && org.expiresAt.getTime() < Date.now());
+    if (!ended) {
+      throw new BadRequestException('Lisansı devam eden kuruluş silinemez. Önce lisansı "Süresi doldu" yapın.');
+    }
+    if (confirmName.trim() !== org.name.trim()) {
+      throw new BadRequestException('Onay için kuruluş adını aynen yazın');
+    }
+
+    const result = await this.db.transaction(async (tx) => {
+      const memberIds = (
+        await tx.select({ id: memberships.userId }).from(memberships).where(eq(memberships.organizationId, orgId))
+      ).map((r) => r.id);
+      const phones = (
+        await tx
+          .select({ phone: employees.phone })
+          .from(employees)
+          .where(and(eq(employees.organizationId, orgId), isNotNull(employees.phone)))
+      ).map((r) => r.phone!);
+
+      await tx.delete(auditLogs).where(eq(auditLogs.organizationId, orgId));
+      // Zincirleme silmede sıra garanti değil: çalışana ve role bağlı kayıtlar önce silinir.
+      await tx.delete(trainingGroups).where(eq(trainingGroups.organizationId, orgId));
+      await tx.delete(memberships).where(eq(memberships.organizationId, orgId));
+      await tx.delete(organizations).where(eq(organizations.id, orgId));
+      if (phones.length) await tx.delete(portalLoginCodes).where(inArray(portalLoginCodes.phone, phones));
+
+      // Başka kuruluşa üye olmayan kullanıcıların hesabı da gider; platform yöneticileri kalır.
+      let deletedUsers = 0;
+      if (memberIds.length) {
+        const orphans = (
+          await tx
+            .select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                inArray(users.id, memberIds),
+                eq(users.isPlatformAdmin, false),
+                notExists(tx.select({ one: sql`1` }).from(memberships).where(eq(memberships.userId, users.id))),
+              ),
+            )
+        ).map((r) => r.id);
+        if (orphans.length) {
+          await tx.delete(auditLogs).where(inArray(auditLogs.userId, orphans));
+          await tx.delete(users).where(inArray(users.id, orphans));
+          deletedUsers = orphans.length;
+        }
+      }
+      return { deletedUsers, employees: phones.length };
+    });
+
+    // Silinen kuruluşun adı dışında kişisel veri yazılmaz.
+    await this.audit.record({
+      action: 'admin.organization_deleted',
+      userId: adminId,
+      entityType: 'organization',
+      entityId: orgId,
+      metadata: { name: org.name, licenseExpiresAt: org.expiresAt, deletedUsers: result.deletedUsers },
+    });
+    return { name: org.name, deletedUsers: result.deletedUsers };
   }
 }
