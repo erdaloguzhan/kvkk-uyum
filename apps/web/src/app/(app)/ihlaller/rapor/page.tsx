@@ -27,7 +27,7 @@ function Bars({ rows }: { rows: { label: string; count: number }[] }) {
   );
 }
 
-const likelihoodLabel = (k: string) => (k === 'unset' ? 'Seçilmemiş' : INCIDENT_LIKELIHOODS[k as IncidentLikelihood]);
+const likelihoodLabel = (k: string) => (k === 'unset' ? 'Seçilmemiş' : INCIDENT_LIKELIHOODS[k as IncidentLikelihood]?.label ?? k);
 
 export default function IncidentReportPage() {
   const year = new Date().getFullYear();
@@ -77,7 +77,7 @@ export default function IncidentReportPage() {
             <Stat label="Etkilenen tahmini kişi" value={r.estimatedPeople.toLocaleString('tr-TR')} />
             <Stat label="Etkilenen tahmini kayıt" value={r.estimatedRecords.toLocaleString('tr-TR')} />
             <Stat label="Özel nitelikli veri içeren" value={r.specialCategoryIncidents} />
-            <Stat label="Siber saldırı" value={r.cyberAttacks} />
+            <Stat label="Siber saldırı kaynaklı" value={r.cyberAttacks} />
           </div>
           <div className="grid grid-2">
             <div className="card">

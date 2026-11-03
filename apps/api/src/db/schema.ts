@@ -583,7 +583,10 @@ export const incidents = pgTable(
     parentId: uuid('parent_id').references((): AnyPgColumn => incidents.id, { onDelete: 'set null' }),
     /** Takip bildirimlerinde Kurulun verdiği takip numarası. */
     followUpRef: text('follow_up_ref'),
+    /** FRM-020 10: ihlalin başlama tarihi ve saati. */
     occurredAt: timestamp('occurred_at', { withTimezone: true }),
+    /** FRM-020 11: ihlalin sona erme tarihi ve saati (devam ediyorsa boş). */
+    endedAt: timestamp('ended_at', { withTimezone: true }),
     detectedAt: timestamp('detected_at', { withTimezone: true }).notNull(),
     form: jsonb('form').$type<IncidentForm>().notNull(),
     status: text('status', { enum: ['draft', 'pending_approval', 'approved', 'notified', 'closed'] })
