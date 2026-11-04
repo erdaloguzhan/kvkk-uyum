@@ -58,6 +58,7 @@ export default function PortalLoginPage() {
   if (challenge) {
     return (
       <AuthCard
+        legal="portal"
         brand={PORTAL_BRAND}
         title="SMS kodu"
         subtitle={<>Telefon kayıtlıysa {challenge.destination} numarasına 6 haneli bir kod gönderdik. Kod 5 dakika geçerlidir.</>}
@@ -95,7 +96,7 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <AuthCard brand={PORTAL_BRAND} title="Giriş" subtitle="Cep telefonunuzu yazın; telefonunuza SMS ile bir giriş kodu göndereceğiz.">
+    <AuthCard legal="portal" brand={PORTAL_BRAND} title="Giriş" subtitle="Cep telefonunuzu yazın; telefonunuza SMS ile bir giriş kodu göndereceğiz.">
       <form className="form" onSubmit={requestCode}>
         <ErrorAlert error={error} />
         <Field label="Cep telefonu" htmlFor="phone">

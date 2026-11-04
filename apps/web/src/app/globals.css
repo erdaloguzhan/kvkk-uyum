@@ -346,3 +346,29 @@ dl.details dd { margin: 0; }
 .bar-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .bar-list li { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr 40px; gap: 10px; align-items: center; font-size: 0.9rem; }
 .bar-list .bar { height: 10px; border-radius: 999px; background: var(--primary); min-width: 4px; }
+
+/* Hukuki metinler: giriş kartı altındaki bağlantılar ve metin sayfaları (04.11.2026). */
+.auth-legal { width: 100%; max-width: 420px; margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; font-size: 0.82rem; }
+.auth-legal a { color: #fff; opacity: 0.85; text-decoration: underline; text-underline-offset: 2px; }
+.auth-legal a:hover { opacity: 1; }
+.legal-page { min-height: 100vh; padding: 32px 16px; background: var(--bg); }
+.legal-doc { max-width: 880px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 32px 36px; }
+.legal-head { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.legal-head .brand-line { color: var(--primary); font-weight: 700; }
+.legal-doc h1 { font-size: 1.35rem; margin-bottom: 18px; }
+.legal-body { line-height: 1.65; }
+.legal-body p { margin-bottom: 0.9rem; }
+.legal-body ul { margin: 0 0 1rem; padding-left: 22px; }
+.legal-body li { margin-bottom: 4px; }
+.legal-body .table-wrap { margin: 4px 0 18px; }
+.legal-body th { white-space: normal; }
+.legal-body td { font-size: 0.92rem; }
+.legal-download { margin-top: 20px; }
+.legal-foot { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.88rem; }
+@media (max-width: 640px) { .legal-doc { padding: 22px 18px; } .legal-doc h1 { font-size: 1.15rem; } }
+@media print {
+  .legal-page { padding: 0; background: #fff; }
+  .legal-doc { border: 0; box-shadow: none; padding: 0; max-width: none; }
+  .legal-foot, .legal-download { display: none; }
+}
+.legal-body p.legal-check { margin: 0 0 0.35rem 6px; }
