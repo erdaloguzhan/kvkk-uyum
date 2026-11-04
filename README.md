@@ -4,20 +4,21 @@ KVKK uyum yönetimi için web, iOS ve Android uygulaması. Mimari ve modül sır
 
 ## Durum
 
+Sistem **https://kvkuyum.com.tr** adresinde canlıdır. Modüllerin listesi, roller, menüler ve güvenlik: [docs/MIMARI.md](docs/MIMARI.md).
+
 | Bileşen | Durum |
 |---|---|
-| `apps/api` — Temel modül: giriş (şifre + e-posta kodu), CAPTCHA, hız sınırı, hesap kilidi, şifre sıfırlama/davet, kuruluşlar, üyeler, roller/yetkiler, sistem logu | Hazır, testli |
-| `apps/api` — Doküman Yönetimi: şablonları kuruluş bilgileriyle doldurma, sürümleme, Word ile düzenleyip yükleme, yayınlama | Hazır, testli |
-| `apps/api` — Kişisel Veri Envanteri: TBL-010'un 16 sütunuyla envanter satırları, öneri listeleri, eksik alan takibi, özet, TBL-010 biçiminde Excel çıktısı ve Excel'den içe aktarma | Hazır, testli |
-| `apps/api` — İş akışı ve alarmlar: görev atama, son tarih, tekrarlayan görevler, hatırlatma/gecikme alarmları (uygulama içi + e-posta), doküman yayın onayı | Hazır, testli |
-| `apps/api` — Sözleşmeler: karşı taraf, tür (tedarikçi, müşteri, çalışan, kamu kurumu), başlangıç/bitiş, statü, ilgili kişi, açıklama | Hazır, testli |
-| `packages/shared` — Yetki anahtarları, varsayılan roller, doküman yer tutucuları, şablon kataloğu, envanter sütunları, görev türleri | Hazır |
-| `apps/web` — Web arayüzü (Next.js): giriş (şifre + e-posta kodu), kayıt, şifre sıfırlama/davet, kuruluş oluşturma ve profil, özet, dokümanlar (oluşturma, indirme, Word yükleme, yayınlama, onay), veri envanteri (adım adım giriş, Excel içe/dışa aktarma), sözleşmeler, görevler, bildirimler; mobil tarayıcıya uyumlu | İlk sürüm |
-| `apps/mobile` (Expo) | Sırada |
+| `apps/api` — Kimlik doğrulama (şifre + SMS kodu, yedek e-posta kodu), CAPTCHA (iş kanıtı), kilit, davet, şifre sıfırlama (bağlantı + SMS kodu), kuruluşlar, sabit roller, lisans (süre dolunca salt okunur), işlem kayıtları | Canlıda, testli |
+| `apps/api` — Dokümanlar, kişisel veri envanteri ve onayı, sözleşmeler, imha yönetimi, veri ihlali (FRM-020), ilgili kişi başvuruları (FRM-010), görevler ve alarmlar, bildirimler | Canlıda, testli |
+| `apps/api` — Uzaktan eğitim ve sertifika, Eğitim Portalı (cep telefonu + SMS kodu), doküman okuma onayı, destek talepleri | Canlıda, testli |
+| `apps/api` — Yönetim paneli: kuruluş ve kullanıcı açma, lisans, şablon sürümleri, envanter seçenek şablonu, kuruluş verisini ZIP olarak dışa aktarma ve silme, eğitimci görevleri | Canlıda, testli |
+| `packages/shared` — Yetki anahtarları, sabit roller, kataloglar, form metinleri | Hazır |
+| `apps/web` — Müşteri paneli, yönetim paneli, Eğitim Portalı, başvuru formu, rol seçimi; mobil tarayıcıya uyumlu | Canlıda |
+| Mobil uygulama (iOS/Android) | Şimdilik yapılmıyor (2026-10-26) |
 
 ## Çalıştırma
 
-**En kolay yol (programlama bilgisi gerekmez):** [docs/YEREL-KURULUM.md](docs/YEREL-KURULUM.md). Docker Desktop kuruluysa depo klasöründe `docker compose up --build` her şeyi başlatır: web arayüzü http://localhost:3000, gelen e-postalar (giriş kodları) http://localhost:8025.
+**En kolay yol (programlama bilgisi gerekmez):** [docs/YEREL-KURULUM.md](docs/YEREL-KURULUM.md). Docker Desktop kuruluysa depo klasöründe `docker compose up --build` her şeyi başlatır: web arayüzü http://localhost:3000, gelen e-postalar http://localhost:8025, SMS kodları `docker compose logs api` çıktısında.
 
 **Canlı ortam (gerçek kullanıcılar):** [docs/CANLI-KURULUM.md](docs/CANLI-KURULUM.md). `docker-compose.prod.yml` HTTPS (Caddy), kapalı veritabanı portu ve günlük yedekle çalışır; ayarlar `deploy/.env.prod.example` içindedir.
 
@@ -35,7 +36,7 @@ pnpm build && pnpm db:migrate
 pnpm start                      # http://localhost:3000/api/v1/health
 ```
 
-`SMTP_URL` boşsa e-postalar (giriş kodu, davet) gönderilmez, API loguna yazılır.
+`SMTP_URL` boşsa e-postalar (giriş kodu, davet) gönderilmez, API loguna yazılır. `VERIMOR_USERNAME`/`VERIMOR_PASSWORD` boşsa SMS'ler (giriş kodları, Eğitim Portalı kodu) geliştirmede API loguna yazılır; canlıda (`NODE_ENV=production`) panel kodu e-postayla gider, Eğitim Portalına girilemez.
 
 Web arayüzü (API çalışırken, ayrı bir terminalde):
 
@@ -54,12 +55,13 @@ cd apps/api && pnpm test
 
 ## API özeti (`/api/v1`)
 
-Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister.
+Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister. Lisansı dolmuş kuruluşta değiştirici istekler 403 döner (salt okunur). Eğitim, destek ve diğer ayrıntılar: [docs/EGITIM.md](docs/EGITIM.md), [docs/DESTEK.md](docs/DESTEK.md), [docs/BASVURU.md](docs/BASVURU.md).
 
 | Uç nokta | Yetki |
 |---|---|
-| `POST /auth/register`, `/auth/login`, `/auth/verify`, `/auth/refresh` | Herkese açık |
-| `POST /auth/password-reset/request`, `/auth/password-reset/confirm` | Herkese açık |
+| `GET /auth/captcha`, `POST /auth/login` (kod SMS'le, yoksa e-postayla gider), `/auth/verify`, `/auth/refresh` | Herkese açık |
+| `POST /auth/password-reset/request`, `/auth/password-reset/confirm` (bağlantı), `/auth/password-reset/confirm-code` (SMS kodu), `/auth/password-reset/info` | Herkese açık |
+| `POST /auth/change-password`, `PATCH /auth/me/phone` (giriş kodunun gideceği cep telefonu) | Giriş yapmış |
 | `GET /auth/me`, `POST /auth/logout`, `GET /permissions` | Giriş yapmış |
 | `GET /organizations/current` | `org.read` |
 | `PATCH /organizations/current`, `POST /organizations/current/complete-setup` | `org.manage` |
@@ -82,6 +84,19 @@ Kuruluş bağlamındaki uç noktalar `X-Organization-Id` başlığı ister.
 | `GET /approval-requests`, `GET /approval-requests/:id` | Kuruluş üyesi (doküman yetkisi yoksa yalnızca kendi talepleri / onaylayacakları) |
 | `POST /approval-requests/:id/approve` (sürümü yayınlar), `POST /approval-requests/:id/reject` (gerekçe zorunlu) | `documents.approve` + seçilen onaylayıcı |
 | `GET /notifications` (`?unread=true`), `POST /notifications/:id/read`, `POST /notifications/read-all` | Kuruluş üyesi (kendi bildirimleri) |
+| `GET /contracts`, `GET /contracts/:id` / `POST /contracts`, `PATCH`/`DELETE /contracts/:id` | `contracts.read` / `contracts.manage` |
+| `GET /incidents`, `GET /incidents/report`, `GET /incidents/:id`, `GET /incidents/:id/form.docx` (FRM-020 Word) | `incidents.read` |
+| `POST /incidents`, `PATCH`/`DELETE /incidents/:id` (yalnızca taslak), `POST /incidents/:id/submit`, `/withdraw`, `/follow-up` | `incidents.manage` |
+| `POST /incidents/:id/approve`, `/reject` (gerekçe zorunlu) | `incidents.approve` |
+| `POST /incidents/:id/notified` (Kurul'a bildirildi), `/close` (bildirim gerekmedi, gerekçe) | `incidents.read` + onaylanmış olay |
+| `GET/POST /request-form/:kod` (herkese açık FRM-010 formu; CAPTCHA, hız sınırı) | Herkese açık |
+| `GET /data-subject-requests`, `/report`, `/form-settings`, `/:id`, `/:id/pdf`, `/:id/files/:fileId` | `requests.read` |
+| `POST /data-subject-requests` (elden gelen başvuru), `PATCH /form-settings`, `POST /form-settings/regenerate`, `POST /:id/status`, `/assignee`, `/notes`, `/files`, `/answer` | `requests.manage` |
+| `GET /destruction/settings`, `/officers`, `/plans`, `/plans/:id`, `/items/:id`, `/records` | `destruction.read` |
+| `PUT /destruction/settings`, `POST/PATCH /destruction/officers`, `POST/PATCH/DELETE /destruction/plans...`, `POST /plans/:id/items/from-inventory`, `/submit`, `/withdraw`, `/next`, `POST /items/:id/complete`, `/cancel`, `POST/PATCH/DELETE /destruction/records...` | `destruction.manage` |
+| `POST /destruction/plans/:id/approve`, `/reject` | `destruction.approve` |
+| `POST /training-portal/login/code` (telefona SMS kodu), `POST /training-portal/login` | Herkese açık (CAPTCHA) |
+| `PATCH /admin/organizations/:id/license`, `GET /admin/organizations/:id/export` (tüm veri ZIP), `DELETE /admin/organizations/:id` (lisansı bitmiş, ad onayıyla), `PATCH /admin/users/:userId/phone` | Platform yöneticisi |
 | `GET/POST /admin/organizations` (kuruluşu Sorumlu ve Yönetici hesaplarıyla açar; her birine şifre oluşturma bağlantısı gider), `POST /admin/organizations/:id/resend-invite` | Platform yöneticisi |
 | `GET/POST /admin/organizations/:id/members`, `PATCH/DELETE /admin/organizations/:id/members/:memberId`, `POST /admin/organizations/:id/members/:memberId/resend-invite` (kuruluş kullanıcıları; müşteri kullanıcı ekleyemez) | Platform yöneticisi |
 | `GET/POST /admin/templates`, `GET/PATCH /admin/templates/:code`, `POST /admin/templates/:code/versions` (`.docx`, taslak), `POST .../versions/:id/publish` (`effectiveDate`), `POST .../versions/:id/unpublish`, `DELETE .../versions/:id`, `GET .../versions/:id/file` | Platform yöneticisi |
