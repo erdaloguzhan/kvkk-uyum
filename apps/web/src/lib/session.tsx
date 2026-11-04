@@ -1,12 +1,16 @@
 'use client';
 
 import type { Permission } from '@kvkk/shared';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, setCurrentOrgId } from './api';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { api, ApiError, SESSION_CHECK_EVENT, setCurrentOrgId } from './api';
 import type { Me, OrgMembership } from './types';
 
 const ORG_STORAGE_KEY = 'kvkk_kurulus';
 const ROLE_STORAGE_KEY = 'kvkk_rol';
+/** Kullanıcı bilgisi en fazla bu sıklıkta yeniden okunur. */
+const RECHECK_MIN_MS = 15_000;
+/** Sekme bu süreden uzun arka planda kaldıysa geri dönünce kullanıcı bilgisi yeniden okunur. */
+const RECHECK_AFTER_HIDDEN_MS = 60_000;
 
 /**
  * Oturumdaki rol. Bir kişi birden çok role sahip olabilir (eğitimci, kuruluşlarda Sorumlu/Yönetici, platform
@@ -101,12 +105,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [chosen, setChosen] = useState<ActiveRole | null>(null);
 
+  const meRef = useRef<Me | null>(null);
+  const lastCheck = useRef(0);
+
   const reload = useCallback(async () => {
+    lastCheck.current = Date.now();
     try {
       const data = await api<Me>('auth/me', { redirect: false });
-      setMe(data);
-      return data;
-    } catch {
+      // Bilgi değişmediyse aynı nesne kalır; menüler ve sayfalar boşuna yeniden yüklenmez.
+      const next = meRef.current && JSON.stringify(meRef.current) === JSON.stringify(data) ? meRef.current : data;
+      meRef.current = next;
+      setMe(next);
+      return next;
+    } catch (err) {
+      // Sunucuya geçici olarak ulaşılamıyorsa (ör. güncelleme sırasında) açık oturum korunur.
+      const unreachable = err instanceof ApiError && (err.status === 0 || err.status >= 500);
+      if (unreachable && meRef.current) return meRef.current;
+      meRef.current = null;
       setMe(null);
       return null;
     } finally {
@@ -116,6 +131,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     reload();
+  }, [reload]);
+
+  // Ekrandaki oturum bilgisi sunucuyla eşitlenir: bir istek yetki hatası aldığında ve uzun süre arka planda
+  // kalan sekmeye dönüldüğünde. Böylece süresi dolan oturum giriş sayfasına yönlenir, admin panelinden
+  // değişen rol ve yetkiler menüye yansır.
+  useEffect(() => {
+    let hiddenAt = 0;
+    const recheck = () => {
+      if (meRef.current && Date.now() - lastCheck.current >= RECHECK_MIN_MS) reload();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt >= RECHECK_AFTER_HIDDEN_MS) recheck();
+    };
+    window.addEventListener(SESSION_CHECK_EVENT, recheck);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener(SESSION_CHECK_EVENT, recheck);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [reload]);
 
   const role = useMemo(() => {
@@ -153,6 +188,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       // Depolama kapalı.
     }
+    meRef.current = null;
     setMe(null);
     window.location.href = '/giris';
   }, []);
