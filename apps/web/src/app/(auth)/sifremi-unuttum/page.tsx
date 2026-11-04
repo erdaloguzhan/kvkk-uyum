@@ -62,7 +62,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <AuthCard title="Şifremi unuttum" subtitle={challengeId ? undefined : 'Şifrenizi yenilemek için size bir kod gönderelim.'}>
+    <AuthCard legal="panel" title="Şifremi unuttum" subtitle={challengeId ? undefined : 'Şifrenizi yenilemek için size bir kod gönderelim.'}>
       {done ? (
         <>
           <Alert kind="success">Şifreniz kaydedildi. Artık giriş yapabilirsiniz.</Alert>

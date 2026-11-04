@@ -52,6 +52,7 @@ export default function SetPasswordPage() {
 
   return (
     <AuthCard
+        legal="panel"
       title="Şifre belirle"
       greeting={
         account && {

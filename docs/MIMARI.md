@@ -42,6 +42,8 @@ kvkk-uyum/
 | Eğitim Portalı | `/egitim` | Kuruluş çalışanları (şifresiz: cep telefonu + SMS kodu) |
 | İlgili kişi başvuru formu | `/basvuru/<kod>` | Herkes (kuruluşun web sitesine bağlantı veya `iframe` olarak konur) |
 | Rol seçimi | `/rol-sec` | Birden çok rolü olan hesap girişten sonra rolünü seçer |
+| Hukuki metinler | `/hukuki/kullanici-aydinlatma-metni`, `/hukuki/cerez-aydinlatma-metni`, `/hukuki/kullanim-kosullari`, `/hukuki/basvuru-formu` | Herkes; panel giriş, şifre belirleme ve şifremi unuttum ekranlarının altından yeni sekmede açılır |
+| Eğitim Portalı Aydınlatma Metni | `/egitim/aydinlatma-metni` | Çalışanlar; yalnızca Eğitim Portalı giriş ekranından bağlantı verilir |
 
 ## 3. Modüller ve durumları
 

@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { LegalLinks } from './legal';
 import { Logo } from './logo';
 
 export function AuthCard({
@@ -7,6 +8,7 @@ export function AuthCard({
   brand = 'KVK Uyum Yönetim Sistemi',
   greeting,
   below,
+  legal,
   children,
 }: {
   title: string;
@@ -16,6 +18,8 @@ export function AuthCard({
   greeting?: { fullName: string; text: ReactNode } | null;
   /** Kartın dışında, hemen altında gösterilen içerik. */
   below?: ReactNode;
+  /** Kartın altındaki hukuki metin bağlantıları: panel girişi veya Eğitim Portalı girişi. */
+  legal?: 'panel' | 'portal';
   children: ReactNode;
 }) {
   return (
@@ -35,6 +39,7 @@ export function AuthCard({
         {children}
       </div>
       {below && <div className="auth-below">{below}</div>}
+      {legal && <LegalLinks kind={legal} />}
     </main>
   );
 }

@@ -104,6 +104,7 @@ function LoginForm() {
   if (challengeId) {
     return (
       <AuthCard
+        legal="panel"
         title="Doğrulama kodu"
         below={<PurchaseNote />}
         greeting={
@@ -147,7 +148,7 @@ function LoginForm() {
   }
 
   return (
-    <AuthCard title="Giriş" below={<PurchaseNote />}>
+    <AuthCard legal="panel" title="Giriş" below={<PurchaseNote />}>
       <form className="form" onSubmit={submitPassword}>
         <ErrorAlert error={error} />
         <Field label="E-posta" htmlFor="email">
