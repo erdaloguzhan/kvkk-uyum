@@ -1,6 +1,7 @@
 # Canlı ortama kurulum
 
-Bu belge sistemi gerçek kullanıcılar için bir sunucuya kurmayı anlatır. Yerelde denemek için
+Bu belge sistemi gerçek kullanıcılar için bir sunucuya kurmayı anlatır. Bugünkü canlı kurulum: **https://kvkuyum.com.tr**,
+Türkiye'de bir VPS (Ubuntu 24.04), kod `/opt/kvkk` klasöründe, e-posta `info@kvkuyum.com.tr` hesabından, SMS Verimor'dan (`Bi ARTI` başlığı). Yerelde denemek için
 [YEREL-KURULUM.md](YEREL-KURULUM.md) yeterlidir; bu belgedeki ayarlar yerel kurulumda gerekmez.
 
 Kurulum tek bir Linux sunucuda (VPS veya bulut sunucu) Docker ile çalışır:
@@ -21,12 +22,16 @@ Kurulum tek bir Linux sunucuda (VPS veya bulut sunucu) Docker ile çalışır:
 - **Boyut:** Başlangıç için 2 vCPU, 4 GB RAM, 40 GB SSD yeterlidir. İşletim sistemi: Ubuntu 24.04 LTS.
 - **Alan adı:** Ör. `uyum.firmaniz.com.tr`. DNS'te bu ad için sunucunun IP adresini gösteren bir **A kaydı** açın.
 - **E-posta (SMTP):** Giriş kodları ve bildirimler için gerçek bir gönderim hesabı. Alan adınız için SPF ve DKIM
-  kayıtlarını sağlayıcının anlattığı şekilde ekleyin; yoksa e-postalar spam'e düşer.
+  kayıtlarını sağlayıcının anlattığı şekilde ekleyin, ayrıca bir DMARC kaydı (`_dmarc` TXT, ör. `v=DMARC1; p=none; rua=mailto:info@alanadi`)
+  açın; yoksa e-postalar spam'e düşer. Yeni alan adı ve paylaşımlı e-posta sunucusunda kayıtlar doğru olsa da Outlook/Hotmail bir süre
+  "Gereksiz" klasörüne atabilir; kullanıcılara bu klasöre bakmalarını söyleyin.
 - **SMS (Verimor):** Panel giriş kodları ve Eğitim Portalı (şifresiz, cep telefonu + SMS kodu) için. Verimor'da
-  SMS başlığını (ör. `KVK UYUM`) onaylatın, OİM > SMS Ayarlarım'da API şifresi tanımlayın ve sunucunun IP adresini
+  SMS başlığını onaylatın (canlıda `Bi ARTI`; `KVK UYUM` başlığı marka tescili istediği için kullanılamadı), OİM > SMS Ayarlarım'da API şifresi tanımlayın ve sunucunun IP adresini
   izinli IP olarak girin. Bilgiler `.env` dosyasındaki `VERIMOR_USERNAME`, `VERIMOR_PASSWORD`, `SMS_HEADER`
-  alanlarına yazılır.
-- **Güvenlik duvarı:** Sunucuda yalnızca 22 (SSH), 80 ve 443 portları açık olmalı. SSH'ye şifreyle değil anahtarla girilmeli.
+  alanlarına yazılır. Başlık onaylı değilse Verimor `INVALID_SOURCE_ADDRESS` döner: panel girişi e-posta koduna düşer,
+  Eğitim Portalına girilemez ("SMS gönderilemedi").
+- **Güvenlik duvarı:** Sunucuda yalnızca SSH (canlıda 22 yerine 23422), 80 ve 443 portları açık olmalı (`ufw`). SSH'ye şifreyle değil
+  anahtarla girilmeli; anahtar çalıştıktan sonra `PasswordAuthentication no` yapılmalı.
 
 ## 2. Docker'ı kurun
 
@@ -68,7 +73,7 @@ docker compose -f docker-compose.prod.yml logs -f api
 
 Logda `Migration tamamlandı` ve `Nest application successfully started` görününce `https://ALAN-ADINIZ` adresini
 açın. `PLATFORM_ADMIN_EMAILS` içindeki adreslere şifre oluşturma e-postası gider; bu hesapla `/admin`
-adresinden yönetim paneline girilir.
+adresinden yönetim paneline girilir. Yönetim panelinde **Profilim**'den cep telefonunuzu girin; sonraki girişlerde kod SMS ile gelir.
 
 ## 5. Güncelleme
 
@@ -79,7 +84,9 @@ git pull
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Veritabanı değişiklikleri (migration) API açılırken otomatik uygulanır.
+Veritabanı değişiklikleri (migration) API açılırken otomatik uygulanır. `deploy/Caddyfile` değiştiyse ayrıca
+`docker compose -f docker-compose.prod.yml restart caddy` gerekir. Sunucu dışı yedek kuruluysa komutlara
+`-f docker-compose.offsite.yml` de eklenir.
 
 ## 6. Yedekler
 
