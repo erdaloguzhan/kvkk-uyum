@@ -94,7 +94,7 @@ export function KullaniciContent() {
         <strong>Saklama süreleri.</strong> Hesap verileri, kuruluşunuzla hizmet sözleşmesi sürdükçe ve sona ermesinden sonra en fazla 1 ay;
         işlem ve giriş kayıtları kuruluşunuzun aboneliği sürdükçe ve sona ermesinden sonra en fazla 1 ay; fatura bilgileri vergi mevzuatının
         öngördüğü süre boyunca saklanır. Yedekler 14 gün sunucuda, şifreli kopyaları 14 gün sunucu dışında tutulur. Süre dolunca veriler
-        silinir, yok edilir veya anonim hale getirilir. Ayrıntı için Saklama ve İmha Politikası'na bakınız.
+        silinir, yok edilir veya anonim hale getirilir.
       </p>
       <p>
         <strong>Haklarınız.</strong> KVKK'nın 11. maddesi uyarınca; kişisel verinizin işlenip işlenmediğini öğrenme, işlenmişse bilgi talep
