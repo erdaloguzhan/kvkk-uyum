@@ -4,7 +4,7 @@ export function CerezContent() {
   return (
     <>
       <p>
-        Erdal Oğuzhan olarak KVK Uyum Yönetim Sistemi'nde (kvkuyum.com.tr, kvkk.com.tr) yalnızca sistemin çalışması için zorunlu çerezleri
+        Erdal Oğuzhan olarak KVK Uyum Yönetim Sistemi'nde (kvkuyum.com.tr) yalnızca sistemin çalışması için zorunlu çerezleri
         ve tarayıcı depolamasını kullanıyoruz. Reklam, pazarlama, analiz veya üçüncü taraf çerezi kullanmıyoruz; bu nedenle çerez onayı
         istemiyoruz.
       </p>
