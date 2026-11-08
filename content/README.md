@@ -53,3 +53,8 @@ Ek olarak kullanılabilir: `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep
   Kişisel Veri, İşleme Amacı, Fiziksel/Dijital, Bulunduğu Yer, Veri Konusu Kişi Grubu, Hukuki Sebep,
   İlgili Mevzuat, Saklama Süresi, Alıcı Grupları, Yurt Dışı Aktarım, İdari Tedbirler, Teknik Tedbirler.
   Tedbirler numaralı listeden seçiliyor; Kişisel Veri Envanteri modülü bu yapıyı esas alacak.
+- Kullanımdaki bir şablonun dosyası burada değiştirildiğinde, canlıdaki kuruluşlara ulaşması için
+  `apps/api/src/templates/templates.service.ts` içindeki `TEMPLATE_CONTENT_UPDATES` listesine eski dosyanın
+  SHA-256 değeriyle eklenmelidir. Açılışta şablonun son sürümü hâlâ eski dosyaysa yeni dosya bir sonraki sürüm
+  olarak hemen yayınlanır; yönetici arada başka bir sürüm yüklediyse dokunulmaz. Örnek: FRM-020'nin yeni hali
+  (2026-11, A–D bölümleri, 31 soru, EK-1).

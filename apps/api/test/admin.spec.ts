@@ -1,6 +1,8 @@
 import { INestApplication } from '@nestjs/common';
 import { DOCUMENT_TEMPLATES, ORGANIZATION_PLACEHOLDERS } from '@kvkk/shared';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import PizZip from 'pizzip';
@@ -11,6 +13,7 @@ import { and, eq } from 'drizzle-orm';
 import { Database, DB } from '../src/db/db.module';
 import { auditLogs, employees, organizations, portalLoginCodes, users } from '../src/db/schema';
 import { MembersService } from '../src/members/members.service';
+import { TemplatesService } from '../src/templates/templates.service';
 import {
   createApp,
   createOrg,
@@ -505,6 +508,39 @@ describe('Yönetim paneli', () => {
         .expect(204);
       const after = await request(server).get(`/api/v1/admin/templates/${code}`).set(auth(admin.accessToken)).expect(200);
       expect(after.body.versions).toEqual([]);
+    });
+
+    it('content/ klasöründe değişen şablonu, son sürüm eski dosyaysa yeni sürüm olarak yayınlar', async () => {
+      const templates = app.get(TemplatesService);
+      const versionsOf = async (code: string) =>
+        (await request(server).get(`/api/v1/admin/templates/${code}`).set(auth(admin.accessToken)).expect(200)).body
+          .versions;
+
+      // Gerçek liste: yeni kurulumda FRM-020'nin ilk sürümü zaten yeni dosya, bir şey eklenmez.
+      await templates.applyContentUpdates();
+      expect((await versionsOf('FRM-020')).map((v: any) => v.versionNo)).toEqual([1]);
+
+      const t = DOCUMENT_TEMPLATES.find((x) => x.code === 'AYM-050')!;
+      const oldSha = createHash('sha256').update(readFileSync(path.join(CONTENT_DIR, t.file))).digest('hex');
+      const dir = mkdtempSync(path.join(tmpdir(), 'kvkk-content-'));
+      mkdirSync(path.join(dir, path.dirname(t.file)), { recursive: true });
+      writeFileSync(path.join(dir, t.file), docxWith('Yeni sürüm metni'));
+      const update = { code: 'AYM-050', previousSha256: oldSha, note: 'Deneme güncellemesi' };
+
+      // Son sürüm beklenen eski dosya değilse (yönetici başka sürüm yüklemiş) dokunulmaz.
+      await templates.applyContentUpdates([{ ...update, previousSha256: 'baska' }], dir);
+      expect(await versionsOf('AYM-050')).toHaveLength(1);
+
+      await templates.applyContentUpdates([update], dir);
+      const versions = await versionsOf('AYM-050');
+      expect(versions.map((v: any) => [v.versionNo, v.state, v.note])).toEqual([
+        [2, 'current', 'Deneme güncellemesi'],
+        [1, 'past', 'İlk sürüm'],
+      ]);
+
+      // Tekrar çalışınca (her açılışta) yeni sürüm eklenmez.
+      await templates.applyContentUpdates([update], dir);
+      expect(await versionsOf('AYM-050')).toHaveLength(2);
     });
   });
 });
