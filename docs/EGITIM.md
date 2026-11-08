@@ -74,3 +74,15 @@ docker compose -f docker-compose.prod.yml exec api node dist/scripts/egitim-icer
 - Konunun en kısa okuma süresi = kelime sayısı / 150 kelime-dakika + görsel için 10 sn, 30 sn'ye yukarı yuvarlanır,
   en az 60 sn. Yükledikten sonra yönetim panelinden konu konu değiştirilebilir.
 - İdari para cezası tutarları 2026 yılına göredir; her yıl yeniden değerleme oranıyla güncellenmelidir.
+
+## Deneme eğitimini tamamen silme
+
+Gruba atanıp gönderilmiş bir eğitim panelden silinemez (eğitim kanıtı korunsun diye). Yalnızca deneme kayıtları için:
+
+```
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/egitim-sil.js --ad "Eğitimin tam adı"
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/egitim-sil.js --ad "Eğitimin tam adı" --onay <katılımcı sayısı>
+```
+
+İlk komut hiçbir şey silmez, silinecekleri ve onay sayısını gösterir. İkincisi eğitimi, gruplarını, katılımcı
+kayıtlarını, sınav sonuçlarını ve yalnızca bu eğitimde kullanılan görselleri siler; geri alınamaz.
