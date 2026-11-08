@@ -32,6 +32,20 @@ type VersionRow = Omit<typeof templateVersions.$inferSelect, 'content'>;
 /** Sürümün ana şablon ekranında gösterilen durumu. */
 export type TemplateVersionState = 'draft' | 'current' | 'scheduled' | 'past';
 
+/**
+ * content/ klasöründe içeriği değiştirilen katalog şablonları. Açılışta, şablonun son sürümü hâlâ eski
+ * dosyaysa (yönetici arada başka bir sürüm yüklememişse) yeni dosya bir sonraki sürüm olarak hemen yayına
+ * alınır. Kuruluşlar mevcut dokümanlarında "Yeni şablonla güncelle" uyarısını görür; dokümanları kendiliğinden
+ * değişmez. Yeni dosya zaten bir sürüm olarak varsa hiçbir şey yapılmaz.
+ */
+export const TEMPLATE_CONTENT_UPDATES: { code: string; previousSha256: string; note: string }[] = [
+  {
+    code: 'FRM-020',
+    previousSha256: '877611f130ca037105a0ab64ed1acd7ec318db53dadfb1794a883836950420a5',
+    note: 'FRM-020 yeni hali: A–D bölümleri, 31 soru ve EK-1 (2026-11)',
+  },
+];
+
 const ALLOWED_PLACEHOLDERS = [...Object.keys(ORGANIZATION_PLACEHOLDERS), ...UNSUPPORTED_PLACEHOLDERS];
 
 export interface TemplateMeta {
@@ -95,6 +109,64 @@ export class TemplatesService implements OnModuleInit {
           publishedAt: now,
         })
         .onConflictDoNothing();
+    }
+    await this.applyContentUpdates();
+  }
+
+  /** TEMPLATE_CONTENT_UPDATES içindeki şablonların yeni dosyasını sürüm olarak yayınlar. */
+  async applyContentUpdates(updates = TEMPLATE_CONTENT_UPDATES, contentDir = this.config.contentDir) {
+    for (const u of updates) {
+      const t = DOCUMENT_TEMPLATES.find((x) => x.code === u.code);
+      if (!t) continue;
+      let content: Buffer;
+      try {
+        content = await readFile(path.join(contentDir, t.file));
+      } catch {
+        continue;
+      }
+      const hash = sha256(content);
+      const versions = await this.db
+        .select({ versionNo: templateVersions.versionNo, sha256: templateVersions.sha256 })
+        .from(templateVersions)
+        .where(eq(templateVersions.templateCode, u.code))
+        .orderBy(desc(templateVersions.versionNo));
+      if (versions.length === 0 || versions.some((v) => v.sha256 === hash)) continue;
+      if (versions[0].sha256 !== u.previousSha256) {
+        this.logger.warn(`${u.code}: son sürüm eski şablon dosyası değil; yeni dosya otomatik yayınlanmadı`);
+        continue;
+      }
+      const now = new Date();
+      const inserted = await this.db
+        .insert(templateVersions)
+        .values({
+          templateCode: u.code,
+          versionNo: versions[0].versionNo + 1,
+          status: 'published',
+          fileName: path.basename(t.file),
+          content,
+          sizeBytes: content.length,
+          sha256: hash,
+          note: u.note,
+          effectiveFrom: now,
+          publishedAt: now,
+        })
+        .onConflictDoNothing()
+        .returning({ id: templateVersions.id, versionNo: templateVersions.versionNo });
+      if (inserted[0]) {
+        this.logger.log(`${u.code} v${inserted[0].versionNo} yayınlandı: ${u.note}`);
+        await this.db.update(documentTemplates).set({ updatedAt: now }).where(eq(documentTemplates.code, u.code));
+        await this.audit.record({
+          action: 'template.published',
+          entityType: 'document_template',
+          entityId: u.code,
+          metadata: {
+            versionId: inserted[0].id,
+            versionNo: inserted[0].versionNo,
+            effectiveFrom: now.toISOString(),
+            source: 'content',
+          },
+        });
+      }
     }
   }
 
