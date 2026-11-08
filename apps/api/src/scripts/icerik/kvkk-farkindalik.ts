@@ -450,14 +450,24 @@ export const POST_TEST: QuestionSeed[] = [
     correct: 'C',
   },
   {
-    text: '2026 yılında aydınlatma yükümlülüğünü yerine getirmeyenlere uygulanabilecek idari para cezası aralığı hangisidir?',
-    options: ['5.000 TL – 100.000 TL', '85.437 TL – 1.709.200 TL', '256.357 TL – 17.092.242 TL', '427.263 TL – 17.092.242 TL'],
+    text: 'İş yerinde bir müşterinin kimlik fotokopisini herkesin görebileceği bir masada unuttuğunuzu fark ettiniz. Bu durum en çok hangi yükümlülükle ilgilidir?',
+    options: [
+      'Aydınlatma yükümlülüğü',
+      'Veri güvenliğine ilişkin yükümlülükler',
+      'Veri Sorumluları Siciline (VERBİS) kayıt yükümlülüğü',
+      'Açık rıza alma yükümlülüğü',
+    ],
     correct: 'B',
   },
   {
-    text: '2026 yılında veri güvenliğine ilişkin yükümlülükleri yerine getirmeyenlere uygulanabilecek idari para cezasının üst sınırı nedir?',
-    options: ['1.000.000 TL', '1.709.200 TL', '1.806.177 TL', '17.092.242 TL'],
-    correct: 'D',
+    text: 'Bir iş arkadaşınız, işiniz gereği tuttuğunuz müşteri listesindeki telefon numaralarını kendi kişisel satış işi için istiyor. Ne yapmalısınız?',
+    options: [
+      'Vermemelisiniz; kişisel veriler yalnızca toplandıkları amaçla bağlantılı, sınırlı ve ölçülü olarak işlenebilir',
+      'Verebilirsiniz; numaralar zaten şirketin kayıtlarında bulunuyor',
+      'Yalnızca birkaç numara verebilirsiniz',
+      'Müşterilere sonradan haber vermek şartıyla verebilirsiniz',
+    ],
+    correct: 'A',
   },
   {
     text: 'Anonim hâle getirme ile ilgili hangisi doğrudur?',
