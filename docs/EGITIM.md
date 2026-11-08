@@ -55,3 +55,22 @@ KVKK dokümanlarını portalda okur (`GET /training-portal/documents`, `GET /tra
 - Eğitime eklenmemiş çalışana platform yöneticisi kuruluş sayfasından portal erişimi gönderir
   (`POST /admin/organizations/:orgId/employees/portal-access`); çalışana portal adresini içeren SMS gider.
 
+
+## Hazır içerik: KVKK Farkındalık Eğitimi
+
+17 alt konu (görselleriyle), 10 soruluk ön test ve 10 soruluk son test `apps/api/src/scripts/icerik/kvkk-farkindalik.ts`
+dosyasındadır; görseller `apps/api/assets/egitim/kvkk-farkindalik/` altındadır (yeniden üretmek için
+`node tools/egitim-gorselleri/uret.mjs`). Sunucuda yüklemek için (`/opt/kvkk` klasöründe, güncel kod derlendikten sonra):
+
+```
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/egitim-icerik-yukle.js --deneme
+docker compose -f docker-compose.prod.yml exec api node dist/scripts/egitim-icerik-yukle.js
+```
+
+- "KVKK Farkındalık Eğitimi" adlı eğitim varsa ona, yoksa yeni bir taslak eğitime yükler. Eğitim durumu değişmez.
+- Eğitimde zaten alt konu veya soru varsa durur; `--degistir` ile eskileri silinip yenileri yüklenir.
+- Eğitime başlamış katılımcı varsa `--degistir` de çalışmaz (ilerleme ve sınav sonuçları bozulmasın diye).
+  Bu durumda `--ad "KVKK Farkındalık Eğitimi 2026"` gibi yeni bir adla yüklenebilir.
+- Konunun en kısa okuma süresi = kelime sayısı / 150 kelime-dakika + görsel için 10 sn, 30 sn'ye yukarı yuvarlanır,
+  en az 60 sn. Yükledikten sonra yönetim panelinden konu konu değiştirilebilir.
+- İdari para cezası tutarları 2026 yılına göredir; her yıl yeniden değerleme oranıyla güncellenmelidir.
