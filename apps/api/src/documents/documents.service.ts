@@ -360,7 +360,7 @@ export class DocumentsService {
   private async renderUnchecked(orgId: string, effective: EffectiveTemplate) {
     const [org] = await this.db.select().from(organizations).where(eq(organizations.id, orgId));
     const values = Object.fromEntries(
-      Object.entries(ORGANIZATION_PLACEHOLDERS).map(([placeholder, field]) => [placeholder, org[field]]),
+      Object.entries(ORGANIZATION_PLACEHOLDERS).map(([placeholder, field]) => [placeholder, documentValue(org[field])]),
     );
     return renderTemplate(effective.version.content, values);
   }
@@ -454,4 +454,10 @@ export class DocumentsService {
       .returning(versionColumns);
     return version;
   }
+}
+
+/** Tarih alanları dokümanlarda GG.AA.YYYY biçiminde yazılır. */
+function documentValue(value: string | null): string | null {
+  const m = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : value;
 }

@@ -14,6 +14,9 @@ export interface OrganizationProfile {
   kepAddress?: string | null;
   authorizedPerson?: string | null;
   taxNumber?: string | null;
+  taxOffice?: string | null;
+  addressCode?: string | null;
+  verbisNotificationDate?: string | null;
   website?: string | null;
 }
 

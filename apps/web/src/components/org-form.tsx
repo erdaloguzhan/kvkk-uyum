@@ -6,13 +6,16 @@ import { ErrorAlert, Field } from './ui';
 
 export type OrgProfile = Pick<
   Organization,
-  'name' | 'taxNumber' | 'address' | 'email' | 'phone' | 'kepAddress' | 'authorizedPerson' | 'website'
+  'name' | 'taxNumber' | 'taxOffice' | 'address' | 'addressCode' | 'verbisNotificationDate' | 'email' | 'phone' | 'kepAddress' | 'authorizedPerson' | 'website'
 >;
 
 const EMPTY: OrgProfile = {
   name: '',
   taxNumber: '',
+  taxOffice: '',
   address: '',
+  addressCode: '',
+  verbisNotificationDate: '',
   email: '',
   phone: '',
   kepAddress: '',
@@ -73,13 +76,28 @@ export function OrgForm({
   return (
     <form className="form" onSubmit={submit}>
       <ErrorAlert error={error} />
-      <Field label="Ünvan" required htmlFor="name" hint="Ticaret sicilindeki tam ünvan. Dokümanlarda {{kurum.unvan}} yerine yazılır.">
+      <Field
+        label="Veri Sorumlusu Adı"
+        required
+        htmlFor="name"
+        hint="Ticaret sicilindeki tam ünvan; şahıs işletmelerinde ad soyad. Dokümanlarda {{kurum.unvan}} yerine yazılır."
+      >
         <input {...bind('name')} required minLength={2} />
       </Field>
       <div className="form-row">
-        <Field label="Vergi numarası" required htmlFor="taxNumber" hint="10 haneli vergi no veya şahıs şirketleri için 11 haneli TC kimlik no">
+        <Field
+          label="Vergi Kimlik No / T.C. Kimlik No"
+          required
+          htmlFor="taxNumber"
+          hint="Şirketler için 10 haneli vergi kimlik no, şahıs işletmeleri için 11 haneli T.C. kimlik no"
+        >
           <input {...bind('taxNumber')} inputMode="numeric" pattern="\d{10,11}" />
         </Field>
+        <Field label="Vergi dairesi" htmlFor="taxOffice">
+          <input {...bind('taxOffice')} />
+        </Field>
+      </div>
+      <div className="form-row">
         <Field
           label={inviteMode ? 'Yetkili kişi / KVKK Sorumlusu' : 'Yetkili kişi'}
           required
@@ -91,6 +109,13 @@ export function OrgForm({
       </div>
       <Field label="Adres" required htmlFor="address">
         <textarea {...bind('address')} rows={3} />
+      </Field>
+      <Field
+        label="Adres numarası"
+        htmlFor="addressCode"
+        hint="UAVT adres kodu: 10 haneli numara, e-Devlet'te Adres Bilgilerim veya adres.nvi.gov.tr'den öğrenilebilir"
+      >
+        <input {...bind('addressCode')} inputMode="numeric" pattern="\d{10}" maxLength={10} />
       </Field>
       <div className="form-row">
         <Field
@@ -111,6 +136,11 @@ export function OrgForm({
         </Field>
         <Field label="Web sitesi" htmlFor="website" hint="Aydınlatma metinlerinde kullanılır">
           <input {...bind('website')} placeholder="www.ornek.com.tr" />
+        </Field>
+      </div>
+      <div className="form-row">
+        <Field label="VERBİS bildirim tarihi" htmlFor="verbisNotificationDate" hint="Veri Sorumluları Siciline kayıt yapıldıysa bildirim tarihi">
+          <input type="date" {...bind('verbisNotificationDate')} />
         </Field>
       </div>
       {children}

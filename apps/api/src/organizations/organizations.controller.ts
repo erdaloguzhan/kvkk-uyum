@@ -35,7 +35,15 @@ export const profileFields = {
   kepAddress: z.email().max(254).nullish(),
   authorizedPerson: optionalText(200),
   // Vergi kimlik no (10 hane) veya şahıs şirketleri için TC kimlik no (11 hane).
-  taxNumber: z.string().trim().regex(/^\d{10,11}$/, 'Vergi numarası 10 veya 11 haneli olmalı').nullish(),
+  taxNumber: z
+    .string()
+    .trim()
+    .regex(/^\d{10,11}$/, 'Vergi Kimlik No 10, T.C. Kimlik No 11 haneli olmalı')
+    .nullish(),
+  taxOffice: optionalText(200),
+  // UAVT adres kodu (NVİ adres kayıt sistemindeki adres numarası), 10 hane.
+  addressCode: z.string().trim().regex(/^\d{10}$/, 'Adres numarası 10 haneli olmalı').nullish(),
+  verbisNotificationDate: z.iso.date('VERBİS bildirim tarihi YYYY-AA-GG biçiminde olmalı').nullish(),
   website: optionalText(300),
 };
 const updateBody = z.object(profileFields).partial().refine((v) => Object.keys(v).length > 0, {

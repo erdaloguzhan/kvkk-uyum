@@ -28,7 +28,7 @@ export default function OrganizationPage() {
     <>
       <PageHeader
         title="Kuruluş bilgileri"
-        description="Ünvan, adres ve iletişim bilgileri doküman şablonlarına otomatik yerleşir."
+        description="Veri sorumlusu adı, adres ve iletişim bilgileri doküman şablonlarına otomatik yerleşir."
         actions={
           <>
             <Badge kind={org.licenseStatus === 'expired' ? 'danger' : org.licenseStatus === 'trial' ? 'warning' : 'success'}>

@@ -27,7 +27,7 @@ export default function DashboardPage() {
     {
       done: !!org.setupCompletedAt,
       title: 'Kuruluş bilgilerini tamamlayın',
-      text: 'Ünvan, vergi no, adres, iletişim ve yetkili kişi bilgileri dokümanlara yerleşir.',
+      text: 'Veri sorumlusu adı, vergi/T.C. kimlik no, adres, iletişim ve yetkili kişi bilgileri dokümanlara yerleşir.',
       href: '/kurulus',
       show: can(PERMISSIONS.ORG_READ),
     },
