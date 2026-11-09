@@ -60,6 +60,9 @@ export const organizations = pgTable('organizations', {
   kepAddress: text('kep_address'),
   authorizedPerson: text('authorized_person'),
   taxNumber: text('tax_number'),
+  taxOffice: text('tax_office'),
+  /** UAVT adres kodu (adres numarası): e-Devlet / NVİ adres kayıt sistemindeki 10 haneli numara. */
+  addressCode: text('address_code'),
   website: text('website'),
   /**
    * Herkese açık ilgili kişi başvuru formunun (FRM-010) adresindeki kuruluş kodu: /basvuru/<kod>.

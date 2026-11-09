@@ -63,6 +63,8 @@ export interface Organization {
   kepAddress: string | null;
   authorizedPerson: string | null;
   taxNumber: string | null;
+  taxOffice: string | null;
+  addressCode: string | null;
   website: string | null;
   licenseStatus: string;
   licenseExpiresAt: string | null;

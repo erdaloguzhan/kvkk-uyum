@@ -5,13 +5,15 @@ export const ROLE_LABELS: Record<string, string> = Object.fromEntries(SYSTEM_ROL
 
 /** Kuruluş profili alanlarının Türkçe adları. */
 export const ORG_FIELD_LABELS: Record<string, string> = {
-  name: 'Ünvan',
+  name: 'Veri Sorumlusu Adı',
   address: 'Adres',
   email: 'E-posta',
   phone: 'Telefon',
   kepAddress: 'KEP adresi',
   authorizedPerson: 'Yetkili kişi',
-  taxNumber: 'Vergi numarası',
+  taxNumber: 'Vergi Kimlik No / T.C. Kimlik No',
+  taxOffice: 'Vergi dairesi',
+  addressCode: 'Adres numarası',
   website: 'Web sitesi',
 };
 

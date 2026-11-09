@@ -57,6 +57,11 @@ describe('Kuruluşlar, üyeler ve roller', () => {
       .set(as(admin.accessToken))
       .send({ taxNumber: '12345' })
       .expect(400);
+    await request(server)
+      .patch('/api/v1/organizations/current')
+      .set(as(admin.accessToken))
+      .send({ addressCode: '12345' })
+      .expect(400);
 
     await request(server)
       .patch('/api/v1/organizations/current')
@@ -69,8 +74,12 @@ describe('Kuruluşlar, üyeler ve roller', () => {
         authorizedPerson: 'Ayşe Yılmaz',
         taxNumber: '1234567890',
         website: 'www.ornek.com.tr',
+        taxOffice: 'Çankaya',
+        addressCode: '1234567890',
       })
       .expect(200);
+    const current = await request(server).get('/api/v1/organizations/current').set(as(admin.accessToken)).expect(200);
+    expect(current.body).toMatchObject({ taxOffice: 'Çankaya', addressCode: '1234567890' });
     const done = await request(server)
       .post('/api/v1/organizations/current/complete-setup')
       .set(as(admin.accessToken))
