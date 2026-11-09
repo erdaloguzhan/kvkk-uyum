@@ -63,6 +63,8 @@ export const organizations = pgTable('organizations', {
   taxOffice: text('tax_office'),
   /** UAVT adres kodu (adres numarası): e-Devlet / NVİ adres kayıt sistemindeki 10 haneli numara. */
   addressCode: text('address_code'),
+  /** VERBİS (Veri Sorumluları Sicil Bilgi Sistemi) bildirim tarihi. */
+  verbisNotificationDate: date('verbis_notification_date', { mode: 'string' }),
   website: text('website'),
   /**
    * Herkese açık ilgili kişi başvuru formunun (FRM-010) adresindeki kuruluş kodu: /basvuru/<kod>.

@@ -1,5 +1,5 @@
 {
-  "id": "b0be26ae-fb36-4138-8a2b-8a806a4c9895",
+  "id": "55bb7ac7-927a-49b4-827e-696e10b14777",
   "prevId": "fdfd8672-6c8b-4813-b908-8fe6f6ec56fa",
   "version": "7",
   "dialect": "postgresql",
@@ -3833,6 +3833,12 @@
         "address_code": {
           "name": "address_code",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verbis_notification_date": {
+          "name": "verbis_notification_date",
+          "type": "date",
           "primaryKey": false,
           "notNull": false
         },

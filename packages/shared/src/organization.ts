@@ -9,6 +9,7 @@ export const ORGANIZATION_PLACEHOLDERS = {
   'kurum.vergi_no': 'taxNumber',
   'kurum.vergi_dairesi': 'taxOffice',
   'kurum.adres_no': 'addressCode',
+  'kurum.verbis_tarihi': 'verbisNotificationDate',
   'kurum.web_sitesi_adresi': 'website',
   'kurum.eposta': 'email',
   'kurum.telefon': 'phone',
@@ -20,6 +21,8 @@ export const ORGANIZATION_PLACEHOLDERS = {
  * Kuruluş profilinde zorunlu olmayan alanların yer tutucuları. Boşsa doküman yine oluşturulur,
  * yer tutucu boş bırakılır.
  */
-export const OPTIONAL_PLACEHOLDERS: string[] = ['kurum.kep', 'kurum.web_sitesi_adresi', 'kurum.vergi_dairesi', 'kurum.adres_no'];
+export const OPTIONAL_PLACEHOLDERS: string[] = ['kurum.kep', 'kurum.web_sitesi_adresi', 'kurum.vergi_dairesi', 'kurum.adres_no',
+  'kurum.verbis_tarihi',
+];
 
 export type LicenseStatus = 'trial' | 'active' | 'expired';

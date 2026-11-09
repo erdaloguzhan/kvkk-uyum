@@ -6,7 +6,7 @@ import { ErrorAlert, Field } from './ui';
 
 export type OrgProfile = Pick<
   Organization,
-  'name' | 'taxNumber' | 'taxOffice' | 'address' | 'addressCode' | 'email' | 'phone' | 'kepAddress' | 'authorizedPerson' | 'website'
+  'name' | 'taxNumber' | 'taxOffice' | 'address' | 'addressCode' | 'verbisNotificationDate' | 'email' | 'phone' | 'kepAddress' | 'authorizedPerson' | 'website'
 >;
 
 const EMPTY: OrgProfile = {
@@ -15,6 +15,7 @@ const EMPTY: OrgProfile = {
   taxOffice: '',
   address: '',
   addressCode: '',
+  verbisNotificationDate: '',
   email: '',
   phone: '',
   kepAddress: '',
@@ -135,6 +136,11 @@ export function OrgForm({
         </Field>
         <Field label="Web sitesi" htmlFor="website" hint="Aydınlatma metinlerinde kullanılır">
           <input {...bind('website')} placeholder="www.ornek.com.tr" />
+        </Field>
+      </div>
+      <div className="form-row">
+        <Field label="VERBİS bildirim tarihi" htmlFor="verbisNotificationDate" hint="Veri Sorumluları Siciline kayıt yapıldıysa bildirim tarihi">
+          <input type="date" {...bind('verbisNotificationDate')} />
         </Field>
       </div>
       {children}

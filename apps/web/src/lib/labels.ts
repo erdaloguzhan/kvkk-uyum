@@ -14,6 +14,7 @@ export const ORG_FIELD_LABELS: Record<string, string> = {
   taxNumber: 'Vergi Kimlik No / T.C. Kimlik No',
   taxOffice: 'Vergi dairesi',
   addressCode: 'Adres numarası',
+  verbisNotificationDate: 'VERBİS bildirim tarihi',
   website: 'Web sitesi',
 };
 

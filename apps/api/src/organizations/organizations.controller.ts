@@ -43,6 +43,7 @@ export const profileFields = {
   taxOffice: optionalText(200),
   // UAVT adres kodu (NVİ adres kayıt sistemindeki adres numarası), 10 hane.
   addressCode: z.string().trim().regex(/^\d{10}$/, 'Adres numarası 10 haneli olmalı').nullish(),
+  verbisNotificationDate: z.iso.date('VERBİS bildirim tarihi YYYY-AA-GG biçiminde olmalı').nullish(),
   website: optionalText(300),
 };
 const updateBody = z.object(profileFields).partial().refine((v) => Object.keys(v).length > 0, {

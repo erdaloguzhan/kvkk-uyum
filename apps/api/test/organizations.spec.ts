@@ -76,10 +76,11 @@ describe('Kuruluşlar, üyeler ve roller', () => {
         website: 'www.ornek.com.tr',
         taxOffice: 'Çankaya',
         addressCode: '1234567890',
+        verbisNotificationDate: '2025-03-15',
       })
       .expect(200);
     const current = await request(server).get('/api/v1/organizations/current').set(as(admin.accessToken)).expect(200);
-    expect(current.body).toMatchObject({ taxOffice: 'Çankaya', addressCode: '1234567890' });
+    expect(current.body).toMatchObject({ taxOffice: 'Çankaya', addressCode: '1234567890', verbisNotificationDate: '2025-03-15' });
     const done = await request(server)
       .post('/api/v1/organizations/current/complete-setup')
       .set(as(admin.accessToken))
