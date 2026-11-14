@@ -96,32 +96,32 @@ export interface DataCategoryDefinition {
  * İlk 13'ü kişisel veri, sonraki 13'ü özel nitelikli kişisel veri kategorisidir.
  */
 export const DATA_CATEGORIES: DataCategoryDefinition[] = [
-  { name: 'Kimlik', examples: 'ad soyad, anne - baba adı, anne kızlık soyadı, doğum tarihi, doğum yeri, medeni hali, nüfus cüzdanı seri sıra no, tc kimlik no gibi', special: false },
-  { name: 'İletişim', examples: 'adres no, e-posta adresi, iletişim adresi, kayıtlı elektronik posta adresi (KEP), telefon no gibi', special: false },
-  { name: 'Lokasyon', examples: 'bulunduğu yerin konum bilgileri', special: false },
-  { name: 'Özlük', examples: 'bordro bilgileri, disiplin soruşturması, işe giriş-çıkış belgesi kayıtları, mal bildirimi bilgileri, özgeçmiş bilgileri, performans değerlendirme raporları gibi', special: false },
-  { name: 'Hukuki İşlem', examples: 'adli makamlarla yazışmalardaki bilgiler, dava dosyasındaki bilgiler gibi', special: false },
-  { name: 'Müşteri İşlem', examples: 'çağrı merkezi kayıtları, fatura, senet, çek bilgileri, gişe dekontlarındaki bilgiler, sipariş bilgisi, talep bilgisi gibi', special: false },
-  { name: 'Fiziksel Mekân Güvenliği', examples: 'çalışan ve ziyaretçilerin giriş çıkış kayıt bilgileri, kamera kayıtları gibi', special: false },
-  { name: 'İşlem Güvenliği', examples: 'IP adresi bilgileri, internet sitesi giriş çıkış bilgileri, şifre ve parola bilgileri gibi', special: false },
-  { name: 'Risk Yönetimi', examples: 'ticari, teknik, idari risklerin yönetilmesi için işlenen bilgiler gibi', special: false },
-  { name: 'Finans', examples: 'bilanço bilgileri, finansal performans bilgileri, kredi ve risk bilgileri, malvarlığı bilgileri gibi', special: false },
-  { name: 'Mesleki Deneyim', examples: 'diploma bilgileri, gidilen kurslar, meslek içi eğitim bilgileri, sertifikalar, transkript bilgileri gibi', special: false },
-  { name: 'Pazarlama', examples: 'alışveriş geçmişi bilgileri, anket, çerez kayıtları, kampanya çalışmasıyla elde edilen bilgiler', special: false },
-  { name: 'Görsel ve İşitsel Kayıtlar', examples: 'görsel ve işitsel kayıtlar gibi', special: false },
-  { name: 'Irk ve Etnik Köken', examples: 'ırk ve etnik kökeni bilgileri gibi', special: true },
-  { name: 'Siyasi Düşünce Bilgileri', examples: 'siyasi düşüncesini belirten bilgiler, siyasi parti üyeliği bilgisi gibi', special: true },
-  { name: 'Felsefi İnanç, Din, Mezhep ve Diğer İnançlar', examples: 'dini aidiyetine ilişkin bilgiler, felsefi inancına ilişkin bilgiler, mezhep aidiyetine ilişkin bilgiler, diğer inançlarına ilişkin bilgiler gibi', special: true },
-  { name: 'Kılık ve Kıyafet', examples: 'kılık ve kıyafete ilişkin bilgiler', special: true },
-  { name: 'Dernek Üyeliği', examples: 'dernek üyeliği bilgileri gibi', special: true },
-  { name: 'Vakıf Üyeliği', examples: 'vakıf üyeliği bilgileri gibi', special: true },
-  { name: 'Sendika Üyeliği', examples: 'sendika üyeliği bilgileri gibi', special: true },
-  { name: 'Sağlık Bilgileri', examples: 'engellilik durumuna ait bilgiler, kan grubu bilgisi, kişisel sağlık bilgileri, kullanılan cihaz ve protez bilgileri gibi', special: true },
-  { name: 'Cinsel Hayat', examples: 'cinsel hayata ilişkin bilgiler gibi', special: true },
-  { name: 'Ceza Mahkûmiyeti Ve Güvenlik Tedbirleri', examples: 'ceza mahkûmiyetine ilişkin bilgiler, güvenlik tedbirlerine ilişkin bilgiler gibi', special: true },
-  { name: 'Biyometrik Veri', examples: 'avuç içi bilgileri, parmak izi bilgileri, retina taraması bilgileri, yüz tanıma bilgileri gibi', special: true },
-  { name: 'Genetik Veri', examples: 'genetik veriler gibi', special: true },
-  { name: 'Diğer Bilgiler', examples: 'kullanıcı tarafından belirlenecek veri türleri gibi', special: true },
+  { name: 'Kimlik', examples: 'Ad soyad, Anne - baba adı, Anne kızlık soyadı, Doğum tarihi, Doğum yeri, Medeni hali, Nüfus cüzdanı seri sıra no, TC kimlik no', special: false },
+  { name: 'İletişim', examples: 'Adres no, E-posta adresi, İletişim adresi, Kayıtlı elektronik posta adresi (KEP), Telefon no', special: false },
+  { name: 'Lokasyon', examples: 'Bulunduğu yerin konum bilgileri', special: false },
+  { name: 'Özlük', examples: 'Bordro bilgileri, Disiplin soruşturması, İşe giriş belgesi kayıtları, Mal bildirimi bilgileri, Özgeçmiş bilgileri, Performans değerlendirme raporları, Adli sicil kaydı', special: false },
+  { name: 'Hukuki İşlem', examples: 'Adli makamlarla yazışmalardaki bilgiler, Dava dosyasındaki bilgiler', special: false },
+  { name: 'Müşteri İşlem', examples: 'Çağrı merkezi kayıtları, Fatura, senet, çek bilgileri, Gişe dekontlarındaki bilgiler, Sipariş bilgisi, Talep bilgisi', special: false },
+  { name: 'Fiziksel Mekân Güvenliği', examples: 'Çalışan ve ziyaretçilerin giriş çıkış kayıt bilgileri, Kamera kayıtları', special: false },
+  { name: 'İşlem Güvenliği', examples: 'IP adresi bilgileri, İnternet sitesi giriş çıkış bilgileri, Şifre ve parola bilgileri', special: false },
+  { name: 'Risk Yönetimi', examples: 'Ticari, teknik, idari risklerin yönetilmesi için işlenen bilgiler', special: false },
+  { name: 'Finans', examples: 'Bilanço bilgileri, Finansal performans bilgileri, Kredi ve risk bilgileri, Malvarlığı bilgileri', special: false },
+  { name: 'Mesleki Deneyim', examples: 'Diploma bilgileri, Gidilen kurslar, Meslek içi eğitim bilgileri, Sertifikalar, Transkript bilgileri', special: false },
+  { name: 'Pazarlama', examples: 'Alışveriş geçmişi bilgileri, Anket, Çerez kayıtları, Kampanya çalışmasıyla elde edilen bilgiler', special: false },
+  { name: 'Görsel ve İşitsel Kayıtlar', examples: 'Görsel ve işitsel kayıtlar', special: false },
+  { name: 'Irk ve Etnik Köken', examples: 'Irk ve etnik kökeni bilgileri', special: true },
+  { name: 'Siyasi Düşünce Bilgileri', examples: 'Siyasi düşüncesini belirten bilgiler, Siyasi parti üyeliği bilgisi', special: true },
+  { name: 'Felsefi İnanç, Din, Mezhep ve Diğer İnançlar', examples: 'Diğer inançlarına ilişkin bilgiler, Dini aidiyetine ilişkin bilgiler, Felsefi inancına ilişkin bilgiler, Mezhep aidiyetine ilişkin bilgiler', special: true },
+  { name: 'Kılık ve Kıyafet', examples: 'Kılık kıyafete ilişkin bilgiler', special: true },
+  { name: 'Dernek Üyeliği', examples: 'Dernek üyeliği bilgileri', special: true },
+  { name: 'Vakıf Üyeliği', examples: 'Vakıf üyeliği bilgileri', special: true },
+  { name: 'Sendika Üyeliği', examples: 'Sendika üyeliği bilgileri', special: true },
+  { name: 'Sağlık Bilgileri', examples: 'Engellilik durumuna ait bilgiler, Kan grubu bilgisi, Kişisel sağlık bilgileri, Kullanılan cihaz ve protez bilgileri', special: true },
+  { name: 'Cinsel Hayat', examples: 'Cinsel hayata ilişkin bilgiler', special: true },
+  { name: 'Ceza Mahkûmiyeti Ve Güvenlik Tedbirleri', examples: 'Ceza mahkumiyetine ilişkin bilgiler, Güvenlik tedbirlerine ilişkin bilgiler', special: true },
+  { name: 'Biyometrik Veri', examples: 'Avuç içi bilgileri, Parmak izi bilgileri, Retina taraması bilgileri, Yüz tanıma bilgileri', special: true },
+  { name: 'Genetik Veri', examples: 'Genetik veriler', special: true },
+  { name: 'Diğer Bilgiler', examples: 'Kullanıcı tarafından belirlenecek veri türleri', special: true },
 ];
 
 /**
@@ -133,8 +133,8 @@ export const DATA_CATEGORIES: DataCategoryDefinition[] = [
  * admin panelinden düzenlenir. Bu liste yalnızca şablonun ilk içeriğidir (migration 0023) ve test verisinde kullanılır.
  */
 export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | InventoryListField, string[]>> = {
-  department: ['İdari', 'Muhasebe'],
-  activity: ['Çalışan Özlük Dosyaları', 'Çalışan Sağlık Bilgileri'],
+  department: ['Genel', 'İdari', 'Muhasebe'],
+  activity: ['Genel', 'Çalışan Özlük Dosyaları', 'Çalışan Sağlık Bilgileri'],
   dataCategory: DATA_CATEGORIES.map((c) => c.name),
   // Erdal'ın verdiği liste (2026-10-09), verdiği sırayla.
   purposes: [
@@ -142,8 +142,8 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
     'Bilgi Güvenliği Süreçlerinin Yürütülmesi',
     'Çalışan Adayı / Stajyer / Öğrenci Seçme Ve Yerleştirme Süreçlerinin Yürütülmesi',
     'Çalışan Adaylarının Başvuru Süreçlerinin Yürütülmesi',
-    'Çalışan Memnuniyeti Ve Bağlılığı Süreçlerinin Yürütülmesi',
     'Çalışanlar İçin İş Akdi Ve Mevzuattan Kaynaklı Yükümlülüklerin Yerine Getirilmesi',
+    'Çalışan Memnuniyeti Ve Bağlılığı Süreçlerinin Yürütülmesi',
     'Çalışanlar İçin Yan Haklar Ve Menfaatleri Süreçlerinin Yürütülmesi',
     'Denetim / Etik Faaliyetlerinin Yürütülmesi',
     'Eğitim Faaliyetlerinin Yürütülmesi',
@@ -191,22 +191,21 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
     'Yönetim Faaliyetlerinin Yürütülmesi',
     'Ziyaretçi Kayıtlarının Oluşturulması Ve Takibi',
   ],
-  // Erdal'ın verdiği liste (2026-10-09), verdiği sırayla.
+  // Erdal'ın verdiği liste (Word dosyası, 2026-11-14), verdiği sırayla. "Diğer" serbest yazım alanıdır.
   dataSubjectGroups: [
-    'Çalışan Adayı',
+    'Ürün veya Hizmet Alan Kişi',
     'Çalışan',
-    'Denek',
-    'Habere konu kişi',
+    'Çalışan Adayı',
+    'Ziyaretçi',
     'Hissedar/Ortak',
-    'Potansiyel Ürün veya Hizmet Alıcısı',
-    'Sınav adayı',
-    'Stajyer',
     'Tedarikçi Çalışanı',
     'Tedarikçi Yetkilisi',
-    'Ürün veya Hizmet Alan Kişi',
-    'Veli / Vasi / Temsilci',
-    'Ziyaretçi',
-    'Diğer',
+    'Potansiyel Ürün veya Hizmet Alıcısı',
+    'Stajyer',
+    'Sınav Adayı',
+    'Habere konu kişi',
+    'Veli/Vasi/Temsilci',
+    'Denek',
   ],
   // Erdal'ın verdiği işleme şartları (2026-10-09), harfleriyle ve verdiği sırayla.
   legalBases: [
@@ -218,7 +217,13 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
     'e) Bir hakkın tesisi, kullanılması veya korunması için veri işlemenin zorunlu olması.',
     'f) İlgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun meşru menfaatleri için veri işlenmesinin zorunlu olması.',
   ],
-  relatedLegislation: ['4857 sayılı İş Kanunu', '5237 sayılı Türk Ceza kanunu'],
+  relatedLegislation: [
+    '6698 sayılı Kişisel Verilerin Korunması kanunu',
+    '6331 sayılı İş Sağlığı ve Güvenliği kanunu',
+    '4857 sayılı İş kanunu',
+    '6102 sayılı Türk Ticaret kanunu',
+    '5237 sayılı Türk Ceza kanunu',
+  ],
   retentionPeriod: ['15 yıl'],
   // Erdal'ın verdiği liste (2026-10-09), verdiği sırayla.
   recipients: [
@@ -230,7 +235,6 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
     'Tedarikçiler',
     'Topluluk Şirketleri',
     'Yetkili Kamu Kurum ve Kuruluşları',
-    'Diğer',
   ],
   // Erdal'ın verdiği idari tedbir listesi (2026-10-08), verdiği sırayla.
   administrativeMeasures: [
@@ -266,6 +270,44 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
     'Anahtar Yönetimi',
   ],
 };
+
+/**
+ * Veri envanteri giriş sayfasındaki sabit seçenekler (Erdal'ın "veri envanteri seçenekleri" Word dosyası, 14.11.2026).
+ * Bu cümleler envanter satırına aynen yazılır; Excel dışa aktarımında da aynen görünür.
+ */
+export const NO_RECIPIENTS = 'Bu departman, süreç ve kategorideki alıcı gruplarından hiç birine veri aktarılmamaktadır.';
+export const NO_FOREIGN_TRANSFER = 'Bu departman, süreç ve veri kategorisinde yurtdışına veri aktarılmamaktadır.';
+export const FOREIGN_TRANSFER = 'Bu departman, süreç ve veri kategoride yurtdışına veri aktarılmaktadır.';
+
+/** Yurt dışına aktarım var mı: "aktarılmamaktadır" cümlesi ve boş değer aktarım yok sayılır. */
+export function hasForeignTransfer(value: string | null | undefined): boolean {
+  const v = value?.trim();
+  return !!v && v !== NO_FOREIGN_TRANSFER;
+}
+
+/** Saklama süresi birimleri: süre "{rakam} {birim} {açıklama}" olarak tek metin halinde saklanır. */
+export const RETENTION_UNITS = ['yıl', 'ay', 'gün'] as const;
+export type RetentionUnit = (typeof RETENTION_UNITS)[number];
+
+export interface RetentionParts {
+  amount: string;
+  unit: RetentionUnit;
+  description: string;
+}
+
+/** "10 yıl işten ayrılıştan itibaren" → {10, yıl, işten ayrılıştan itibaren}. Kalıba uymayan eski metin açıklamaya gider. */
+export function parseRetention(value: string | null | undefined): RetentionParts {
+  const v = (value ?? '').trim();
+  const m = /^(\d+)\s*(yıl|ay|gün)(?=\s|$)\s*([\s\S]*)$/i.exec(v);
+  if (m) return { amount: m[1], unit: m[2].toLocaleLowerCase('tr-TR') as RetentionUnit, description: m[3].trim() };
+  return { amount: '', unit: 'yıl', description: v };
+}
+
+export function formatRetention(p: RetentionParts): string {
+  const amount = p.amount.trim();
+  const description = p.description.trim();
+  return [amount ? `${amount} ${p.unit}` : '', description].filter(Boolean).join(' ');
+}
 
 /** TBL-010 dosyasının content/ klasörüne göre yolu (Excel dışa aktarımında şablon olarak kullanılır). */
 export const INVENTORY_TEMPLATE_FILE = 'tablolar/TBL-010 Kişisel Veri Envanteri Tablosu.xlsx';

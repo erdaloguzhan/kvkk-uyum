@@ -189,6 +189,13 @@ tbody tr:hover { background: #fafbfc; }
 .multi-search { border: 0 !important; border-bottom: 1px solid var(--border) !important; border-radius: 0 !important; }
 .multi-options { max-height: 220px; overflow-y: auto; padding: 6px 10px; }
 .multi-options .checkbox { padding: 3px 0; }
+.multi-other { padding: 6px 10px; border-top: 1px solid var(--border); }
+.cat-data { margin: 2px 0 8px 26px; }
+.cat-data input { width: 100%; }
+.retention { display: flex; gap: 6px; flex-wrap: wrap; }
+.retention input[type="number"] { width: 110px; flex: 0 0 110px; }
+.retention select { width: 100px; flex: 0 0 100px; }
+.retention input.grow { width: auto; flex: 1 1 220px; }
 .multi-add { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
 
 /* Adım göstergesi */

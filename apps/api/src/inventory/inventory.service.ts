@@ -5,6 +5,7 @@ import {
   INVENTORY_TEMPLATE_FILE,
   InventoryField,
   STORAGE_MEDIA,
+  hasForeignTransfer,
 } from '@kvkk/shared';
 import { and, asc, eq } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
@@ -124,7 +125,7 @@ export class InventoryService {
       entries: items.length,
       incomplete: items.filter((e) => !e.complete).length,
       specialCategory: items.filter((e) => !isEmpty(e.specialCategoryData)).length,
-      foreignTransfer: items.filter((e) => !isEmpty(e.foreignTransfers)).length,
+      foreignTransfer: items.filter((e) => hasForeignTransfer(e.foreignTransfers)).length,
       departments: [...departments.values()],
     };
   }

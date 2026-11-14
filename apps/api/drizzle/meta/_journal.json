@@ -190,6 +190,13 @@
       "when": 1794254040590,
       "tag": "0026_organization_tax_office_address_verbis",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1794645537874,
+      "tag": "0027_inventory_word_form_options",
+      "breakpoints": true
     }
   ]
 }

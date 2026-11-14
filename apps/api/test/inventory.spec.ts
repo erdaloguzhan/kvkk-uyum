@@ -1,3 +1,4 @@
+import { NO_FOREIGN_TRANSFER } from '@kvkk/shared';
 import { INestApplication } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { readFileSync } from 'node:fs';
@@ -78,11 +79,20 @@ describe('Kişisel Veri Envanteri', () => {
     expect(res.body.dataCategories.filter((c: any) => c.special)).toHaveLength(13);
     // Hazır seçenekler verildiği sırayla önerilir.
     expect(res.body.suggestions.purposes).toHaveLength(52);
-    expect(res.body.suggestions.recipients).toHaveLength(9);
+    expect(res.body.suggestions.recipients).toHaveLength(8);
     expect(res.body.suggestions.legalBases).toHaveLength(7);
     expect(res.body.suggestions.legalBases[3]).toMatch(/^ç\) /);
-    expect(res.body.suggestions.dataSubjectGroups).toHaveLength(14);
-    expect(res.body.suggestions.dataSubjectGroups[0]).toBe('Çalışan Adayı');
+    expect(res.body.suggestions.dataSubjectGroups).toHaveLength(13);
+    expect(res.body.suggestions.dataSubjectGroups[0]).toBe('Ürün veya Hizmet Alan Kişi');
+    expect(res.body.suggestions.purposes[4]).toBe('Çalışanlar İçin İş Akdi Ve Mevzuattan Kaynaklı Yükümlülüklerin Yerine Getirilmesi');
+    expect(res.body.suggestions.relatedLegislation).toEqual([
+      '6698 sayılı Kişisel Verilerin Korunması kanunu',
+      '6331 sayılı İş Sağlığı ve Güvenliği kanunu',
+      '4857 sayılı İş kanunu',
+      '6102 sayılı Türk Ticaret kanunu',
+      '5237 sayılı Türk Ceza kanunu',
+    ]);
+    expect(res.body.dataCategories.find((c: any) => c.name === 'Özlük').examples).toMatch(/Adli sicil kaydı$/);
     expect(res.body.suggestions.technicalMeasures).toHaveLength(17);
     expect(res.body.suggestions.technicalMeasures[0]).toBe('Yetki Matrisi');
     expect(res.body.suggestions.technicalMeasures[16]).toBe('Anahtar Yönetimi');
@@ -101,7 +111,7 @@ describe('Kişisel Veri Envanteri', () => {
       })
       .expect(201);
     const again = await request(server).get('/api/v1/inventory/options').set(as(admin.accessToken)).expect(200);
-    expect(again.body.suggestions.department).toEqual(['İdari', 'Muhasebe', 'Satış']);
+    expect(again.body.suggestions.department).toEqual(['Genel', 'İdari', 'Muhasebe', 'Satış']);
     expect(again.body.suggestions.technicalMeasures).toHaveLength(18);
     expect(again.body.suggestions.technicalMeasures[17]).toBe('Biyometrik giriş kontrolü');
   });
@@ -116,7 +126,7 @@ describe('Kişisel Veri Envanteri', () => {
     const list = await request(server).get('/api/v1/admin/inventory-template').set(asPlatform).expect(200);
     expect(list.body.columns).toHaveLength(15);
     const kimlik = list.body.items.find((o: any) => o.field === 'dataCategory' && o.value === 'Kimlik');
-    expect(kimlik).toMatchObject({ special: false, sortOrder: 1, examples: expect.stringContaining('tc kimlik no') });
+    expect(kimlik).toMatchObject({ special: false, sortOrder: 1, examples: expect.stringContaining('TC kimlik no') });
 
     const added = await request(server)
       .post('/api/v1/admin/inventory-template')
@@ -218,7 +228,7 @@ describe('Kişisel Veri Envanteri', () => {
     await request(server)
       .patch(`/api/v1/inventory/${copy.body.id}`)
       .set(as(admin.accessToken))
-      .send({ department: 'İdari', dataCategory: 'Özlük' })
+      .send({ department: 'İdari', dataCategory: 'Özlük', foreignTransfers: NO_FOREIGN_TRANSFER })
       .expect(200);
 
     const all = await request(server).get('/api/v1/inventory').set(as(admin.accessToken)).expect(200);

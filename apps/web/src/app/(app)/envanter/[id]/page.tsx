@@ -22,6 +22,9 @@ function EntryPage() {
   const options = useApi<InventoryOptions>('inventory/options');
   const tasks = useApi<{ items: Task[] }>('tasks', { entityType: 'inventory_entry', entityId: id, status: 'open' });
   const [saved, setSaved] = useState(params.get('kaydedildi') === '1');
+  const [added, setAdded] = useState<string[]>([]);
+  // Kaydettikten sonra form yeniden kurulur; eklenen kategoriler artık ayrı satır olduğu için bu formda görünmez.
+  const [formVersion, setFormVersion] = useState(0);
 
   if ((entry.loading && !entry.data) || options.loading) return <Loading />;
   if (!entry.data || !options.data) return <ErrorAlert error={entry.error ?? options.error} />;
@@ -51,7 +54,11 @@ function EntryPage() {
           )
         }
       />
-      {saved && <Alert kind="success">Kaydedildi.</Alert>}
+      {saved && (
+        <Alert kind="success">
+          Kaydedildi.{added.length > 0 && ` Yeni satır olarak eklenen kategoriler: ${added.join(', ')}.`}
+        </Alert>
+      )}
       {!e.complete && (
         <Alert kind="warning">
           Satırın tamamlanması için eksik alanlar: <strong>{e.missingFields.map(fieldLabel).join(', ')}</strong>
@@ -59,14 +66,22 @@ function EntryPage() {
       )}
       <div className="card">
         <InventoryForm
-          key={e.id}
+          key={`${e.id}-${formVersion}`}
           options={options.data}
           initial={e}
           readOnly={!canWrite}
           submitLabel="Değişiklikleri kaydet"
-          onSubmit={async (values) => {
-            const updated = await api<InventoryEntry>(`inventory/${e.id}`, { method: 'PATCH', body: toPayload(values) });
+          onSubmit={async ([first, ...added]) => {
+            const updated = await api<InventoryEntry>(`inventory/${e.id}`, { method: 'PATCH', body: toPayload(first) });
+            // Yeni seçilen veri kategorileri, aynı bilgilerle ayrı satırlar olarak eklenir.
+            const created: string[] = [];
+            for (const row of added) {
+              await api<InventoryEntry>('inventory', { method: 'POST', body: toPayload(row) });
+              created.push(row.dataCategory);
+            }
             entry.setData(updated);
+            setAdded(created);
+            setFormVersion((v) => v + 1);
             setSaved(true);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
