@@ -91,3 +91,20 @@ INSERT INTO "inventory_template_options" ("field", "value", "sort_order") VALUES
 ('relatedLegislation', '6102 sayılı Türk Ticaret kanunu', 4),
 ('relatedLegislation', '5237 sayılı Türk Ceza kanunu', 5)
 ON CONFLICT ("field", "value") DO NOTHING;
+--> statement-breakpoint
+
+-- Hukuki sebeplerin başındaki a), b), c), ç), d), e), f) harfleri kaldırılır (Erdal, 14.11.2026).
+UPDATE "inventory_template_options" AS o SET "value" = regexp_replace(o."value", '^(a|b|c|ç|d|e|f)\) ', ''), "updated_at" = now()
+WHERE o."field" = 'legalBases' AND o."value" ~ '^(a|b|c|ç|d|e|f)\) '
+  AND NOT EXISTS (
+    SELECT 1 FROM "inventory_template_options" x
+    WHERE x."field" = 'legalBases' AND x."value" = regexp_replace(o."value", '^(a|b|c|ç|d|e|f)\) ', '')
+  );
+--> statement-breakpoint
+-- Mevcut envanter satırlarındaki aynı metinler de harfsiz hale getirilir; böylece listede eşleşir, metin aynı kalır.
+UPDATE "inventory_entries" SET "legal_bases" = ARRAY(
+  SELECT t.v FROM (
+    SELECT regexp_replace(u.e, '^(a|b|c|ç|d|e|f)\) ', '') AS v, u.ord FROM unnest("legal_bases") WITH ORDINALITY AS u(e, ord)
+  ) t GROUP BY t.v ORDER BY min(t.ord)
+)
+WHERE EXISTS (SELECT 1 FROM unnest("legal_bases") e WHERE e ~ '^(a|b|c|ç|d|e|f)\) ');

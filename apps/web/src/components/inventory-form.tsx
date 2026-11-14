@@ -11,7 +11,6 @@ import {
   type InventoryListField,
   type InventoryTextField,
   type RetentionParts,
-  type StorageMedium,
 } from '@kvkk/shared';
 import { FormEvent, useId, useMemo, useState } from 'react';
 import { fieldLabel } from '@/lib/labels';
@@ -54,14 +53,14 @@ const EMPTY: InventoryValues = {
 
 /**
  * Adım adım giriş; alanlar Erdal'ın "veri envanteri seçenekleri" Word dosyasındaki sırayla (14.11.2026).
- * Fiziksel/Dijital ve Bulunduğu yer Word dosyasında yok, TBL-010 sütunu oldukları için Saklama adımında kalır.
+ * Fiziksel/Dijital ve Bulunduğu yer girişten kaldırıldı (Erdal, 14.11.2026); eski satırlardaki değerleri korunur.
  */
 const STEPS: { title: string; fields: InventoryField[] }[] = [
   { title: '1. Süreç', fields: ['department', 'activity'] },
   { title: '2. Veri kategorisi', fields: ['dataCategory', 'personalData'] },
   { title: '3. Amaç ve kişi grupları', fields: ['purposes', 'dataSubjectGroups'] },
   { title: '4. Alıcılar ve hukuki sebep', fields: ['recipients', 'legalBases'] },
-  { title: '5. Saklama', fields: ['retentionPeriod', 'storageMedium', 'storageLocation'] },
+  { title: '5. Saklama süresi', fields: ['retentionPeriod'] },
   { title: '6. Yurt dışı ve mevzuat', fields: ['foreignTransfers', 'relatedLegislation'] },
   { title: '7. Güvenlik tedbirleri', fields: ['administrativeMeasures', 'technicalMeasures'] },
 ];
@@ -69,7 +68,6 @@ const STEPS: { title: string; fields: InventoryField[] }[] = [
 const PLACEHOLDERS: Partial<Record<InventoryField, string>> = {
   department: 'Genel veya departman adı',
   activity: 'Genel veya faaliyet/süreç adı',
-  storageLocation: 'Ör. personel dolabı, İK yazılımı, sunucu',
 };
 
 /** İlgili mevzuat tek metin sütununda virgülle ayrılmış olarak saklanır. */
@@ -366,27 +364,6 @@ export function InventoryForm({
     const column = options.columns.find((c) => c.field === field)!;
     const isRequired = required.includes(field);
     const suggestions = options.suggestions[field] ?? [];
-
-    if (field === 'storageMedium') {
-      return (
-        <Field key={field} label={column.label} required={isRequired}>
-          <div className="actions">
-            {(Object.entries(options.storageMedia) as [StorageMedium, string][]).map(([k, label]) => (
-              <label className="checkbox" key={k}>
-                <input
-                  type="radio"
-                  name="storageMedium"
-                  checked={values.storageMedium === k}
-                  onChange={() => set('storageMedium', k)}
-                  disabled={readOnly}
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-        </Field>
-      );
-    }
 
     if (field === 'relatedLegislation') {
       const list = splitLegislation(values.relatedLegislation);

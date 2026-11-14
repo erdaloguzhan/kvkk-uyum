@@ -81,7 +81,7 @@ describe('Kişisel Veri Envanteri', () => {
     expect(res.body.suggestions.purposes).toHaveLength(52);
     expect(res.body.suggestions.recipients).toHaveLength(8);
     expect(res.body.suggestions.legalBases).toHaveLength(7);
-    expect(res.body.suggestions.legalBases[3]).toMatch(/^ç\) /);
+    expect(res.body.suggestions.legalBases[3]).toBe('Veri sorumlusunun hukuki yükümlülüğünü yerine getirebilmesi için zorunlu olması.');
     expect(res.body.suggestions.dataSubjectGroups).toHaveLength(13);
     expect(res.body.suggestions.dataSubjectGroups[0]).toBe('Ürün veya Hizmet Alan Kişi');
     expect(res.body.suggestions.purposes[4]).toBe('Çalışanlar İçin İş Akdi Ve Mevzuattan Kaynaklı Yükümlülüklerin Yerine Getirilmesi');
@@ -169,8 +169,6 @@ describe('Kişisel Veri Envanteri', () => {
     expect(created.body.missingFields).toEqual([
       'personalData',
       'purposes',
-      'storageMedium',
-      'storageLocation',
       'dataSubjectGroups',
       'legalBases',
       'retentionPeriod',

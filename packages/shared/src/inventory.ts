@@ -68,14 +68,13 @@ export const INVENTORY_COLUMNS: InventoryColumnDefinition[] = [
  * Bir envanter satırının tamamlanmış sayılması için dolu olması gereken alanlar.
  * Kişisel Veri ile Özel Nitelikli Kişisel Veri'den en az biri ayrıca aranır.
  * İlgili Mevzuat, alıcılar ve yurt dışı aktarım her faaliyette olmayabileceği için zorunlu değildir.
+ * Fiziksel/Dijital ve Bulunduğu yer giriş sayfasından kaldırıldı (Erdal, 14.11.2026); sütunlar TBL-010'da boş kalabilir.
  */
 export const INVENTORY_REQUIRED_FIELDS: InventoryField[] = [
   'department',
   'activity',
   'dataCategory',
   'purposes',
-  'storageMedium',
-  'storageLocation',
   'dataSubjectGroups',
   'legalBases',
   'retentionPeriod',
@@ -207,15 +206,15 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
     'Veli/Vasi/Temsilci',
     'Denek',
   ],
-  // Erdal'ın verdiği işleme şartları (2026-10-09), harfleriyle ve verdiği sırayla.
+  // Erdal'ın verdiği işleme şartları, verdiği sırayla; harfler kaldırıldı (Erdal, 14.11.2026).
   legalBases: [
-    'a) Kanunlarda açıkça öngörülmesi.',
-    'b) Fiili imkânsızlık nedeniyle rızasını açıklayamayacak durumda bulunan veya rızasına hukuki geçerlilik tanınmayan kişinin kendisinin ya da bir başkasının hayatı veya beden bütünlüğünün korunması için zorunlu olması.',
-    'c) Bir sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili olması kaydıyla, sözleşmenin taraflarına ait kişisel verilerin işlenmesinin gerekli olması.',
-    'ç) Veri sorumlusunun hukuki yükümlülüğünü yerine getirebilmesi için zorunlu olması.',
-    'd) İlgili kişinin kendisi tarafından alenileştirilmiş olması.',
-    'e) Bir hakkın tesisi, kullanılması veya korunması için veri işlemenin zorunlu olması.',
-    'f) İlgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun meşru menfaatleri için veri işlenmesinin zorunlu olması.',
+    'Kanunlarda açıkça öngörülmesi.',
+    'Fiili imkânsızlık nedeniyle rızasını açıklayamayacak durumda bulunan veya rızasına hukuki geçerlilik tanınmayan kişinin kendisinin ya da bir başkasının hayatı veya beden bütünlüğünün korunması için zorunlu olması.',
+    'Bir sözleşmenin kurulması veya ifasıyla doğrudan doğruya ilgili olması kaydıyla, sözleşmenin taraflarına ait kişisel verilerin işlenmesinin gerekli olması.',
+    'Veri sorumlusunun hukuki yükümlülüğünü yerine getirebilmesi için zorunlu olması.',
+    'İlgili kişinin kendisi tarafından alenileştirilmiş olması.',
+    'Bir hakkın tesisi, kullanılması veya korunması için veri işlemenin zorunlu olması.',
+    'İlgili kişinin temel hak ve özgürlüklerine zarar vermemek kaydıyla, veri sorumlusunun meşru menfaatleri için veri işlenmesinin zorunlu olması.',
   ],
   relatedLegislation: [
     '6698 sayılı Kişisel Verilerin Korunması kanunu',
