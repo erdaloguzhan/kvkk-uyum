@@ -11,7 +11,7 @@ import {
 } from '@kvkk/shared';
 import { z } from 'zod';
 import { normalizeMobile } from '../training/phone';
-import { isValidNationalId } from '../training/national-id';
+import { isValidNationalId } from '../common/national-id';
 
 const keys = <T extends string>(o: Record<T, unknown>) => Object.keys(o) as [T, ...T[]];
 

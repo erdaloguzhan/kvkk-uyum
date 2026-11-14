@@ -20,7 +20,6 @@ export const RESULT_EXPORT_COLUMNS: ExportColumn<TrainingResult>[] = [
   { label: 'Eğitim grubu', value: (r) => r.groupName },
   { label: 'Kuruluş', value: (r) => r.organizationName },
   { label: 'Eğitim', value: (r) => r.trainingName },
-  { label: 'T.C. Kimlik No', value: (r) => r.nationalId },
   { label: 'Adı Soyadı', value: (r) => r.fullName },
   { label: 'Eğitim gönderim tarihi', value: (r) => (r.sentAt ? formatDateTime(r.sentAt) : null) },
   { label: 'Eğitime başlama', value: (r) => (r.startedAt ? formatDateTime(r.startedAt) : null) },
@@ -61,7 +60,6 @@ export function ResultsTable({
         <thead>
           <tr>
             {showGroup && <th>Eğitim grubu</th>}
-            <th>T.C. Kimlik No</th>
             <th>Adı Soyadı</th>
             <th>Eğitim gönderim tarihi</th>
             <th>Eğitime başlama</th>
@@ -83,7 +81,6 @@ export function ResultsTable({
                     <div className="muted small">{r.organizationName}</div>
                   </td>
                 )}
-                <td className="nowrap">{r.nationalId}</td>
                 <td>
                   {r.fullName}
                   {!r.email && (

@@ -48,7 +48,6 @@ export class GroupsService {
     const rows = await this.db
       .select({
         id: employees.id,
-        nationalId: employees.nationalId,
         firstName: employees.firstName,
         lastName: employees.lastName,
         email: employees.email,
@@ -294,7 +293,6 @@ export class GroupsService {
         trainingName: trainings.name,
         passScore: trainings.passScore,
         employeeId: employees.id,
-        nationalId: employees.nationalId,
         firstName: employees.firstName,
         lastName: employees.lastName,
         email: employees.email,
@@ -341,7 +339,6 @@ export class GroupsService {
       .select({
         firstName: employees.firstName,
         lastName: employees.lastName,
-        nationalId: employees.nationalId,
         organizationId: organizations.id,
         organizationName: organizations.name,
         trainingId: trainings.id,
@@ -368,7 +365,6 @@ export class GroupsService {
       .orderBy(asc(trainingTopics.sortOrder));
     const pdf = await certificatePdf({
       fullName: fullName(row),
-      nationalId: row.nationalId,
       organizationName: row.organizationName,
       trainingName: row.trainingName,
       topics: topics.map((t) => t.title),

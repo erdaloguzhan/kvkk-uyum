@@ -635,14 +635,14 @@ export const employees = pgTable(
     organizationId: uuid('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
-    /** Şifreli. Arama ve tekillik `nationalIdHash` ile yapılır. */
-    nationalId: encryptedText('national_id').notNull(),
-    nationalIdHash: text('national_id_hash').notNull(),
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),
     hireDate: date('hire_date', { mode: 'string' }),
     terminationDate: date('termination_date', { mode: 'string' }),
-    /** 05XXXXXXXXX biçiminde. Eğitim Portalı kullanıcı adıdır; yalnızca bir kişiye (T.C. no) ait olabilir. */
+    /**
+     * 05XXXXXXXXX biçiminde. Eğitim Portalı kullanıcı adıdır; yalnızca bir kişiye ait olabilir (aynı kişi birden
+     * çok kuruluşta aynı telefonla kayıtlı olabilir, ad soyad aynı olmalı). Kuruluş içinde tekildir.
+     */
     phone: text('phone'),
     /** Portal hesabı ve e-postalar (geçici şifre, şifre sıfırlama) bu adrese bağlıdır. */
     email: text('email'),
@@ -650,7 +650,7 @@ export const employees = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex('employees_org_national_id_hash_unique').on(t.organizationId, t.nationalIdHash),
+    uniqueIndex('employees_org_phone_unique').on(t.organizationId, t.phone).where(sql`${t.phone} is not null`),
     index('employees_phone_idx').on(t.phone),
   ],
 );
@@ -666,9 +666,6 @@ export const trainers = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    /** Şifreli. Arama ve tekillik `nationalIdHash` ile yapılır. */
-    nationalId: encryptedText('national_id').notNull(),
-    nationalIdHash: text('national_id_hash').notNull(),
     firstName: text('first_name').notNull(),
     lastName: text('last_name').notNull(),
     hireDate: date('hire_date', { mode: 'string' }),
@@ -683,7 +680,7 @@ export const trainers = pgTable(
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('trainers_user_unique').on(t.userId), uniqueIndex('trainers_national_id_hash_unique').on(t.nationalIdHash)],
+  (t) => [uniqueIndex('trainers_user_unique').on(t.userId)],
 );
 
 /** Eğitim (ör. "KVKK Farkındalık Eğitimi"). Alt konular, ön test ve son test soruları buna bağlıdır. */

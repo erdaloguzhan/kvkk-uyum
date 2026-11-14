@@ -10,7 +10,6 @@ const FRAME = path.join(__dirname, '../../assets/sertifika-cerceve.jpg');
 
 export interface CertificateData {
   fullName: string;
-  nationalId: string;
   organizationName: string;
   trainingName: string;
   /** Eğitimin alt konu başlıkları; belgede madde madde listelenir. */
@@ -79,7 +78,7 @@ export function certificatePdf(data: CertificateData): Promise<Buffer> {
       }
       y += rowH;
     };
-    row(['Adı Soyadı', data.fullName, 'T.C Kimlik Numarası', data.nationalId]);
+    row(['Adı Soyadı', data.fullName]);
     row(['Eğitim Tarihi', formatDate(data.completedAt), 'Eğitim Türü', 'Uzaktan Eğitim']);
     row(['Firma Ünvanı', data.organizationName]);
 

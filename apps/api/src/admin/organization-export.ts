@@ -7,7 +7,7 @@ import { Database, InjectDb } from '../db/db.module';
 import * as s from '../db/schema';
 
 /** Hiçbir zaman dışa verilmeyen sütunlar (şifre özetleri, arama özetleri). */
-const HIDDEN = new Set(['passwordHash', 'nationalIdHash', 'codeHash', 'tokenHash']);
+const HIDDEN = new Set(['passwordHash', 'codeHash', 'tokenHash']);
 
 interface Sheet {
   /** Excel sayfasının adı (en fazla 31 karakter). */
@@ -41,7 +41,7 @@ Bu dosya kişisel veri içerir. Güvenli bir yerde saklayın ve gerekmeyince sil
 /**
  * Kuruluşun Sistemdeki bütün verisini tek bir ZIP dosyası olarak çıkarır (veri işleme sözleşmesi:
  * ilgili kişi başvurularında ve sözleşme bitiminde verilerin teslimi). Şifre özetleri gibi güvenlik
- * alanları dışında her sütun yazılır; T.C. kimlik numaraları açık hâliyle yer alır.
+ * alanları dışında her sütun yazılır; başvurulardaki T.C. kimlik numaraları açık hâliyle yer alır.
  */
 @Injectable()
 export class OrganizationExportService {

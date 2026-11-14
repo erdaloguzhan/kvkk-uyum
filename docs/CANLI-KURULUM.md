@@ -16,7 +16,7 @@ Kurulum tek bir Linux sunucuda (VPS veya bulut sunucu) Docker ile çalışır:
 
 ## 1. Sunucu ve ön koşullar
 
-- **Yer:** Kişisel veriler (çalışan adları, T.C. kimlik no, e-postalar) yurt dışına aktarım sayılmasın diye
+- **Yer:** Kişisel veriler (çalışan adları, telefonlar, e-postalar, başvurulardaki T.C. kimlik no) yurt dışına aktarım sayılmasın diye
   sunucu **Türkiye'deki bir veri merkezinde** olmalıdır. Sağlayıcıyla yapılan sözleşmede verinin Türkiye'de
   tutulduğu yazmalıdır.
 - **Boyut:** Başlangıç için 2 vCPU, 4 GB RAM, 40 GB SSD yeterlidir. İşletim sistemi: Ubuntu 24.04 LTS.
@@ -60,7 +60,7 @@ openssl rand -base64 32   # DATA_ENCRYPTION_KEY (tam 32 bayt base64 olmalı)
 `SMTP_URL` içindeki kullanıcı adında `@` varsa `%40` yazılır; şifrede `@ : / ? #` gibi karakterler varsa
 onlar da kodlanmalıdır (ör. `smtp://info%40ornek.com.tr:SIFRE@mail.ornek.com.tr:587`).
 
-> **DATA_ENCRYPTION_KEY çok önemlidir.** T.C. kimlik numaraları bu anahtarla şifrelenir. Anahtar kaybolursa
+> **DATA_ENCRYPTION_KEY çok önemlidir.** İlgili kişi başvurularındaki T.C. kimlik numaraları bu anahtarla şifrelenir. Anahtar kaybolursa
 > yedekler dahil hiçbir yerden kimlik numaraları geri okunamaz. `.env` dosyasının bir kopyasını sunucu dışında,
 > güvenli bir yerde (ör. şifre yöneticisi) saklayın. Kurulumdan sonra bu anahtarı değiştirmeyin.
 
@@ -98,7 +98,7 @@ Veritabanı değişiklikleri (migration) API açılırken otomatik uygulanır. `
   şifreleyip başka bir sunucuya veya nesne depolamaya (Türkiye'de) kopyalar; kurulumu ve felaket durumunda geri
   yükleme adımları [FELAKET-KURTARMA.md](FELAKET-KURTARMA.md) dosyasındadır. Sağlayıcının disk anlık görüntü
   (snapshot) özelliğini de açın.
-- Yedeklerde T.C. kimlik numaraları şifrelidir; ama adlar ve e-postalar açıktır. Yedek dosyalarına erişimi kısıtlayın.
+- Yedeklerde başvurulardaki T.C. kimlik numaraları şifrelidir; ama adlar ve e-postalar açıktır. Yedek dosyalarına erişimi kısıtlayın.
 
 ### Yedekten geri yükleme
 

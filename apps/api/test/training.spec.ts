@@ -4,7 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { Database, DB } from '../src/db/db.module';
 import { trainingParticipants } from '../src/db/schema';
-import { isValidNationalId } from '../src/training/national-id';
+import { isValidNationalId } from '../src/common/national-id';
 import { normalizeMobile } from '../src/training/phone';
 import { SmsService } from '../src/auth/sms.service';
 import { createApp, createOrg, extractCode, lastMailTo, lastSmsTo, login, makePlatformAdmin, PASSWORD, portalLogin, registerAndLogin, mailCount, uniqueEmail, waitForMailTo } from './helpers';
@@ -83,29 +83,32 @@ describe('Uzaktan eğitim', () => {
     expect(normalizeMobile('0532 123 45')).toBeNull();
     const phoneOrg = await createOrg(app, await registerAndLogin(app), { name: 'Telefon Deneme A.Ş.' });
     const res = await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Boşluk', lastName: 'Deneme', phone: ' 0532 123 45 67 ' })
+      .send({ firstName: 'Boşluk', lastName: 'Deneme', phone: ' 0532 123 45 67 ' })
       .expect(201);
     expect(res.body.phone).toBe('05321234567');
     const bad = await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Hatalı', lastName: 'Telefon', phone: '0532 12' })
+      .send({ firstName: 'Hatalı', lastName: 'Telefon', phone: '0532 12' })
       .expect(400);
     expect(JSON.stringify(bad.body)).toContain('Cep telefonunu');
 
-    // Telefon portal kullanıcı adıdır: başka kişide kullanılamaz, aynı kişi başka kuruluşta aynı telefonla kayıtlı olabilir.
-    const tc = (await asAdmin(request(server).get(`/api/v1/admin/organizations/${phoneOrg}/employees`)).expect(200)).body.items[0].nationalId;
-    const taken = await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Başka', lastName: 'Kişi', phone: '05321234567' })
+    // Telefon portal kullanıcı adıdır: kuruluşta tek çalışanda olur; başka kuruluşta yalnız aynı ad soyadla kullanılabilir.
+    const inOrg = await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
+      .send({ firstName: 'Başka', lastName: 'Kişi', phone: '05321234567' })
+      .expect(409);
+    expect(inOrg.body.message).toContain('bu kuruluşta');
+    const secondOrg = await createOrg(app, await registerAndLogin(app), { name: 'Telefon Deneme 2 A.Ş.' });
+    const taken = await asAdmin(request(server).post(`/api/v1/admin/organizations/${secondOrg}/employees`))
+      .send({ firstName: 'Başka', lastName: 'Kişi', phone: '05321234567' })
       .expect(409);
     expect(taken.body.message).toContain('başka bir kişinin');
-    const secondOrg = await createOrg(app, await registerAndLogin(app), { name: 'Telefon Deneme 2 A.Ş.' });
     await asAdmin(request(server).post(`/api/v1/admin/organizations/${secondOrg}/employees`))
-      .send({ nationalId: tc, firstName: 'Boşluk', lastName: 'Deneme', phone: '05321234567' })
+      .send({ firstName: 'boşluk', lastName: 'DENEME', phone: '05321234567' })
       .expect(201);
 
     // SMS gönderilemezse portal anlaşılır bir hata döner (500 değil).
     const smsPhone = uniquePhone();
     await asAdmin(request(server).post(`/api/v1/admin/organizations/${phoneOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Sms', lastName: 'Hatası', phone: smsPhone })
+      .send({ firstName: 'Sms', lastName: 'Hatası', phone: smsPhone })
       .expect(201);
     const failing = jest.spyOn(app.get(SmsService), 'send').mockRejectedValueOnce(new Error('Verimor: 400'));
     const down = await request(server).post('/api/v1/training-portal/login/code').send({ phone: smsPhone }).expect(503);
@@ -113,62 +116,61 @@ describe('Uzaktan eğitim', () => {
     expect(down.body.message).toContain('SMS gönderilemedi');
   });
 
-  it('T.C. kimlik noyu veritabanında şifreli saklar, API düz metin döner', async () => {
-    const tc = nationalId();
-    const otherOrg = await createOrg(app, await registerAndLogin(app), { name: 'Şifreleme Deneme A.Ş.' });
-    const res = await asAdmin(request(server).post(`/api/v1/admin/organizations/${otherOrg}/employees`))
-      .send({ nationalId: tc, firstName: 'Gizli', lastName: 'Kişi' })
-      .expect(201);
-    expect(res.body.nationalId).toBe(tc);
-    const { rows } = await db.execute<{ national_id: string; national_id_hash: string }>(
-      sql`select national_id, national_id_hash from employees where id = ${res.body.id}`,
+  it('çalışan ve eğitimcide T.C. kimlik no tutulmaz', async () => {
+    const { rows } = await db.execute<{ table_name: string }>(
+      sql`select table_name from information_schema.columns where column_name like 'national_id%' and table_name in ('employees', 'trainers')`,
     );
-    expect(rows[0].national_id).toMatch(/^enc:v1:/);
-    expect(rows[0].national_id).not.toContain(tc);
-    expect(rows[0].national_id_hash).toHaveLength(64);
-    const list = await asAdmin(request(server).get(`/api/v1/admin/organizations/${otherOrg}/employees`)).expect(200);
-    expect(list.body.items[0].nationalId).toBe(tc);
+    expect(rows).toEqual([]);
+    const otherOrg = await createOrg(app, await registerAndLogin(app), { name: 'TC Yok A.Ş.' });
+    const res = await asAdmin(request(server).post(`/api/v1/admin/organizations/${otherOrg}/employees`))
+      .send({ nationalId: '10000000146', firstName: 'Gizli', lastName: 'Kişi' })
+      .expect(201);
+    expect(res.body.nationalId).toBeUndefined();
   });
 
   it('çalışanları ekler, Excel ile içe aktarır ve hatalı dosyada hiçbir kaydı değiştirmez', async () => {
-    const tc = nationalId();
+    const phone = uniquePhone();
+    const email = uniqueEmail('mehmet');
     await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-      .send({ nationalId: tc, firstName: 'Ayşe', lastName: 'Yılmaz', email: uniqueEmail('ayse') })
+      .send({ firstName: 'Ayşe', lastName: 'Yılmaz', phone, email: uniqueEmail('ayse') })
       .expect(201);
     await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-      .send({ nationalId: tc, firstName: 'Başka', lastName: 'Kişi' })
-      .expect(409);
-    await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-      .send({ nationalId: '12345678901', firstName: 'X', lastName: 'Y' })
-      .expect(400);
+      .send({ firstName: 'Mehmet', lastName: 'Öz', email })
+      .expect(201);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Çalışanlar');
-    sheet.addRow(['T.C. Kimlik No', 'Adı', 'Soyadı', 'İşe Giriş Tarihi', 'E-posta']);
-    sheet.addRow([tc, 'Ayşe', 'Yılmaz-Kaya', '15.03.2020', '']);
-    sheet.addRow([nationalId(), 'Mehmet', 'Öz', new Date(Date.UTC(2021, 0, 4)), uniqueEmail('mehmet')]);
+    sheet.addRow(['Adı', 'Soyadı', 'İşe Giriş Tarihi', 'Cep Telefonu', 'E-posta']);
+    // Telefondan eşleşir (soyadı güncellenir), e-postadan eşleşir (işe giriş tarihi girilir), yeni çalışan eklenir.
+    sheet.addRow(['Ayşe', 'Yılmaz-Kaya', '15.03.2020', phone, '']);
+    sheet.addRow(['Mehmet', 'Öz', new Date(Date.UTC(2021, 0, 4)), '', email.toUpperCase()]);
+    sheet.addRow(['Elif', 'Yeni', '', uniquePhone(), '']);
     const good = Buffer.from(await workbook.xlsx.writeBuffer());
-    sheet.addRow(['123', 'Hatalı', 'Satır']);
+    sheet.addRow(['Hatalı', 'Satır', '', '0532 12']);
+    sheet.addRow(['Aynı', 'Telefon', '', phone]);
     const bad = Buffer.from(await workbook.xlsx.writeBuffer());
 
     const rejected = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees/import`))
       .attach('file', bad, 'calisanlar.xlsx')
       .expect(400);
-    expect(rejected.body.errors).toEqual([expect.objectContaining({ row: 4, column: 'T.C. Kimlik No' })]);
+    expect(rejected.body.errors).toEqual([
+      expect.objectContaining({ row: 5, column: 'Cep Telefonu' }),
+      expect.objectContaining({ row: 6, column: 'Cep Telefonu', message: expect.stringContaining('2. satırda') }),
+    ]);
 
     const imported = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees/import`))
       .attach('file', good, 'calisanlar.xlsx')
       .expect(200);
-    expect(imported.body).toMatchObject({ created: 1, updated: 1 });
+    expect(imported.body).toMatchObject({ created: 1, updated: 2 });
     const list = await asAdmin(request(server).get(`/api/v1/admin/organizations/${orgId}/employees`)).expect(200);
-    expect(list.body.items.map((e: any) => e.lastName)).toEqual(['Yılmaz-Kaya', 'Öz']);
+    expect(list.body.items.map((e: any) => e.lastName)).toEqual(['Yılmaz-Kaya', 'Yeni', 'Öz']);
     expect(list.body.items.find((e: any) => e.firstName === 'Mehmet').hireDate).toBe('2021-01-04');
   });
 
   it('eğitimci ekler; eğitimci eğitim bölümüne girer ama eğitimci ekleyemez ve kuruluşları yönetemez', async () => {
     const email = uniqueEmail('egitimci');
     const created = await asAdmin(request(server).post('/api/v1/training-admin/trainers'))
-      .send({ nationalId: nationalId(), firstName: 'Zeynep', lastName: 'Şahin', email })
+      .send({ firstName: 'Zeynep', lastName: 'Şahin', email })
       .expect(201);
     expect(created.body).toMatchObject({ email, isActive: true });
 
@@ -181,7 +183,7 @@ describe('Uzaktan eğitim', () => {
     expect(me.body).toMatchObject({ isTrainer: true, isPlatformAdmin: false });
     await auth(request(server).get('/api/v1/training-admin/trainings')).expect(200);
     await auth(request(server).post('/api/v1/training-admin/trainers'))
-      .send({ nationalId: nationalId(), firstName: 'A', lastName: 'B', email: uniqueEmail() })
+      .send({ firstName: 'A', lastName: 'B', email: uniqueEmail() })
       .expect(403);
     await auth(request(server).get('/api/v1/admin/organizations')).expect(403);
 
@@ -210,7 +212,7 @@ describe('Uzaktan eğitim', () => {
   it('platform yöneticisi eğitmene görev atar; eğitmen görevini ve bildirimini görür, tamamlar', async () => {
     const email = uniqueEmail('egitimci-gorev');
     const created = await asAdmin(request(server).post('/api/v1/training-admin/trainers'))
-      .send({ nationalId: nationalId(), firstName: 'Ayşe', lastName: 'Kurt', email })
+      .send({ firstName: 'Ayşe', lastName: 'Kurt', email })
       .expect(201);
     const code = extractCode(lastMailTo(app, email).text);
     await request(server).post('/api/v1/auth/password-reset/confirm').send({ token: code, password: PASSWORD }).expect(204);
@@ -317,18 +319,18 @@ describe('Uzaktan eğitim', () => {
       employeeEmail = uniqueEmail('katilimci');
       employeePhone = uniquePhone();
       const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-        .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Ürün', email: employeeEmail, phone: employeePhone })
+        .send({ firstName: 'Can', lastName: 'Ürün', email: employeeEmail, phone: employeePhone })
         .expect(201);
       const noPhone = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-        .send({ nationalId: nationalId(), firstName: 'Telefonsuz', lastName: 'Çalışan', email: uniqueEmail('telefonsuz') })
+        .send({ firstName: 'Telefonsuz', lastName: 'Çalışan', email: uniqueEmail('telefonsuz') })
         .expect(201);
       const noEmail = await asAdmin(request(server).post(`/api/v1/admin/organizations/${orgId}/employees`))
-        .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan', phone: uniquePhone() })
+        .send({ firstName: 'E-postasız', lastName: 'Çalışan', phone: uniquePhone() })
         .expect(201);
 
       // Eğitimci grupta seçilir (zorunlu); sertifikada grubun eğitimcisi yazar.
       const groupTrainer = await asAdmin(request(server).post('/api/v1/training-admin/trainers'))
-        .send({ nationalId: nationalId(), firstName: 'Grup', lastName: 'Eğitimcisi', email: uniqueEmail('grup-egitimci'), title: 'KVKK Danışmanı' })
+        .send({ firstName: 'Grup', lastName: 'Eğitimcisi', email: uniqueEmail('grup-egitimci'), title: 'KVKK Danışmanı' })
         .expect(201);
       expect(groupTrainer.body).toMatchObject({ title: 'KVKK Danışmanı', hasSignature: false });
       // Sertifikadaki imza: yalnızca PDF'e eklenebilen PNG/JPEG kabul edilir.
@@ -507,10 +509,10 @@ describe('Uzaktan eğitim', () => {
     const email = uniqueEmail('calisan');
     const phone = uniquePhone();
     const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Er', email, phone })
+      .send({ firstName: 'Can', lastName: 'Er', email, phone })
       .expect(201);
     const noEmail = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'E-postasız', lastName: 'Çalışan' })
+      .send({ firstName: 'E-postasız', lastName: 'Çalışan' })
       .expect(201);
     const access = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`))
       .send({ employeeIds: [emp.body.id, noEmail.body.id] })
@@ -572,10 +574,10 @@ describe('Uzaktan eğitim', () => {
     const email = uniqueEmail('okuyan');
     const phone = uniquePhone();
     const emp = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Can', lastName: 'Okur', email, phone })
+      .send({ firstName: 'Can', lastName: 'Okur', email, phone })
       .expect(201);
     const other = await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees`))
-      .send({ nationalId: nationalId(), firstName: 'Ece', lastName: 'Henüz', email: uniqueEmail('okumayan'), phone: uniquePhone() })
+      .send({ firstName: 'Ece', lastName: 'Henüz', email: uniqueEmail('okumayan'), phone: uniquePhone() })
       .expect(201);
     await asAdmin(request(server).post(`/api/v1/admin/organizations/${docOrg}/employees/portal-access`))
       .send({ employeeIds: [emp.body.id] })

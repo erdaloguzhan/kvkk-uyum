@@ -7,7 +7,7 @@ olan noktalar ve nedenleri:
 | --- | --- | --- |
 | Ön test ve son test için ayrı soru, sınav ve sonuç tabloları (8 tablo) | `training_questions`, `training_exam_attempts`, `training_exam_answers` tablolarında `test_type` = `pre` / `post` | Aynı yapı iki kez tekrarlanmıyor; iki test aynı kodla çalışıyor. |
 | Ayrı "Sınavlar" tablosu (sınav ID + soru ID) | Yok: bir eğitimin bir test türündeki soruları o testin sınavıdır | Sınav ID'nin taşıdığı bilgi zaten eğitim + test türü. Puan toplamı 100 kuralı korunuyor. |
-| Kayıtlar T.C. kimlik no ile birbirine bağlı | Kayıtlar iç kimliklerle (uuid) bağlı; T.C. no çalışan ve eğitimci kaydında | Aynı kişi birden çok kuruluşta çalışan olabilir; T.C. no düzeltilirse geçmiş kayıtlar kopmaz. |
+| Kayıtlar T.C. kimlik no ile birbirine bağlı | Kayıtlar iç kimliklerle (uuid) bağlı; çalışan ve eğitimcide T.C. kimlik no **tutulmaz** (veri minimizasyonu, Erdal 14.11.2026; 0029 migration'ı mevcut numaraları sildi) | Eğitim için gerekli değil; çalışan kuruluş içinde cep telefonuyla, Excel içe aktarmada telefon (yoksa e-posta) ile eşleştirilir. |
 | Çalışan tablosunda şifre | Şifre yok: Eğitim Portalına cep telefonu + SMS kodu ile girilir (`portal_login_codes`; Erdal, 26.10.2026). Eski `training_accounts` tablosu 0018 migration'ında kaldırıldı | Çalışanın şifre hatırlaması gerekmez; birden çok kuruluşta kayıtlı kişi aynı telefonla tüm eğitimlerini ve dokümanlarını görür. |
 | Eğitimcide e-posta ve şifre | Eğitimci `users` tablosundaki hesabıyla girer (doğrulama kodu dahil) | Eğitimci yönetim paneline giriyor; ayrı bir giriş sistemi gerekmiyor. |
 | Alt konuda okuma süresi alanı yok | `training_topics.min_read_seconds` | Dokümandaki "süre dolmadan geçilemez" kuralı için gerekli. |
@@ -30,8 +30,8 @@ olan noktalar ve nedenleri:
   belirtilmediği için seçilen varsayılan.)*
 - Eğitim Portalına şifresiz girilir: çalışan cep telefonunu yazar, telefonuna 5 dakika geçerli 6 haneli SMS kodu gelir
   (5 deneme; bir telefona 10 dakikada en fazla 3, günde 10 kod; CAPTCHA). Telefon `05XXXXXXXXX` biçiminde saklanır
-  (boşluklu, tireli, +90'lı yazımlar çevrilir) ve yalnızca bir kişiye (T.C. kimlik no) ait olabilir; aynı kişi başka kuruluşta
-  aynı telefonla kayıtlı olabilir. Kod ekranında kişinin adı gösterilmez (telefonun kime ait olduğu anlaşılmasın).
+  (boşluklu, tireli, +90'lı yazımlar çevrilir) ve yalnızca bir kişiye ait olabilir: kuruluş içinde tek çalışanda bulunur; başka kuruluşta
+  ancak aynı ad soyadla (aynı kişi) kayıtlı olabilir. Kod ekranında kişinin adı gösterilmez (telefonun kime ait olduğu anlaşılmasın).
 - Eğitim başlatılınca ve platform yöneticisi portal erişimi gönderince çalışana Eğitim Portalı adresini içeren SMS gider; e-postası
   varsa ayrıca e-posta gider. SMS başlığı `SMS_HEADER` (canlıda `Bi ARTI`).
 - Eğitim ve portal erişimi cep telefonu olmayan çalışana gönderilemez; gönderimde atlanır ve bildirilir.

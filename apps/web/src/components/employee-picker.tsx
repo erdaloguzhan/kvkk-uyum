@@ -22,7 +22,7 @@ export function EmployeePicker({
     (e) =>
       !exclude.includes(e.id) &&
       (!hideLeft || !e.terminationDate) &&
-      `${e.firstName} ${e.lastName} ${e.nationalId}`.toLocaleLowerCase('tr').includes(q.toLocaleLowerCase('tr')),
+      `${e.firstName} ${e.lastName} ${e.phone ?? ''} ${e.email ?? ''}`.toLocaleLowerCase('tr').includes(q.toLocaleLowerCase('tr')),
   );
   const allSelected = visible.length > 0 && visible.every((e) => selected.includes(e.id));
   const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -32,7 +32,7 @@ export function EmployeePicker({
   return (
     <div className="field">
       <div className="toolbar" style={{ marginBottom: 6 }}>
-        <input type="search" placeholder="Ad veya T.C. no ara" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" placeholder="Ad, telefon veya e-posta ara" value={q} onChange={(e) => setQ(e.target.value)} />
         <label className="checkbox">
           <input type="checkbox" checked={hideLeft} onChange={(e) => setHideLeft(e.target.checked)} />
           İşten ayrılanları gizle
@@ -51,7 +51,7 @@ export function EmployeePicker({
               <label key={e.id} className="checkbox">
                 <input type="checkbox" checked={selected.includes(e.id)} onChange={() => toggle(e.id)} />
                 <span>
-                  {e.firstName} {e.lastName} <span className="muted small">· {e.nationalId}</span>{' '}
+                  {e.firstName} {e.lastName} {e.phone && <span className="muted small">· {e.phone}</span>}{' '}
                   {!e.phone && <Badge kind="warning">Cep telefonu yok</Badge>}
                 </span>
               </label>

@@ -112,7 +112,6 @@ export default function TrainersPage() {
               fileName="Eğitimciler"
               rows={items}
               columns={[
-                { label: 'T.C. Kimlik No', value: (t) => t.nationalId },
                 { label: 'Adı', value: (t) => t.firstName },
                 { label: 'Soyadı', value: (t) => t.lastName },
                 { label: 'İşe Giriş Tarihi', value: (t) => (t.hireDate ? formatDay(t.hireDate) : null) },
@@ -140,7 +139,6 @@ export default function TrainersPage() {
             <table>
               <thead>
                 <tr>
-                  <th>T.C. Kimlik No</th>
                   <th>Adı Soyadı</th>
                   <th>Ünvan</th>
                   <th>İmza</th>
@@ -155,7 +153,6 @@ export default function TrainersPage() {
               <tbody>
                 {items.map((t) => (
                   <tr key={t.id}>
-                    <td className="nowrap">{t.nationalId}</td>
                     <td>
                       {t.firstName} {t.lastName}
                     </td>
