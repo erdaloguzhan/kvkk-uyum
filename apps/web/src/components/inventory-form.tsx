@@ -52,17 +52,21 @@ const EMPTY: InventoryValues = {
 };
 
 /**
- * Adım adım giriş; alanlar Erdal'ın "veri envanteri seçenekleri" Word dosyasındaki sırayla (14.11.2026).
+ * Adım adım giriş, her seçim ayrı sekmede ve listeler kaydırmasız tam boy (Erdal, 14.11.2026); alanlar Erdal'ın "veri envanteri seçenekleri" Word dosyasındaki sırayla (14.11.2026).
  * Fiziksel/Dijital ve Bulunduğu yer girişten kaldırıldı (Erdal, 14.11.2026); eski satırlardaki değerleri korunur.
  */
 const STEPS: { title: string; fields: InventoryField[] }[] = [
   { title: '1. Süreç', fields: ['department', 'activity'] },
   { title: '2. Veri kategorisi', fields: ['dataCategory', 'personalData'] },
-  { title: '3. Amaç ve kişi grupları', fields: ['purposes', 'dataSubjectGroups'] },
-  { title: '4. Alıcılar ve hukuki sebep', fields: ['recipients', 'legalBases'] },
-  { title: '5. Saklama süresi', fields: ['retentionPeriod'] },
-  { title: '6. Yurt dışı ve mevzuat', fields: ['foreignTransfers', 'relatedLegislation'] },
-  { title: '7. Güvenlik tedbirleri', fields: ['administrativeMeasures', 'technicalMeasures'] },
+  { title: '3. İşleme amacı', fields: ['purposes'] },
+  { title: '4. Kişi grupları', fields: ['dataSubjectGroups'] },
+  { title: '5. Alıcı grupları', fields: ['recipients'] },
+  { title: '6. Hukuki sebep', fields: ['legalBases'] },
+  { title: '7. Saklama süresi', fields: ['retentionPeriod'] },
+  { title: '8. Yurt dışı aktarım', fields: ['foreignTransfers'] },
+  { title: '9. İlgili mevzuat', fields: ['relatedLegislation'] },
+  { title: '10. İdari tedbirler', fields: ['administrativeMeasures'] },
+  { title: '11. Teknik tedbirler', fields: ['technicalMeasures'] },
 ];
 
 const PLACEHOLDERS: Partial<Record<InventoryField, string>> = {
@@ -270,7 +274,7 @@ export function InventoryForm({
               </span>
             ))}
           </div>
-          <div className="multi-options" style={{ maxHeight: 420 }}>
+          <div className="multi-options">
             {groups.map((g) => (
               <div key={g.title}>
                 <div className="small muted" style={{ fontWeight: 600, margin: '6px 0 2px' }}>
