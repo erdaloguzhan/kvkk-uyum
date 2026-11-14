@@ -326,17 +326,18 @@ export function InventoryForm({
   );
 
   const renderForeign = () => {
-    const names = categories.map((c) => c.name).join(', ') || 'seçilen veri kategorisi';
+    // Seçilen kategori adları cümlenin önünde görünür; henüz kategori seçilmediyse yalnızca cümle görünür.
+    const names = categories.map((c) => c.name).join(', ');
     const choices: { mode: ForeignMode; label: string }[] = [
       { mode: 'none', label: NO_FOREIGN_TRANSFER },
-      { mode: 'yes', label: `${names}: ${FOREIGN_TRANSFER}` },
+      { mode: 'yes', label: names ? `${names}: ${FOREIGN_TRANSFER}` : FOREIGN_TRANSFER },
       ...(foreign.mode === 'other' ? [{ mode: 'other' as const, label: 'Açıklama (önceki kayıt)' }] : []),
     ];
     return (
       <div className="field" key="foreignTransfers">
         <span className="field-label">Yabancı ülkelere aktarılacak bilgiler</span>
         {choices.map((c) => (
-          <label className="checkbox" key={c.mode}>
+          <label className="checkbox" key={c.mode} style={c.mode === 'none' ? { marginBottom: '1.2em' } : undefined}>
             <input
               type="radio"
               name={`${listId}-foreign`}

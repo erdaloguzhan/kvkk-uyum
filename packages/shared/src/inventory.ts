@@ -274,7 +274,7 @@ export const INVENTORY_TEMPLATE_OPTIONS: Partial<Record<InventoryTextField | Inv
  * Veri envanteri giriş sayfasındaki sabit seçenekler (Erdal'ın "veri envanteri seçenekleri" Word dosyası, 14.11.2026).
  * Bu cümleler envanter satırına aynen yazılır; Excel dışa aktarımında da aynen görünür.
  */
-export const NO_RECIPIENTS = 'Bu departman, süreç ve kategorideki alıcı gruplarından hiç birine veri aktarılmamaktadır.';
+export const NO_RECIPIENTS = 'Bu departman, süreç ve kategoride alıcı gruplarından hiç birine veri aktarılmamaktadır.';
 export const NO_FOREIGN_TRANSFER = 'Bu departman, süreç ve veri kategorisinde yurtdışına veri aktarılmamaktadır.';
 export const FOREIGN_TRANSFER = 'Bu departman, süreç ve veri kategoride yurtdışına veri aktarılmaktadır.';
 

@@ -73,7 +73,13 @@ export function MultiSelect({
         {shown.map((o, i) => {
           const hint = describe?.(o);
           return (
-            <label className="checkbox" key={o} htmlFor={`${id}-${i}`}>
+            <label
+              className="checkbox"
+              key={o}
+              htmlFor={`${id}-${i}`}
+              // Tek başına seçilen seçenek ile diğerleri arasında bir satır boşluk (Erdal, 14.11.2026).
+              style={o === exclusive ? { marginBottom: '1.2em' } : undefined}
+            >
               <input id={`${id}-${i}`} type="checkbox" checked={value.includes(o)} onChange={() => toggle(o)} />
               <span>
                 {o}
