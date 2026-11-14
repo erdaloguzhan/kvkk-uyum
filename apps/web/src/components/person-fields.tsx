@@ -4,7 +4,6 @@ import { Field } from './ui';
 
 /** Çalışan ve eğitimci formlarında ortak kişi alanları. */
 export interface PersonForm {
-  nationalId: string;
   firstName: string;
   lastName: string;
   hireDate: string;
@@ -13,7 +12,7 @@ export interface PersonForm {
   email: string;
 }
 
-export const emptyPerson: PersonForm = { nationalId: '', firstName: '', lastName: '', hireDate: '', terminationDate: '', phone: '', email: '' };
+export const emptyPerson: PersonForm = { firstName: '', lastName: '', hireDate: '', terminationDate: '', phone: '', email: '' };
 
 export function toPersonForm(p: Partial<Record<keyof PersonForm, string | null>>): PersonForm {
   return Object.fromEntries(Object.keys(emptyPerson).map((k) => [k, p[k as keyof PersonForm] ?? ''])) as unknown as PersonForm;
@@ -37,9 +36,6 @@ export function PersonFields({
   const set = (k: keyof PersonForm) => (e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...value, [k]: e.target.value });
   return (
     <>
-      <Field label="T.C. Kimlik No" required htmlFor="p-tc">
-        <input id="p-tc" inputMode="numeric" maxLength={11} value={value.nationalId} onChange={set('nationalId')} required />
-      </Field>
       <div className="form-row">
         <Field label="Adı" required htmlFor="p-ad">
           <input id="p-ad" value={value.firstName} onChange={set('firstName')} required />

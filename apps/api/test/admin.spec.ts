@@ -244,7 +244,7 @@ describe('Yönetim paneli', () => {
     await request(server)
       .post(`/api/v1/admin/organizations/${orgId}/employees`)
       .set(auth(admin.accessToken))
-      .send({ nationalId: '10000000146', firstName: '=Ayşe', lastName: 'Yılmaz', phone })
+      .send({ firstName: '=Ayşe', lastName: 'Yılmaz', phone })
       .expect(201);
     await request(server).get(`/api/v1/admin/organizations/${orgId}/export`).set(auth(owner.accessToken)).expect(403);
 
@@ -261,10 +261,10 @@ describe('Yönetim paneli', () => {
     await workbook.xlsx.load(zip.file('veriler.xlsx')!.asNodeBuffer() as any);
     const employeesSheet = workbook.getWorksheet('employees')!;
     const header = (employeesSheet.getRow(1).values as string[]).filter(Boolean);
-    expect(header).toContain('nationalId');
-    expect(header).not.toContain('nationalIdHash');
+    expect(header).toContain('phone');
+    expect(header).not.toContain('nationalId');
     const row = employeesSheet.getRow(2);
-    expect(row.getCell(header.indexOf('nationalId') + 1).value).toBe('10000000146');
+    expect(row.getCell(header.indexOf('phone') + 1).value).toBe(phone);
     // Formül gibi başlayan metin düz metin olarak yazılır.
     expect(row.getCell(header.indexOf('firstName') + 1).value).toBe("'=Ayşe");
     const usersHeader = (workbook.getWorksheet('users')!.getRow(1).values as string[]).filter(Boolean);
@@ -285,7 +285,7 @@ describe('Yönetim paneli', () => {
     await request(server)
       .post(`/api/v1/admin/organizations/${orgId}/employees`)
       .set(auth(admin.accessToken))
-      .send({ nationalId: '10000000146', firstName: 'Ayşe', lastName: 'Yılmaz', phone })
+      .send({ firstName: 'Ayşe', lastName: 'Yılmaz', phone })
       .expect(201);
     await db.insert(portalLoginCodes).values({ phone, codeHash: 'x', expiresAt: new Date(Date.now() + 60_000) });
     await db.insert(auditLogs).values({ organizationId: orgId, userId: owner.user.id, action: 'test.action' });

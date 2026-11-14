@@ -6,7 +6,6 @@ export const MAX_EMPLOYEE_IMPORT_ROWS = 5000;
 
 /** Çalışan Excel dosyasının sütunları (içe aktarma şablonu ve dışa aktarma aynı başlıkları kullanır). */
 export const EMPLOYEE_COLUMNS: { field: keyof EmployeeInput; label: string; aliases?: string[] }[] = [
-  { field: 'nationalId', label: 'T.C. Kimlik No', aliases: ['tc kimlik no', 'tc', 't.c.', 'tckn', 'kimlik no'] },
   { field: 'firstName', label: 'Adı', aliases: ['ad'] },
   { field: 'lastName', label: 'Soyadı', aliases: ['soyad'] },
   { field: 'hireDate', label: 'İşe Giriş Tarihi', aliases: ['işe giriş'] },
@@ -43,7 +42,7 @@ function dateValue(cell: ExcelJS.Cell): string {
 
 function textValue(cell: ExcelJS.Cell): string {
   const v = cell.value;
-  // Hücre sayı biçimindeyse T.C. no ve telefon bilimsel gösterime dönmesin.
+  // Hücre sayı biçimindeyse telefon bilimsel gösterime dönmesin.
   if (typeof v === 'number') return String(Math.trunc(v));
   if (v && typeof v === 'object' && 'hyperlink' in v && 'text' in v) {
     return String((v as { text: unknown }).text ?? '').replace(/^mailto:/i, '').trim();
@@ -77,7 +76,7 @@ export async function parseEmployeesXlsx(file: Buffer): Promise<{ rows: { row: n
     }
   }
   const fields = new Set([...columns.values()].map((c) => c.field));
-  const missing = EMPLOYEE_COLUMNS.filter((c) => ['nationalId', 'firstName', 'lastName'].includes(c.field) && !fields.has(c.field));
+  const missing = EMPLOYEE_COLUMNS.filter((c) => ['firstName', 'lastName'].includes(c.field) && !fields.has(c.field));
   if (missing.length) {
     throw new EmployeeImportFileError(`Başlık satırında ${missing.map((c) => `"${c.label}"`).join(', ')} sütunları bulunamadı`);
   }
@@ -110,12 +109,13 @@ export async function parseEmployeesXlsx(file: Buffer): Promise<{ rows: { row: n
       }
       continue;
     }
-    const dup = seen.get(parsed.data.nationalId);
+    const phone = parsed.data.phone;
+    const dup = phone ? seen.get(phone) : undefined;
     if (dup) {
-      errors.push({ row: r, column: 'T.C. Kimlik No', message: `Bu T.C. kimlik no ${dup}. satırda da var` });
+      errors.push({ row: r, column: 'Cep Telefonu', message: `Bu cep telefonu ${dup}. satırda da var` });
       continue;
     }
-    seen.set(parsed.data.nationalId, r);
+    if (phone) seen.set(phone, r);
     rows.push({ row: r, data: parsed.data });
   }
   return { rows, errors };
@@ -127,8 +127,8 @@ export async function employeesTemplateXlsx(): Promise<Buffer> {
   const sheet = workbook.addWorksheet('Çalışanlar');
   sheet.columns = EMPLOYEE_COLUMNS.map((c) => ({ header: c.label, key: c.field, width: c.field === 'email' ? 32 : 20 }));
   sheet.getRow(1).font = { bold: true };
-  // T.C. no ve telefon metin olarak girilsin (baştaki 0 ve uzun sayılar bozulmasın).
-  for (const key of ['nationalId', 'phone']) sheet.getColumn(key).numFmt = '@';
+  // Telefon metin olarak girilsin (baştaki 0 bozulmasın).
+  sheet.getColumn('phone').numFmt = '@';
   sheet.getColumn('hireDate').numFmt = 'dd.mm.yyyy';
   sheet.getColumn('terminationDate').numFmt = 'dd.mm.yyyy';
   return Buffer.from(await workbook.xlsx.writeBuffer());

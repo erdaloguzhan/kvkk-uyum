@@ -33,7 +33,7 @@ export default function AdminOrganizationPage() {
   const org = orgs.data?.items.find((o) => o.id === id);
   if ((list.loading && !list.data) || (orgs.loading && !orgs.data)) return <Loading />;
   const items = (list.data?.items ?? []).filter((e) =>
-    `${e.firstName} ${e.lastName} ${e.nationalId} ${e.email ?? ''}`.toLocaleLowerCase('tr').includes(q.toLocaleLowerCase('tr')),
+    `${e.firstName} ${e.lastName} ${e.phone ?? ''} ${e.email ?? ''}`.toLocaleLowerCase('tr').includes(q.toLocaleLowerCase('tr')),
   );
 
   function open(e: Employee | 'new') {
@@ -178,7 +178,7 @@ export default function AdminOrganizationPage() {
         <Alert kind="info">
           <p>
             <strong>{importCheck.file.name}</strong>: {importCheck.created} yeni çalışan eklenecek, {importCheck.updated} çalışanın
-            bilgileri (T.C. kimlik no eşleşen) güncellenecek.
+            bilgileri (cep telefonu veya e-posta eşleşen) güncellenecek.
           </p>
           <div className="actions">
             <button className="btn btn-primary" disabled={busy} onClick={() => runImport(importCheck.file, false)}>
@@ -191,14 +191,13 @@ export default function AdminOrganizationPage() {
         </Alert>
       )}
       <div className="toolbar">
-        <input type="search" placeholder="Ad, T.C. no veya e-posta ara" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" placeholder="Ad, telefon veya e-posta ara" value={q} onChange={(e) => setQ(e.target.value)} />
         <span className="muted small">{items.length} çalışan</span>
         <span style={{ marginLeft: 'auto' }}>
           <ExportButton
             fileName={`${org?.name ?? 'Kuruluş'} - Çalışanlar`}
             rows={items}
             columns={[
-              { label: 'T.C. Kimlik No', value: (e) => e.nationalId },
               { label: 'Adı', value: (e) => e.firstName },
               { label: 'Soyadı', value: (e) => e.lastName },
               { label: 'İşe Giriş Tarihi', value: (e) => (e.hireDate ? formatDay(e.hireDate) : null) },
@@ -218,7 +217,6 @@ export default function AdminOrganizationPage() {
             <table>
               <thead>
                 <tr>
-                  <th>T.C. Kimlik No</th>
                   <th>Adı Soyadı</th>
                   <th>İşe giriş</th>
                   <th>İşten çıkış</th>
@@ -231,7 +229,6 @@ export default function AdminOrganizationPage() {
               <tbody>
                 {items.map((e) => (
                   <tr key={e.id}>
-                    <td className="nowrap">{e.nationalId}</td>
                     <td>
                       {e.firstName} {e.lastName}
                       {e.terminationDate && (

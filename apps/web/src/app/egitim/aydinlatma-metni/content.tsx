@@ -31,11 +31,6 @@ export function PortalContent() {
               <td>(c) iş sözleşmesinin ifası</td>
             </tr>
             <tr>
-              <td>T.C. kimlik numarası</td>
-              <td>Çalışan kaydının tekil olarak eşleştirilmesi</td>
-              <td>(ç) hukuki yükümlülük</td>
-            </tr>
-            <tr>
               <td>Eğitim katılımı, sınav sonuçları, sertifikalar, doküman okuma onayları</td>
               <td>Eğitim yükümlülüğünün yerine getirildiğinin ispatı</td>
               <td>(ç) hukuki yükümlülük, (f) meşru menfaat</td>

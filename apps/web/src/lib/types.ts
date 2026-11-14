@@ -325,7 +325,6 @@ export interface AdminTemplateDetail {
 export interface Employee {
   id: string;
   organizationId: string;
-  nationalId: string;
   firstName: string;
   lastName: string;
   hireDate: string | null;
@@ -339,7 +338,6 @@ export interface Trainer {
   id: string;
   /** Eğitmenin kullanıcı hesabı (görev atamada kullanılır). */
   userId: string;
-  nationalId: string;
   firstName: string;
   lastName: string;
   hireDate: string | null;
@@ -420,7 +418,6 @@ export interface TrainingResult {
   trainingName: string;
   passScore: number;
   employeeId: string;
-  nationalId: string;
   fullName: string;
   email: string | null;
   phone: string | null;
@@ -439,7 +436,6 @@ export interface TrainingGroupDetail extends TrainingGroup {
 
 export interface PickableEmployee {
   id: string;
-  nationalId: string;
   firstName: string;
   lastName: string;
   email: string | null;

@@ -150,7 +150,7 @@ panelinden açılır, kişiye şifre oluşturma bağlantısı gider. Kuruluşta 
 - **Belirteçler:** erişim belirteci (JWT) 15 dakika, dönen yenileme belirteci 30 gün (veritabanında özet). Şifre değişince veya
   sıfırlanınca `sessions_revoked_at` ile o andan önceki tüm oturumlar düşer. Belirteçler httpOnly, SameSite=Strict, Secure çerezlerde.
 - **Kuruluş ayrımı ve yetki:** her istek `X-Organization-Id` taşır; sunucu aktif üyeliği ve `modül.eylem` yetki anahtarını her istekte denetler.
-- **T.C. kimlik no:** veritabanında `DATA_ENCRYPTION_KEY` ile alan düzeyinde şifreli.
+- **T.C. kimlik no:** yalnızca ilgili kişi başvurularında tutulur (Başvuru Tebliği md.5), `DATA_ENCRYPTION_KEY` ile alan düzeyinde şifreli. Çalışan ve eğitimcide tutulmaz.
 - **İşlem kayıtları:** giriş olayları, veri değiştiren her istek ve dosya indirmeleri kim, ne zaman, IP ve tarayıcıyla `audit_logs`'a yazılır;
   istek gövdesi yazılmaz.
 - **Dosyalar:** tür ilk baytlardan kontrol edilir; `.xlsx`/`.docx` yüklemelerinde ZIP bombası denetimi (100 MB).

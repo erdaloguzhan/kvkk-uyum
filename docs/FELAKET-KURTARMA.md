@@ -19,7 +19,7 @@ Bu plan, canlı sunucu kısmen veya tamamen kaybolduğunda sistemin nasıl geri 
 | `offsite.env` (`OFFSITE_PASSPHRASE`, hedefin erişim bilgileri) | Canlı sunucu + **şifre yöneticisi** | Yalnızca sistem yöneticisi |
 | Uygulama kodu ve doküman şablonları | GitHub (`erdaloguzhan/kvkk-uyum`) | Depoya erişimi olanlar |
 
-`DATA_ENCRYPTION_KEY` veya `OFFSITE_PASSPHRASE` kaybolursa yedekler işe yaramaz: ilkinde T.C. kimlik numaraları, ikincisinde yedeğin tamamı açılamaz. İkisini de şifre yöneticisinde, sunucudan bağımsız saklayın ve en az iki kişinin erişebildiğinden emin olun.
+`DATA_ENCRYPTION_KEY` veya `OFFSITE_PASSPHRASE` kaybolursa yedekler işe yaramaz: ilkinde başvurulardaki T.C. kimlik numaraları, ikincisinde yedeğin tamamı açılamaz. İkisini de şifre yöneticisinde, sunucudan bağımsız saklayın ve en az iki kişinin erişebildiğinden emin olun.
 
 ## Sunucu dışı yedeğin kurulması
 
@@ -91,7 +91,7 @@ Tahmini süre 1-2 saat.
    docker compose -f docker-compose.prod.yml -f docker-compose.offsite.yml up -d --build
    ```
 5. Alan adının DNS A kaydını yeni sunucunun IP adresine çevirin (yayılması birkaç dakika ile birkaç saat sürebilir). Caddy sertifikayı kendisi alır.
-6. Kontrol: bir müşteri hesabıyla girip dokümanların, envanterin ve bir çalışanın T.C. kimlik numarasının göründüğünü doğrulayın; UptimeRobot'un yeşile döndüğünü görün.
+6. Kontrol: bir müşteri hesabıyla girip dokümanların, envanterin ve bir ilgili kişi başvurusunun T.C. kimlik numarasının göründüğünü doğrulayın; UptimeRobot'un yeşile döndüğünü görün.
 7. Müşterilere kesintinin süresini ve kaybolan veri aralığını (son yedekten bu yana) yazılı bildirin.
 
 ## Aylık geri yükleme denemesi

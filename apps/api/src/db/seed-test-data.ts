@@ -214,7 +214,6 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
   const employeeIds: string[] = [];
   for (const [i, [firstName, lastName, email, terminationDate]] of people.entries()) {
     const e = await employees.create(admin.id, orgA, {
-      nationalId: nationalId(`1000000${String(i + 10).padStart(2, '0')}`),
       firstName,
       lastName,
       hireDate: day(-365 - i * 30),
@@ -226,7 +225,6 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
   }
   for (const [i, [firstName, lastName]] of [['Okan', 'Tekin'], ['Seda', 'Koç']].entries()) {
     await employees.create(admin.id, orgB, {
-      nationalId: nationalId(`2000000${String(i + 10).padStart(2, '0')}`),
       firstName,
       lastName,
       hireDate: day(-100),
@@ -238,7 +236,6 @@ async function seed(db: Database, app: Awaited<ReturnType<typeof NestFactory.cre
 
   // Eğitimci ve yayında bir eğitim; A'nın ilk 4 çalışanına gönderildi.
   const trainer = await trainers.create(admin.id, {
-    nationalId: nationalId('300000010'),
     firstName: 'Ece',
     lastName: 'Eğitimci',
     hireDate: null,

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { isValidNationalId } from './national-id';
 import { normalizeMobile } from './phone';
 
 const optionalText = (max: number) =>
@@ -37,14 +36,8 @@ export const mobileLogin = z
     return phone ?? '';
   });
 
-export const nationalId = z
-  .string()
-  .trim()
-  .refine(isValidNationalId, 'Geçerli bir T.C. kimlik no girin (11 hane)');
-
 /** Çalışan ve eğitimcide ortak kişi bilgileri. */
 export const personFields = {
-  nationalId,
   firstName: z.string().trim().min(1, 'Adı girin').max(100),
   lastName: z.string().trim().min(1, 'Soyadı girin').max(100),
   hireDate: optionalDate,
