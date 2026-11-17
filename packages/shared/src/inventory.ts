@@ -310,3 +310,46 @@ export function formatRetention(p: RetentionParts): string {
 
 /** TBL-010 dosyasının content/ klasörüne göre yolu (Excel dışa aktarımında şablon olarak kullanılır). */
 export const INVENTORY_TEMPLATE_FILE = 'tablolar/TBL-010 Kişisel Veri Envanteri Tablosu.xlsx';
+
+/**
+ * Envanter hiyerarşisi (Erdal, 17.11.2026): Departman 1→N Faaliyet, (Departman, Faaliyet) 1→N Veri kategorisi,
+ * (Departman, Faaliyet, Veri kategorisi) 1→N Kişisel veri / Özel nitelikli kişisel veri; diğer tüm sütunlar bu
+ * üçlünün tek satırında 1→1 tutulur. Bu yüzden aynı departman + faaliyet + kategori yalnızca bir satır olabilir.
+ *
+ * Adlar karşılaştırılırken boşluklar ve büyük/küçük harf farkı yok sayılır. Türkçe I/ı ve İ/i harfleri büyük harfle
+ * yazılınca karışabildiği için ("DOSYASI" = "Dosyası") dördü de "i" sayılır; veritabanındaki tekil indeks de aynı
+ * kuralı kullanır: lower(translate(ad, 'İIı', 'iii')).
+ */
+export function inventoryNameKey(value: string | null | undefined): string {
+  return (value ?? '').trim().replace(/\s+/g, ' ').replace(/[İIı]/g, 'i').toLowerCase();
+}
+
+/** Departman + faaliyet + veri kategorisi anahtarı: envanterde her anahtar en fazla bir satırdır. */
+export function inventoryRowKey(row: { department: string; activity: string; dataCategory: string }): string {
+  return [row.department, row.activity, row.dataCategory].map(inventoryNameKey).join('\u0000');
+}
+
+/** Ad alanlarındaki baştaki/sondaki ve art arda boşluklar tek boşluğa indirilir. */
+export function cleanInventoryName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Bir kategorideki kişisel verilerde (virgül veya satır sonuyla ayrılmış) tekrar eden veriyi bir kez bırakır.
+ * Tekrar yoksa metin kullanıcının yazdığı gibi kalır.
+ */
+export function dedupeDataItems(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return value ?? null;
+  const items = value
+    .split(/[,\n]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const unique = items.filter((s) => {
+    const k = inventoryNameKey(s);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return unique.length === items.length ? value : unique.join(', ');
+}

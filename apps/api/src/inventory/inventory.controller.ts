@@ -197,12 +197,6 @@ export class InventoryController {
     return this.inventory.update(org.id, user.id, id, body);
   }
 
-  @Post(':id/duplicate')
-  @RequirePermissions(PERMISSIONS.INVENTORY_WRITE)
-  duplicate(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
-    return this.inventory.duplicate(org.id, user.id, id);
-  }
-
   @Delete(':id')
   @HttpCode(204)
   @RequirePermissions(PERMISSIONS.INVENTORY_WRITE)

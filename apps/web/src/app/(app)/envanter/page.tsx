@@ -107,11 +107,8 @@ export default function InventoryPage() {
   }
 
   const exportXlsx = () => act('export', () => download('inventory/export', 'TBL-010 Kişisel Veri Envanteri Tablosu.xlsx'));
-  const duplicate = (e: InventoryEntry) =>
-    act(e.id, async () => {
-      const copy = await api<InventoryEntry>(`inventory/${e.id}/duplicate`, { method: 'POST' });
-      router.push(`/envanter/${copy.id}`);
-    });
+  // Kopya hemen kaydedilmez: aynı departman + faaliyet + kategori tekrar edemeyeceği için yeni satır formu bu satırın bilgileriyle açılır.
+  const duplicate = (e: InventoryEntry) => router.push(`/envanter/yeni?kaynak=${e.id}`);
   const remove = (e: InventoryEntry) => {
     if (!confirm(`"${e.department} / ${e.activity} / ${e.dataCategory}" satırı silinsin mi?`)) return;
     act(e.id, async () => {
@@ -249,7 +246,7 @@ export default function InventoryPage() {
                   {canWrite && (
                     <td>
                       <div className="actions" style={{ flexWrap: 'nowrap' }}>
-                        <button className="btn btn-small" onClick={() => duplicate(e)} disabled={busy !== null} title="Bu satırı kopyalayarak yeni satır oluştur">
+                        <button className="btn btn-small" onClick={() => duplicate(e)} disabled={busy !== null} title="Bu satırın bilgileriyle yeni satır formunu aç">
                           Kopyala
                         </button>
                         <button className="btn btn-small btn-danger" onClick={() => remove(e)} disabled={busy !== null}>
