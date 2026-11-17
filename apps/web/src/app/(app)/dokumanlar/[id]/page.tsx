@@ -2,9 +2,10 @@
 
 import { APPROVAL_STATUSES, DOCUMENT_CATEGORIES, PERMISSIONS } from '@kvkk/shared';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { ApproverDialog, NoteDialog } from '@/components/approval-dialogs';
+import { RemoveDocumentDialog } from '@/components/document-dialogs';
 import { DocumentReads } from '@/components/document-reads';
 import { CompactTaskList } from '@/components/task-list';
 import { Alert, Badge, Empty, ErrorAlert, Field, Loading, Modal, PageHeader } from '@/components/ui';
@@ -27,10 +28,12 @@ type Dialog =
   | { kind: 'regenerate' }
   | { kind: 'request'; version: DocumentVersion }
   | { kind: 'reject'; request: ApprovalRequest }
+  | { kind: 'remove' }
   | null;
 
 export default function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { me, can } = useSession();
   const canWrite = can(PERMISSIONS.DOCUMENTS_WRITE);
   const canApprove = can(PERMISSIONS.DOCUMENTS_APPROVE);
@@ -47,8 +50,9 @@ export default function DocumentDetailPage() {
   const d = doc.data;
   const published = d.versions.find((v) => v.id === d.publishedVersionId);
   const pendingByVersion = new Map(
-    (approvals.data?.items ?? []).filter((a) => a.status === 'pending').map((a) => [a.version.id, a]),
+    (approvals.data?.items ?? []).flatMap((a) => (a.status === 'pending' && a.version ? [[a.version.id, a] as const] : [])),
   );
+  const pendingRemoval = (approvals.data?.items ?? []).find((a) => a.kind === 'remove' && a.status === 'pending');
 
   async function act(fn: () => Promise<string | void>, close = true) {
     setBusy(true);
@@ -76,11 +80,46 @@ export default function DocumentDetailPage() {
       return `Sürüm ${v.versionNo} yayınlandı.`;
     });
   };
-  const approve = (a: ApprovalRequest) =>
+  const approve = (a: ApprovalRequest) => {
+    if (a.kind === 'remove') {
+      if (!confirm(`${d.code} ${d.title} dokümanını çıkarmak istediğinizden emin misiniz?`)) return;
+      // Doküman listeden çıkınca bu sayfa açılamaz: listeye dönülür.
+      setBusy(true);
+      setError(null);
+      api(`approval-requests/${a.id}/approve`, { method: 'POST', body: {} })
+        .then(() => {
+          window.dispatchEvent(new Event('kvkk:notifications'));
+          router.push('/dokumanlar');
+        })
+        .catch((err) => {
+          setError(errorText(err));
+          setBusy(false);
+        });
+      return;
+    }
     act(async () => {
       await api(`approval-requests/${a.id}/approve`, { method: 'POST', body: {} });
-      return `Onaylandı; sürüm ${a.version.versionNo} yayınlandı.`;
+      return `Onaylandı; sürüm ${a.version?.versionNo} yayınlandı.`;
     });
+  };
+  const removeDoc = (input: { approverId: string | null; note: string | null }) => {
+    if (!input.approverId) {
+      setBusy(true);
+      setError(null);
+      api(`documents/${d.id}/remove`, { method: 'POST', body: { note: input.note } })
+        .then(() => router.push('/dokumanlar'))
+        .catch((err) => {
+          setError(errorText(err));
+          setBusy(false);
+          setDialog(null);
+        });
+      return;
+    }
+    act(async () => {
+      await api(`documents/${d.id}/removal-requests`, { method: 'POST', body: { approverId: input.approverId, note: input.note } });
+      return 'Çıkarma talebi Yönetici onayına gönderildi. Onaylanınca doküman listeden çıkarılır.';
+    });
+  };
   const cancelRequest = (a: ApprovalRequest) =>
     act(async () => {
       await api(`approval-requests/${a.id}/cancel`, { method: 'POST' });
@@ -112,6 +151,11 @@ export default function DocumentDetailPage() {
                     Bilgilerle yeniden oluştur
                   </button>
                 )}
+                {!pendingRemoval && (
+                  <button className="btn btn-danger" onClick={() => setDialog({ kind: 'remove' })} disabled={busy}>
+                    Çıkar
+                  </button>
+                )}
               </>
             )}
           </>
@@ -119,6 +163,12 @@ export default function DocumentDetailPage() {
       />
       <ErrorAlert error={error} />
       {message && <Alert kind="success">{message}</Alert>}
+      {pendingRemoval && (
+        <Alert kind="warning">
+          Bu dokümanın listeden çıkarılması {pendingRemoval.approver.fullName} onayını bekliyor. Onaylanınca doküman listeden çıkarılır;
+          kayıtlarda saklanır.
+        </Alert>
+      )}
       {canWrite && (
         <label className="checkbox" style={{ marginBottom: 16 }}>
           <input
@@ -227,7 +277,7 @@ export default function DocumentDetailPage() {
               {approvals.data!.items.map((a) => (
                 <li key={a.id}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <strong>Sürüm {a.version.versionNo}</strong>
+                    <strong>{a.version ? `Sürüm ${a.version.versionNo}` : 'Listeden çıkarma'}</strong>
                     <Badge kind={APPROVAL_KIND[a.status]}>{APPROVAL_STATUSES[a.status]}</Badge>
                   </div>
                   <div className="small muted">
@@ -241,7 +291,7 @@ export default function DocumentDetailPage() {
                       {a.approver.id === me?.id && canApprove && (
                         <>
                           <button className="btn btn-small btn-primary" onClick={() => approve(a)} disabled={busy}>
-                            Onayla ve yayınla
+                            {a.kind === 'remove' ? 'Onayla ve çıkar' : 'Onayla ve yayınla'}
                           </button>
                           <button className="btn btn-small btn-danger" onClick={() => setDialog({ kind: 'reject', request: a })} disabled={busy}>
                             Reddet
@@ -321,6 +371,15 @@ export default function DocumentDetailPage() {
               return 'Onay talebi gönderildi. Onaylayan kişiye görev ve bildirim gitti.';
             })
           }
+        />
+      )}
+      {dialog?.kind === 'remove' && (
+        <RemoveDocumentDialog
+          label={`${d.code} ${d.title}`}
+          canApprove={canApprove}
+          busy={busy}
+          onClose={() => setDialog(null)}
+          onConfirm={removeDoc}
         />
       )}
       {dialog?.kind === 'reject' && (

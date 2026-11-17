@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ApprovalStatus, DEFAULT_APPROVAL_DUE_DAYS, DEFAULT_REMINDER_DAYS, PERMISSIONS } from '@kvkk/shared';
-import { and, desc, eq, or, SQL } from 'drizzle-orm';
+import { and, desc, eq, isNull, or, SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { AuditService } from '../audit/audit.service';
 import { Database, InjectDb } from '../db/db.module';
@@ -54,7 +54,12 @@ export class ApprovalsService {
       .from(documentVersions)
       .innerJoin(documents, eq(documents.id, documentVersions.documentId))
       .where(
-        and(eq(documentVersions.id, versionId), eq(documents.id, documentId), eq(documents.organizationId, orgId)),
+        and(
+          eq(documentVersions.id, versionId),
+          eq(documents.id, documentId),
+          eq(documents.organizationId, orgId),
+          isNull(documents.removedAt),
+        ),
       );
     if (!version) throw new NotFoundException('Sürüm bulunamadı');
     if (version.status !== 'draft') throw new ConflictException('Yalnızca taslak sürüm için onay istenebilir');
@@ -122,6 +127,78 @@ export class ApprovalsService {
     return this.get(orgId, { userId, canReadAll: true }, created.id);
   }
 
+  /** Dokümanın listeden çıkarılması için Yönetici onayı ister; onaylanınca doküman çıkarılır. */
+  async requestRemoval(orgId: string, userId: string, documentId: string, input: ApprovalInput, now = new Date()) {
+    const [doc] = await this.db
+      .select({ code: documents.code, title: documents.title })
+      .from(documents)
+      .where(and(eq(documents.id, documentId), eq(documents.organizationId, orgId), isNull(documents.removedAt)));
+    if (!doc) throw new NotFoundException('Doküman bulunamadı');
+    await requireActiveMember(this.db, orgId, input.approverId, PERMISSIONS.DOCUMENTS_APPROVE);
+
+    const dueDate = input.dueDate ?? addDays(dateIn(now), DEFAULT_APPROVAL_DUE_DAYS);
+    const label = `${doc.code} ${doc.title}`;
+    let created: { id: string; taskId: string };
+    try {
+      created = await this.db.transaction(async (tx) => {
+        const [task] = await tx
+          .insert(tasks)
+          .values({
+            organizationId: orgId,
+            type: 'approval',
+            title: `Çıkarma onayı: ${label}`,
+            description: input.note ?? null,
+            assigneeId: input.approverId,
+            dueDate,
+            reminderDays: DEFAULT_REMINDER_DAYS,
+            entityType: 'document',
+            entityId: documentId,
+            createdBy: userId,
+          })
+          .returning({ id: tasks.id });
+        const [request] = await tx
+          .insert(approvalRequests)
+          .values({
+            organizationId: orgId,
+            documentId,
+            kind: 'remove',
+            versionId: null,
+            taskId: task.id,
+            requestedBy: userId,
+            approverId: input.approverId,
+            note: input.note ?? null,
+          })
+          .returning({ id: approvalRequests.id });
+        return { id: request.id, taskId: task.id };
+      });
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new ConflictException('Bu doküman için zaten bekleyen bir çıkarma talebi var');
+      throw err;
+    }
+    await this.audit.record({
+      action: 'approval.requested',
+      organizationId: orgId,
+      userId,
+      entityType: 'document',
+      entityId: documentId,
+      metadata: { approvalRequestId: created.id, kind: 'remove', approverId: input.approverId },
+    });
+    if (input.approverId !== userId) {
+      await this.notifications.notify({
+        organizationId: orgId,
+        userId: input.approverId,
+        kind: 'approval_requested',
+        title: `Çıkarma onayı: ${label}`,
+        body:
+          `${label} dokümanının listeden çıkarılması için onayınız isteniyor.\nSon tarih: ${formatDate(dueDate)}\n` +
+          (input.note ? `Not: ${input.note}\n` : ''),
+        taskId: created.taskId,
+        approvalRequestId: created.id,
+      });
+    }
+    return this.get(orgId, { userId, canReadAll: true }, created.id);
+  }
+
   async list(orgId: string, viewer: ApprovalViewer, filter: { status?: ApprovalStatus; documentId?: string } = {}) {
     const conditions: SQL[] = [eq(approvalRequests.organizationId, orgId)];
     if (!viewer.canReadAll) {
@@ -144,13 +221,20 @@ export class ApprovalsService {
     return row;
   }
 
-  /** Onaylayan kişi onaylarsa sürüm yayınlanır ve onay görevi kapanır. */
+  /**
+   * Onaylayan kişi onaylarsa sürüm yayınlanır (yayın talebi) veya doküman listeden çıkarılır (çıkarma talebi)
+   * ve onay görevi kapanır.
+   */
   async approve(orgId: string, userId: string, id: string, note?: string | null, now = new Date()) {
     const request = await this.claim(orgId, userId, id, 'approved', note, now);
     try {
-      await this.docs.publish(orgId, userId, request.documentId, request.versionId);
+      if (request.kind === 'remove') {
+        await this.docs.remove(orgId, userId, request.documentId, { approvalRequestId: request.id, note });
+      } else {
+        await this.docs.publish(orgId, userId, request.documentId, request.versionId!);
+      }
     } catch (err) {
-      // Sürüm bu arada başka yoldan yayınlandı veya daha yeni bir sürüm yayına girdi: talep geçersizdir.
+      // Doküman bu arada çıkarıldı, sürüm başka yoldan yayınlandı veya daha yeni bir sürüm yayına girdi: talep geçersizdir.
       const stale = err instanceof ConflictException || err instanceof NotFoundException;
       await this.db
         .update(approvalRequests)
@@ -250,16 +334,25 @@ export class ApprovalsService {
       userId,
       entityType: 'document',
       entityId: request.documentId,
-      metadata: { approvalRequestId: request.id, versionId: request.versionId },
+      metadata: { approvalRequestId: request.id, kind: request.kind, versionId: request.versionId },
     });
     if (!request.requestedBy || request.requestedBy === userId) return;
     const [doc] = await this.db
       .select({ code: documents.code, title: documents.title, versionNo: documentVersions.versionNo })
-      .from(documentVersions)
-      .innerJoin(documents, eq(documents.id, documentVersions.documentId))
-      .where(eq(documentVersions.id, request.versionId));
-    const label = `${doc.code} ${doc.title} (sürüm ${doc.versionNo})`;
-    const result = status === 'approved' ? 'onaylandı ve yayınlandı' : 'reddedildi';
+      .from(approvalRequests)
+      .innerJoin(documents, eq(documents.id, approvalRequests.documentId))
+      .leftJoin(documentVersions, eq(documentVersions.id, approvalRequests.versionId))
+      .where(eq(approvalRequests.id, request.id));
+    const removal = request.kind === 'remove';
+    const label = removal ? `${doc.code} ${doc.title}` : `${doc.code} ${doc.title} (sürüm ${doc.versionNo})`;
+    const result =
+      status === 'rejected'
+        ? removal
+          ? 'çıkarma talebi reddedildi'
+          : 'reddedildi'
+        : removal
+          ? 'listeden çıkarıldı'
+          : 'onaylandı ve yayınlandı';
     await this.notifications.notify({
       organizationId: orgId,
       userId: request.requestedBy,
@@ -275,6 +368,7 @@ export class ApprovalsService {
     return this.db
       .select({
         id: approvalRequests.id,
+        kind: approvalRequests.kind,
         status: approvalRequests.status,
         note: approvalRequests.note,
         decisionNote: approvalRequests.decisionNote,
@@ -289,7 +383,7 @@ export class ApprovalsService {
       })
       .from(approvalRequests)
       .innerJoin(documents, eq(documents.id, approvalRequests.documentId))
-      .innerJoin(documentVersions, eq(documentVersions.id, approvalRequests.versionId))
+      .leftJoin(documentVersions, eq(documentVersions.id, approvalRequests.versionId))
       .innerJoin(approver, eq(approver.id, approvalRequests.approverId))
       .leftJoin(requester, eq(requester.id, approvalRequests.requestedBy))
       .leftJoin(tasks, eq(tasks.id, approvalRequests.taskId));

@@ -271,8 +271,19 @@ export const documents = pgTable(
     createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Doküman listeden çıkarıldıysa (Yönetici onayıyla) çıkarılma zamanı. Kayıt ve sürümleri silinmez;
+     * çıkarılan doküman listelerde ve çalışan portalında görünmez.
+     */
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    removedBy: uuid('removed_by').references(() => users.id, { onDelete: 'set null' }),
   },
-  (t) => [uniqueIndex('documents_org_code_unique').on(t.organizationId, t.code)],
+  (t) => [
+    // Kod yalnızca listedeki (çıkarılmamış) dokümanlar arasında tekildir; çıkarılan bir şablon yeniden eklenebilir.
+    uniqueIndex('documents_org_code_unique')
+      .on(t.organizationId, t.code)
+      .where(sql`${t.removedAt} is null`),
+  ],
 );
 
 /**
@@ -412,7 +423,10 @@ export const tasks = pgTable(
   ],
 );
 
-/** Doküman sürümünün yayınlanması için onay talebi. Onaylayana `approval` türünde görev açılır. */
+/**
+ * Doküman onay talebi. Onaylayana `approval` türünde görev açılır.
+ * publish: taslak sürümün yayınlanması; remove: dokümanın listeden çıkarılması (sürüm yok).
+ */
 export const approvalRequests = pgTable(
   'approval_requests',
   {
@@ -423,9 +437,9 @@ export const approvalRequests = pgTable(
     documentId: uuid('document_id')
       .notNull()
       .references(() => documents.id, { onDelete: 'cascade' }),
-    versionId: uuid('version_id')
-      .notNull()
-      .references(() => documentVersions.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['publish', 'remove'] }).notNull().default('publish'),
+    /** Yayınlanacak sürüm; çıkarma talebinde boştur. */
+    versionId: uuid('version_id').references(() => documentVersions.id, { onDelete: 'cascade' }),
     taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
     requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
     approverId: uuid('approver_id')
@@ -443,6 +457,10 @@ export const approvalRequests = pgTable(
     uniqueIndex('approval_requests_pending_version_unique')
       .on(t.versionId)
       .where(sql`${t.status} = 'pending'`),
+    // Bir doküman için aynı anda tek bekleyen çıkarma talebi olabilir.
+    uniqueIndex('approval_requests_pending_removal_unique')
+      .on(t.documentId)
+      .where(sql`${t.status} = 'pending' and ${t.kind} = 'remove'`),
     index('approval_requests_org_status_idx').on(t.organizationId, t.status),
   ],
 );

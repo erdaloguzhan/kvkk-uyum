@@ -101,6 +101,8 @@ export interface DocumentItem {
   latestVersion?: DocumentVersion | null;
   /** Ana şablonun dokümanın dayandığından daha yeni bir sürümü yayında. */
   templateUpdate?: TemplateUpdate | null;
+  /** Yönetici onayı bekleyen listeden çıkarma talebi. */
+  pendingRemoval?: { id: string; approver: { id: string; fullName: string } } | null;
 }
 
 export interface TemplateUpdate {
@@ -219,6 +221,8 @@ export interface TaskSummary {
 
 export interface ApprovalRequest {
   id: string;
+  /** publish: taslak sürümün yayını; remove: dokümanın listeden çıkarılması. */
+  kind: 'publish' | 'remove';
   status: ApprovalStatus;
   note: string | null;
   decisionNote: string | null;
@@ -227,7 +231,7 @@ export interface ApprovalRequest {
   taskId: string | null;
   dueDate: string | null;
   document: { id: string; code: string; title: string };
-  version: { id: string; versionNo: number; status: string };
+  version: { id: string; versionNo: number; status: string } | null;
   approver: { id: string; fullName: string };
   requestedBy: { id: string; fullName: string } | null;
 }

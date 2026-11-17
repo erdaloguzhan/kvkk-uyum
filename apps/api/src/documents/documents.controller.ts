@@ -13,7 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { PERMISSIONS } from '@kvkk/shared';
+import { DOCUMENT_CATEGORIES, DocumentCategory, PERMISSIONS } from '@kvkk/shared';
 import type { Response } from 'express';
 import { z } from 'zod';
 import {
@@ -33,6 +33,18 @@ const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingm
 const createBody = z.object({ templateCode: z.string().trim().min(1).max(30) });
 const visibilityBody = z.object({ employeeVisible: z.boolean() });
 const noteBody = z.object({ note: z.string().trim().max(1000).nullish() }).default({});
+const ownBody = z.object({
+  code: z
+    .string()
+    .trim()
+    .max(30)
+    .regex(/^[\p{L}\p{N}._\- ]*$/u, 'Kod yalnızca harf, rakam, boşluk, nokta, tire ve alt çizgi içerebilir')
+    .nullish()
+    .transform((v) => v || null),
+  title: z.string().trim().min(2, 'Doküman adı yazılmalı').max(200),
+  category: z.enum(Object.keys(DOCUMENT_CATEGORIES) as [DocumentCategory, ...DocumentCategory[]]),
+  note: z.string().trim().max(1000).nullish(),
+});
 
 /** Taslak sürümleri yalnızca doküman düzenleme veya onaylama yetkisi olanlar görür; İzleyici yalnızca yayınlananları. */
 const canSeeDrafts = (org: OrgContext) =>
@@ -64,7 +76,21 @@ export class DocumentsController {
     return this.docs.createFromTemplate(org.id, user.id, body.templateCode);
   }
 
-  /** Opsiyonel olmayan tüm şablonlardan kuruluşun dokümanlarını oluşturur. */
+  /** Sorumlunun kendi hazırladığı Word dosyasından yeni doküman (multipart: `file`, code, title, category, note). */
+  @Post('documents/own')
+  @RequirePermissions(PERMISSIONS.DOCUMENTS_WRITE)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
+  createOwn(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body(new ZodPipe(ownBody)) body: z.infer<typeof ownBody>,
+  ) {
+    if (!file) throw new BadRequestException('Dosya gerekli');
+    return this.docs.createOwn(org.id, user.id, body, file.buffer);
+  }
+
+  /** Henüz oluşturulmamış tüm şablonlardan kuruluşun dokümanlarını oluşturur. */
   @Post('documents/setup')
   @RequirePermissions(PERMISSIONS.DOCUMENTS_WRITE)
   setup(@CurrentOrg() org: OrgContext, @CurrentUser() user: AuthUser) {
@@ -114,6 +140,19 @@ export class DocumentsController {
   ) {
     if (!file) throw new BadRequestException('Dosya gerekli');
     return this.docs.upload(org.id, user.id, id, file.buffer, body.note);
+  }
+
+  /** Dokümanı onay beklemeden listeden çıkarır: yalnızca doküman düzenleme ve onay yetkisi birlikte olanlar. */
+  @Post('documents/:id/remove')
+  @HttpCode(200)
+  @RequirePermissions(PERMISSIONS.DOCUMENTS_WRITE, PERMISSIONS.DOCUMENTS_APPROVE)
+  remove(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(noteBody)) body: z.infer<typeof noteBody>,
+  ) {
+    return this.docs.remove(org.id, user.id, id, { note: body.note });
   }
 
   @Post('documents/:id/versions/:versionId/publish')
