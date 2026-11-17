@@ -1,10 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DocumentCategory, ORGANIZATION_PLACEHOLDERS } from '@kvkk/shared';
-import { and, desc, eq, getTableColumns, inArray, lte, ne } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, isNull, like, lte, ne, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { Database, InjectDb } from '../db/db.module';
-import { approvalRequests, documents, documentVersions, organizations, tasks } from '../db/schema';
+import { approvalRequests, documents, documentVersions, organizations, tasks, users } from '../db/schema';
 import { TemplatesService } from '../templates/templates.service';
 import { isDocx, renderTemplate, RenderResult } from './template-renderer';
 
@@ -30,6 +30,21 @@ interface EffectiveTemplate {
 
 type VersionInfo = { documentId: string; versionNo: number; templateVersionId: string | null };
 
+/** Listede olan (çıkarılmamış) dokümanlar. */
+const listed = isNull(documents.removedAt);
+
+/** Sorumlunun kendi hazırladığı (şablondan olmayan) doküman. */
+export interface OwnDocumentInput {
+  /** Boşsa KD-001, KD-002… biçiminde verilir. */
+  code?: string | null;
+  title: string;
+  category: DocumentCategory;
+  note?: string | null;
+}
+
+const isUniqueViolation = (err: unknown) =>
+  (err as { cause?: { code?: string } })?.cause?.code === '23505' || (err as { code?: string })?.code === '23505';
+
 @Injectable()
 export class DocumentsService {
   constructor(
@@ -44,7 +59,7 @@ export class DocumentsService {
       this.db
         .select({ id: documents.id, templateCode: documents.templateCode })
         .from(documents)
-        .where(eq(documents.organizationId, orgId)),
+        .where(and(eq(documents.organizationId, orgId), listed)),
       this.templates.catalog(),
     ]);
     const byCode = new Map(existing.map((d) => [d.templateCode, d.id]));
@@ -68,7 +83,7 @@ export class DocumentsService {
       const [existing] = await tx
         .select({ id: documents.id })
         .from(documents)
-        .where(and(eq(documents.organizationId, orgId), eq(documents.code, template.code)));
+        .where(and(eq(documents.organizationId, orgId), eq(documents.code, template.code), listed));
       if (existing) throw new ConflictException('Bu şablondan doküman zaten oluşturulmuş');
       return this.insertDocument(tx, orgId, userId, effective, rendered);
     });
@@ -84,16 +99,17 @@ export class DocumentsService {
   }
 
   /**
-   * Kurulum: opsiyonel olmayan ve henüz oluşturulmamış tüm şablonlardan doküman oluşturur.
+   * Kurulum: henüz oluşturulmamış tüm şablonlardan (opsiyoneller dahil; Erdal, 17.11.2026) doküman oluşturur.
+   * Kuruluşa uymayan doküman listeden çıkarılabilir.
    * Kuruluş profilinde eksik alan varsa hiçbir doküman oluşturulmaz.
    */
   async setupDefaults(orgId: string, userId: string) {
     const existing = await this.db
       .select({ code: documents.code })
       .from(documents)
-      .where(eq(documents.organizationId, orgId));
+      .where(and(eq(documents.organizationId, orgId), listed));
     const existingCodes = new Set(existing.map((d) => d.code));
-    const pending = (await this.templates.catalog()).filter((t) => !t.optional && !existingCodes.has(t.code));
+    const pending = (await this.templates.catalog()).filter((t) => !existingCodes.has(t.code));
 
     const rendered: { template: EffectiveTemplate['template']; effective: EffectiveTemplate; r: RenderResult }[] = [];
     const missing = new Set<string>();
@@ -128,9 +144,10 @@ export class DocumentsService {
     const docs = await this.db
       .select()
       .from(documents)
-      .where(eq(documents.organizationId, orgId))
+      .where(and(eq(documents.organizationId, orgId), listed))
       .orderBy(documents.code);
     if (docs.length === 0) return [];
+    const removals = canSeeDrafts ? await this.pendingRemovals(orgId) : new Map();
     const versions = await this.db
       .select(versionColumns)
       .from(documentVersions)
@@ -145,6 +162,7 @@ export class DocumentsService {
           publishedVersion: own.find((v) => v.id === d.publishedVersionId) ?? null,
           latestVersion: canSeeDrafts ? (own[0] ?? null) : undefined,
           templateUpdate: canSeeDrafts ? (updates.get(d.id) ?? null) : undefined,
+          pendingRemoval: canSeeDrafts ? (removals.get(d.id) ?? null) : undefined,
         };
       })
       .filter((d) => canSeeDrafts || d.publishedVersion);
@@ -175,8 +193,141 @@ export class DocumentsService {
     const visible = canSeeDrafts ? versions : versions.filter((v) => v.id === doc.publishedVersionId);
     if (visible.length === 0) throw new NotFoundException('Doküman bulunamadı');
     if (!canSeeDrafts) return { ...doc, versions: visible };
-    const updates = await this.templateUpdates([doc], versions);
-    return { ...doc, versions: visible, templateUpdate: updates.get(doc.id) ?? null };
+    const [updates, removals] = await Promise.all([this.templateUpdates([doc], versions), this.pendingRemovals(orgId, doc.id)]);
+    return {
+      ...doc,
+      versions: visible,
+      templateUpdate: updates.get(doc.id) ?? null,
+      pendingRemoval: removals.get(doc.id) ?? null,
+    };
+  }
+
+  /** Bekleyen çıkarma talepleri (doküman başına en fazla bir tane). */
+  private async pendingRemovals(orgId: string, documentId?: string) {
+    const rows = await this.db
+      .select({
+        documentId: approvalRequests.documentId,
+        id: approvalRequests.id,
+        approver: { id: users.id, fullName: users.fullName },
+      })
+      .from(approvalRequests)
+      .innerJoin(users, eq(users.id, approvalRequests.approverId))
+      .where(
+        and(
+          eq(approvalRequests.organizationId, orgId),
+          eq(approvalRequests.kind, 'remove'),
+          eq(approvalRequests.status, 'pending'),
+          documentId ? eq(approvalRequests.documentId, documentId) : undefined,
+        ),
+      );
+    return new Map(rows.map(({ documentId: d, ...r }) => [d, r]));
+  }
+
+  /**
+   * Sorumlunun kendi hazırladığı Word dosyasından yeni doküman oluşturur. İlk sürüm taslaktır;
+   * Yönetici onaylayınca (veya onay yetkisi olan kişi yayınlayınca) yürürlüğe girer.
+   */
+  async createOwn(orgId: string, userId: string, input: OwnDocumentInput, file: Buffer) {
+    if (!isDocx(file)) throw new BadRequestException('Dosya geçerli bir Word (.docx) dokümanı değil');
+    let doc: typeof documents.$inferSelect;
+    try {
+      doc = await this.db.transaction(async (tx) => {
+        // Otomatik kod verirken aynı anda iki ekleme aynı numarayı almasın.
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'documents:' + orgId}))`);
+        const code = input.code?.trim() || (await this.nextOwnCode(tx, orgId));
+        const [created] = await tx
+          .insert(documents)
+          .values({
+            organizationId: orgId,
+            templateCode: null,
+            code,
+            title: input.title.trim(),
+            category: input.category,
+            createdBy: userId,
+          })
+          .returning();
+        await this.insertVersion(tx, created, 1, userId, { source: 'upload', content: file, note: input.note });
+        return created;
+      });
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new ConflictException('Bu kodla listede başka bir doküman var');
+      throw err;
+    }
+    await this.audit.record({
+      action: 'document.created',
+      organizationId: orgId,
+      userId,
+      entityType: 'document',
+      entityId: doc.id,
+      metadata: { own: true, code: doc.code, title: doc.title },
+    });
+    return this.get(orgId, doc.id, true);
+  }
+
+  /** Kuruluşun kendi dokümanları için sıradaki KD-NNN kodu (çıkarılanlar da sayılır, kod tekrar kullanılmaz). */
+  private async nextOwnCode(tx: Tx, orgId: string) {
+    const rows = await tx
+      .select({ code: documents.code })
+      .from(documents)
+      .where(and(eq(documents.organizationId, orgId), like(documents.code, 'KD-%')));
+    const max = rows.reduce((m, r) => Math.max(m, Number(/^KD-(\d+)$/.exec(r.code)?.[1] ?? 0)), 0);
+    return `KD-${String(max + 1).padStart(3, '0')}`;
+  }
+
+  /**
+   * Dokümanı listeden çıkarır (Yönetici onayıyla veya onay yetkisi olan kişi tarafından). Kayıt, sürümleri ve
+   * okuma kayıtları silinmez; çıkarılan doküman listelerde ve çalışan portalında görünmez. Dokümana bağlı
+   * bekleyen onay talepleri ve açık görevler iptal edilir.
+   */
+  async remove(orgId: string, userId: string, documentId: string, ctx: { approvalRequestId?: string; note?: string | null } = {}) {
+    const result = await this.db.transaction(async (tx) => {
+      const doc = await this.lockDocument(tx, orgId, documentId);
+      const now = new Date();
+      await tx.update(documents).set({ removedAt: now, removedBy: userId, updatedAt: now }).where(eq(documents.id, doc.id));
+      const stale = await tx
+        .update(approvalRequests)
+        .set({ status: 'cancelled', decidedAt: now, decidedBy: userId })
+        .where(and(eq(approvalRequests.documentId, doc.id), eq(approvalRequests.status, 'pending')))
+        .returning({ id: approvalRequests.id });
+      const cancelledTasks = await tx
+        .update(tasks)
+        .set({ status: 'cancelled', updatedAt: now })
+        .where(
+          and(
+            eq(tasks.organizationId, orgId),
+            eq(tasks.entityType, 'document'),
+            eq(tasks.entityId, doc.id),
+            eq(tasks.status, 'open'),
+          ),
+        )
+        .returning({ id: tasks.id });
+      return { doc, cancelledApprovals: stale.map((r) => r.id), cancelledTasks: cancelledTasks.map((t) => t.id) };
+    });
+    await this.audit.record({
+      action: 'document.removed',
+      organizationId: orgId,
+      userId,
+      entityType: 'document',
+      entityId: documentId,
+      metadata: {
+        code: result.doc.code,
+        title: result.doc.title,
+        approvalRequestId: ctx.approvalRequestId ?? null,
+        note: ctx.note ?? null,
+        cancelledTasks: result.cancelledTasks,
+      },
+    });
+    for (const approvalRequestId of result.cancelledApprovals) {
+      await this.audit.record({
+        action: 'approval.cancelled',
+        organizationId: orgId,
+        userId,
+        entityType: 'document',
+        entityId: documentId,
+        metadata: { approvalRequestId, reason: 'removed' },
+      });
+    }
+    return { id: documentId, code: result.doc.code, title: result.doc.title, removedAt: new Date() };
   }
 
   /**
@@ -335,7 +486,7 @@ export class DocumentsService {
     const [doc] = await this.db
       .select()
       .from(documents)
-      .where(and(eq(documents.id, documentId), eq(documents.organizationId, orgId)));
+      .where(and(eq(documents.id, documentId), eq(documents.organizationId, orgId), listed));
     if (!doc) throw new NotFoundException('Doküman bulunamadı');
     return doc;
   }
@@ -345,7 +496,7 @@ export class DocumentsService {
     const [doc] = await tx
       .select()
       .from(documents)
-      .where(and(eq(documents.id, documentId), eq(documents.organizationId, orgId)))
+      .where(and(eq(documents.id, documentId), eq(documents.organizationId, orgId), listed))
       .for('update');
     if (!doc) throw new NotFoundException('Doküman bulunamadı');
     return doc;

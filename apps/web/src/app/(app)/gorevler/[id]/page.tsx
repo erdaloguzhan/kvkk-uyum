@@ -108,7 +108,7 @@ export default function TaskDetailPage() {
             </>
           ) : (
             <>
-              <Link href={link}>Dokümanı açıp</Link> sürümü onaylayın veya reddedin
+              <Link href={link}>Dokümanı açıp</Link> talebi (sürüm yayını veya listeden çıkarma) onaylayın veya reddedin
             </>
           )}
           ; görev kendiliğinden kapanır.

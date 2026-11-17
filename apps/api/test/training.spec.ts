@@ -547,6 +547,15 @@ describe('Uzaktan eğitim', () => {
     // Yönetim belirteci portal dokümanlarında geçmez.
     await request(server).get('/api/v1/training-portal/documents').set('authorization', `Bearer ${owner.accessToken}`).expect(401);
 
+    // Listeden çıkarılan yayındaki doküman portalda da görünmez.
+    const removed = await create('PRS-030');
+    await as(request(server).post(`/api/v1/documents/${removed.id}/versions/${removed.versions[0].id}/publish`)).expect(200);
+    expect((await portal(request(server).get('/api/v1/training-portal/documents')).expect(200)).body.items).toHaveLength(2);
+    await as(request(server).post(`/api/v1/documents/${removed.id}/remove`)).send({}).expect(200);
+    const afterRemoval = await portal(request(server).get('/api/v1/training-portal/documents')).expect(200);
+    expect(afterRemoval.body.items.map((d: any) => d.id)).toEqual([published.id]);
+    await portal(request(server).get(`/api/v1/training-portal/documents/${removed.id}`)).expect(404);
+
     // İşten çıkan çalışan dokümanları artık göremez.
     await asAdmin(request(server).patch(`/api/v1/admin/organizations/${docOrg}/employees/${emp.body.id}`))
       .send({ terminationDate: '2020-01-01', hireDate: '2019-01-01' })

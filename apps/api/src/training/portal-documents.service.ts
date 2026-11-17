@@ -57,7 +57,7 @@ export class PortalDocumentsService {
         documentReads,
         and(eq(documentReads.versionId, documentVersions.id), eq(documentReads.employeeId, employees.id)),
       )
-      .where(and(this.activeEmployment(token.sub), eq(documents.employeeVisible, true)))
+      .where(and(this.activeEmployment(token.sub), eq(documents.employeeVisible, true), isNull(documents.removedAt)))
       .orderBy(asc(organizations.name), asc(documents.code));
     return rows;
   }
@@ -84,7 +84,12 @@ export class PortalDocumentsService {
       .innerJoin(documents, eq(documents.organizationId, employees.organizationId))
       .innerJoin(documentVersions, eq(documentVersions.id, documents.publishedVersionId))
       .where(
-        and(this.activeEmployment(token.sub), eq(documents.id, documentId), eq(documents.employeeVisible, true)),
+        and(
+          this.activeEmployment(token.sub),
+          eq(documents.id, documentId),
+          eq(documents.employeeVisible, true),
+          isNull(documents.removedAt),
+        ),
       )
       .limit(1);
     if (!row) throw new NotFoundException('Doküman bulunamadı');

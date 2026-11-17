@@ -188,6 +188,18 @@ export class ApprovalsController {
     return this.approvals.request(org.id, user.id, id, versionId, body);
   }
 
+  /** Dokümanın listeden çıkarılması için Yönetici onayı ister. */
+  @Post('documents/:id/removal-requests')
+  @RequirePermissions(PERMISSIONS.DOCUMENTS_WRITE)
+  requestRemoval(
+    @CurrentOrg() org: OrgContext,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodPipe(requestBody)) body: z.infer<typeof requestBody>,
+  ) {
+    return this.approvals.requestRemoval(org.id, user.id, id, body);
+  }
+
   @Get('approval-requests/options')
   @RequirePermissions()
   options() {

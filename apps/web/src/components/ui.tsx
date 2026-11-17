@@ -90,7 +90,13 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} onClose={onClose} onCancel={onClose}>
+    <dialog
+      ref={ref}
+      // Dosya seçme penceresinden vazgeçince <input type="file"> da "cancel" olayı verir ve bu olay
+      // pencereye kadar kabarcıklanır; yalnızca pencerenin kendi olayları pencereyi kapatmalı.
+      onClose={(e) => e.target === e.currentTarget && onClose()}
+      onCancel={(e) => e.target === e.currentTarget && onClose()}
+    >
       {open && (
         <div className="dialog-body">
           <h2>{title}</h2>

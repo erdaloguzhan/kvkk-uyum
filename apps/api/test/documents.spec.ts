@@ -151,7 +151,7 @@ describe('Doküman Yönetimi', () => {
     expect(list.body.items).toHaveLength(1);
   });
 
-  it('kurulumda opsiyonel olmayan tüm dokümanları oluşturur', async () => {
+  it('kurulumda opsiyoneller dahil tüm şablonlardan doküman oluşturur', async () => {
     const { admin, as } = await setupOrg();
     await request(server)
       .post('/api/v1/documents')
@@ -159,31 +159,22 @@ describe('Doküman Yönetimi', () => {
       .send({ templateCode: 'POL-010' })
       .expect(201);
     const res = await request(server).post('/api/v1/documents/setup').set(as(admin.accessToken)).expect(201);
-    expect(res.body.created).toHaveLength(12);
-    expect(res.body.skipped).toEqual(['POL-010']);
     const codes = res.body.created.map((d: any) => d.code);
-    expect(codes).not.toContain('AYM-030');
-    expect(codes).not.toContain('AYM-040');
+    expect(codes.filter((c: string) => CATALOG_CODES.includes(c))).toHaveLength(14);
+    expect(codes).toContain('AYM-030');
+    expect(codes).toContain('AYM-040');
+    expect(res.body.skipped).toEqual(['POL-010']);
 
     // Logo henüz desteklenmiyor: tabela metni oluşur, logo boş kaldığı not edilir.
     const list = await request(server).get('/api/v1/documents').set(as(admin.accessToken)).expect(200);
-    expect(list.body.items).toHaveLength(13);
+    expect(list.body.items.filter((d: any) => CATALOG_CODES.includes(d.code))).toHaveLength(15);
     const sign = list.body.items.find((d: any) => d.code === 'AYM-041');
     expect(sign.latestVersion.unfilledPlaceholders).toEqual(['kurum.logo']);
 
-    // Opsiyonel şablon istenirse ayrıca oluşturulur.
-    await request(server)
-      .post('/api/v1/documents')
-      .set(as(admin.accessToken))
-      .send({ templateCode: 'AYM-040' })
-      .expect(201);
     const again = await request(server).post('/api/v1/documents/setup').set(as(admin.accessToken)).expect(201);
     expect(again.body.created).toEqual([]);
     const catalog = await request(server).get('/api/v1/document-templates').set(as(admin.accessToken)).expect(200);
-    const unused = catalog.body.items
-      .filter((t: any) => !t.documentId && CATALOG_CODES.includes(t.code))
-      .map((t: any) => t.code);
-    expect(unused).toEqual(['AYM-030']);
+    expect(catalog.body.items.filter((t: any) => !t.documentId && CATALOG_CODES.includes(t.code))).toEqual([]);
   });
 
   it('sürümleri yönetir: yeniden oluşturma, yükleme ve yayınlama', async () => {
@@ -309,5 +300,160 @@ describe('Doküman Yönetimi', () => {
       .post(`/api/v1/documents/${doc.body.id}/versions/${doc.body.versions[0].id}/publish`)
       .set(b.as(b.admin.accessToken))
       .expect(404);
+  });
+
+  /** Geçerli, küçük bir Word dosyası: şablondan üretilmiş bir sürümün içeriği. */
+  async function sampleDocx(headers: Record<string, string>) {
+    const doc = await request(server).post('/api/v1/documents').set(headers).send({ templateCode: 'FRM-010' }).expect(201);
+    return download(headers, doc.body.id, doc.body.versions[0].id);
+  }
+
+  async function addOwn(headers: Record<string, string>, fields: Record<string, string>, file: Buffer, status = 201) {
+    let req = request(server).post('/api/v1/documents/own').set(headers);
+    for (const [k, v] of Object.entries(fields)) req = req.field(k, v);
+    return req.attach('file', file, 'kendi.docx').expect(status);
+  }
+
+  it('Sorumlu kendi dokümanını ekler; Yönetici onaylayınca yayına girer', async () => {
+    const { admin, as, orgId } = await setupOrg();
+    const officer = await addMember(app, orgId, 'kvkk_officer');
+    const approver = await addMember(app, orgId, 'approver');
+    const file = await sampleDocx(as(admin.accessToken));
+
+    // Yönetici doküman ekleyemez; Word olmayan dosya reddedilir.
+    await addOwn(as(approver.accessToken), { title: 'Kamera politikası', category: 'policy' }, file, 403);
+    await addOwn(as(officer.accessToken), { title: 'Kamera politikası', category: 'policy' }, Buffer.from('düz metin'), 400);
+
+    const own = await addOwn(as(officer.accessToken), { title: 'Kamera politikası', category: 'policy', note: 'İlk taslak' }, file);
+    expect(own.body).toMatchObject({ code: 'KD-001', title: 'Kamera politikası', templateCode: null, publishedVersionId: null });
+    expect(own.body.versions).toHaveLength(1);
+    expect(own.body.versions[0]).toMatchObject({ status: 'draft', source: 'upload', note: 'İlk taslak' });
+    const second = await addOwn(as(officer.accessToken), { title: 'Ziyaretçi formu', category: 'form' }, file);
+    expect(second.body.code).toBe('KD-002');
+    await addOwn(as(officer.accessToken), { code: 'KD-001', title: 'Aynı kod', category: 'form' }, file, 409);
+    const coded = await addOwn(as(officer.accessToken), { code: 'PRS-900', title: 'Kendi prosedürü', category: 'procedure' }, file);
+    expect(coded.body.code).toBe('PRS-900');
+
+    // Sorumlu yayınlayamaz, onaya gönderir; Yönetici onaylayınca yayınlanır.
+    const v1 = own.body.versions[0];
+    await request(server).post(`/api/v1/documents/${own.body.id}/versions/${v1.id}/publish`).set(as(officer.accessToken)).expect(403);
+    const req = await request(server)
+      .post(`/api/v1/documents/${own.body.id}/versions/${v1.id}/approval-requests`)
+      .set(as(officer.accessToken))
+      .send({ approverId: approver.user.id })
+      .expect(201);
+    expect(req.body.kind).toBe('publish');
+    await request(server).post(`/api/v1/approval-requests/${req.body.id}/approve`).set(as(approver.accessToken)).send({}).expect(200);
+    const after = await request(server).get(`/api/v1/documents/${own.body.id}`).set(as(officer.accessToken)).expect(200);
+    expect(after.body.publishedVersionId).toBe(v1.id);
+  });
+
+  it('doküman Yönetici onayıyla listeden çıkarılır; kayıt silinmez, bağlı talep ve görevler iptal olur', async () => {
+    const { admin, as, orgId } = await setupOrg();
+    const officer = await addMember(app, orgId, 'kvkk_officer');
+    const approver = await addMember(app, orgId, 'approver');
+    const doc = await request(server).post('/api/v1/documents').set(as(admin.accessToken)).send({ templateCode: 'AYM-030' }).expect(201);
+    const keep = await request(server).post('/api/v1/documents').set(as(admin.accessToken)).send({ templateCode: 'AYM-040' }).expect(201);
+    // Bekleyen yayın talebi ve gözden geçirme görevi, doküman çıkarılınca iptal edilmeli.
+    const publishReq = await request(server)
+      .post(`/api/v1/documents/${doc.body.id}/versions/${doc.body.versions[0].id}/approval-requests`)
+      .set(as(officer.accessToken))
+      .send({ approverId: approver.user.id })
+      .expect(201);
+    const review = await request(server)
+      .post('/api/v1/tasks')
+      .set(as(admin.accessToken))
+      .send({
+        type: 'document_review',
+        title: 'AYM-030 gözden geçirme',
+        assigneeId: officer.user.id,
+        dueDate: '2030-01-01',
+        entityType: 'document',
+        entityId: doc.body.id,
+      })
+      .expect(201);
+
+    // Sorumlu doğrudan çıkaramaz; Yönetici çıkarma talebi açamaz.
+    await request(server).post(`/api/v1/documents/${doc.body.id}/remove`).set(as(officer.accessToken)).send({}).expect(403);
+    await request(server)
+      .post(`/api/v1/documents/${doc.body.id}/removal-requests`)
+      .set(as(approver.accessToken))
+      .send({ approverId: approver.user.id })
+      .expect(403);
+    // Onaylayıcı doküman onay yetkisine sahip olmalı.
+    await request(server)
+      .post(`/api/v1/documents/${doc.body.id}/removal-requests`)
+      .set(as(officer.accessToken))
+      .send({ approverId: officer.user.id })
+      .expect(400);
+
+    const removal = await request(server)
+      .post(`/api/v1/documents/${doc.body.id}/removal-requests`)
+      .set(as(officer.accessToken))
+      .send({ approverId: approver.user.id, note: 'Kuruluşta kamera yok' })
+      .expect(201);
+    expect(removal.body).toMatchObject({ kind: 'remove', status: 'pending', version: null });
+    await request(server)
+      .post(`/api/v1/documents/${doc.body.id}/removal-requests`)
+      .set(as(officer.accessToken))
+      .send({ approverId: approver.user.id })
+      .expect(409);
+    const notice = await request(server).get('/api/v1/notifications').set(as(approver.accessToken)).expect(200);
+    expect(notice.body.items[0].body).toContain('listeden çıkarılması için onayınız isteniyor');
+
+    // Onaya kadar doküman listede kalır, bekleyen çıkarma talebi görünür.
+    let list = await request(server).get('/api/v1/documents').set(as(officer.accessToken)).expect(200);
+    const pending = list.body.items.find((d: any) => d.id === doc.body.id);
+    expect(pending.pendingRemoval).toMatchObject({ id: removal.body.id, approver: { id: approver.user.id } });
+    const tasksOfApprover = await request(server).get('/api/v1/tasks').set(as(approver.accessToken)).query({ status: 'open' }).expect(200);
+    expect(tasksOfApprover.body.items.map((t: any) => t.title)).toContain(`Çıkarma onayı: AYM-030 ${doc.body.title}`);
+
+    // Ret: doküman yerinde kalır, Sorumlu yeniden talep edebilir.
+    await request(server)
+      .post(`/api/v1/approval-requests/${removal.body.id}/reject`)
+      .set(as(approver.accessToken))
+      .send({ note: 'Şimdilik kalsın' })
+      .expect(200);
+    list = await request(server).get('/api/v1/documents').set(as(officer.accessToken)).expect(200);
+    expect(list.body.items.find((d: any) => d.id === doc.body.id).pendingRemoval).toBeNull();
+    const removal2 = await request(server)
+      .post(`/api/v1/documents/${doc.body.id}/removal-requests`)
+      .set(as(officer.accessToken))
+      .send({ approverId: approver.user.id })
+      .expect(201);
+
+    // Onay: doküman listeden çıkar; bağlı talepler ve görevler iptal olur.
+    const approved = await request(server)
+      .post(`/api/v1/approval-requests/${removal2.body.id}/approve`)
+      .set(as(approver.accessToken))
+      .send({})
+      .expect(200);
+    expect(approved.body.status).toBe('approved');
+    list = await request(server).get('/api/v1/documents').set(as(officer.accessToken)).expect(200);
+    expect(list.body.items.map((d: any) => d.id)).toEqual([keep.body.id]);
+    await request(server).get(`/api/v1/documents/${doc.body.id}`).set(as(officer.accessToken)).expect(404);
+    const pr = await request(server).get(`/api/v1/approval-requests/${publishReq.body.id}`).set(as(officer.accessToken)).expect(200);
+    expect(pr.body.status).toBe('cancelled');
+    const t = await request(server).get(`/api/v1/tasks/${review.body.id}`).set(as(admin.accessToken)).expect(200);
+    expect(t.body.status).toBe('cancelled');
+    const decided = await request(server).get('/api/v1/notifications').set(as(officer.accessToken)).expect(200);
+    expect(decided.body.items[0].title).toContain('listeden çıkarıldı');
+
+    // İşlem kaydı tutulur; şablon yeniden eklenebilir.
+    const audit = await request(server).get('/api/v1/audit-logs').set(as(admin.accessToken)).query({ action: 'document.removed' }).expect(200);
+    expect(audit.body.items.some((a: any) => a.entityId === doc.body.id)).toBe(true);
+    const catalog = await request(server).get('/api/v1/document-templates').set(as(admin.accessToken)).expect(200);
+    expect(catalog.body.items.find((x: any) => x.code === 'AYM-030').documentId).toBeNull();
+    await request(server).post('/api/v1/documents').set(as(admin.accessToken)).send({ templateCode: 'AYM-030' }).expect(201);
+  });
+
+  it('düzenleme ve onay yetkisi olan kişi dokümanı doğrudan çıkarır', async () => {
+    const { admin, as } = await setupOrg();
+    const doc = await request(server).post('/api/v1/documents').set(as(admin.accessToken)).send({ templateCode: 'PRS-010' }).expect(201);
+    const res = await request(server).post(`/api/v1/documents/${doc.body.id}/remove`).set(as(admin.accessToken)).send({}).expect(200);
+    expect(res.body).toMatchObject({ id: doc.body.id, code: 'PRS-010' });
+    await request(server).post(`/api/v1/documents/${doc.body.id}/remove`).set(as(admin.accessToken)).send({}).expect(404);
+    const list = await request(server).get('/api/v1/documents').set(as(admin.accessToken)).expect(200);
+    expect(list.body.items).toEqual([]);
   });
 });
