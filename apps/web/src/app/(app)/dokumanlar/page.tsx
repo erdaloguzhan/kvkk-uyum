@@ -9,7 +9,7 @@ import { Alert, Badge, Empty, ErrorAlert, Loading, PageHeader } from '@/componen
 import { api, ApiError, errorText } from '@/lib/api';
 import { formatDate } from '@/lib/labels';
 import { useSession } from '@/lib/session';
-import type { DocumentItem, TemplateItem } from '@/lib/types';
+import type { DocumentItem } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 export default function DocumentsPage() {
@@ -17,7 +17,6 @@ export default function DocumentsPage() {
   const canWrite = can(PERMISSIONS.DOCUMENTS_WRITE);
   const canApprove = can(PERMISSIONS.DOCUMENTS_APPROVE);
   const docs = useApi<{ items: DocumentItem[] }>('documents');
-  const templates = useApi<{ items: TemplateItem[] }>('document-templates');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<{ text: string; missingProfile: boolean } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -26,9 +25,6 @@ export default function DocumentsPage() {
   if (docs.loading && !docs.data) return <Loading />;
 
   const items = docs.data?.items ?? [];
-  const tpl = templates.data?.items ?? [];
-  // Opsiyonel şablonlar da diğerleriyle birlikte oluşturulur (Erdal, 17.11.2026).
-  const missing = tpl.filter((t) => !t.documentId);
 
   async function run(key: string, fn: () => Promise<string>) {
     setBusy(key);
@@ -37,7 +33,7 @@ export default function DocumentsPage() {
     try {
       setMessage(await fn());
       setDialog(null);
-      await Promise.all([docs.reload(), templates.reload()]);
+      await docs.reload();
     } catch (err) {
       setError({ text: errorText(err), missingProfile: err instanceof ApiError && !!err.body.missing?.length });
     } finally {
@@ -49,11 +45,6 @@ export default function DocumentsPage() {
     run('setup', async () => {
       const r = await api<{ created: unknown[] }>('documents/setup', { method: 'POST' });
       return `${r.created.length} doküman taslak olarak oluşturuldu. Gözden geçirip yayınlayabilirsiniz.`;
-    });
-  const addTemplate = (t: TemplateItem) =>
-    run(t.code, async () => {
-      await api('documents', { method: 'POST', body: { templateCode: t.code } });
-      return `${t.code} ${t.title} oluşturuldu.`;
     });
   const addOwn = (input: NewDocumentInput) =>
     run('new', async () => {
@@ -124,34 +115,20 @@ export default function DocumentsPage() {
       )}
       {message && <Alert kind="success">{message}</Alert>}
 
-      {canWrite && missing.length > 0 && (
+      {/* Yalnızca ilk kurulumda: sonradan çıkarılan dokümanlar "eksik" diye listelenmez (Erdal, 17.11.2026). */}
+      {canWrite && items.length === 0 && (
         <div className="card">
           <div className="card-header">
             <div>
-              <h2>{items.length === 0 ? 'Dokümanlarınızı oluşturun' : 'Eksik dokümanlar'}</h2>
+              <h2>Dokümanlarınızı oluşturun</h2>
               <p className="muted small" style={{ margin: '4px 0 0' }}>
-                {missing.length} şablondan doküman henüz oluşturulmadı. Kuruluşunuza uymayan dokümanı oluşturduktan sonra
-                listeden çıkarabilirsiniz.
+                Tüm şablonlardan kuruluşunuza özel dokümanlar oluşturulur. Kuruluşunuza uymayan dokümanı sonra listeden çıkarabilirsiniz.
               </p>
             </div>
             <button className="btn btn-primary" onClick={setup} disabled={busy !== null}>
               {busy === 'setup' ? 'Oluşturuluyor…' : 'Hepsini oluştur'}
             </button>
           </div>
-          {items.length > 0 && (
-            <ul className="list">
-              {missing.map((t) => (
-                <li key={t.code} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-                  <span>
-                    <strong>{t.code}</strong> {t.title} <span className="small muted">({DOCUMENT_CATEGORIES[t.category]})</span>
-                  </span>
-                  <button className="btn btn-small" onClick={() => addTemplate(t)} disabled={busy !== null}>
-                    {busy === t.code ? 'Ekleniyor…' : 'Ekle'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
 
