@@ -40,6 +40,7 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   'inventory.updated': 'Envanter satırı güncellendi',
   'inventory.duplicated': 'Envanter satırı kopyalandı',
   'inventory.deleted': 'Envanter satırı silindi',
+  'inventory.duplicates_merged': 'Mükerrer envanter satırları birleştirildi',
   'inventory.imported': 'Envanter Excel’den içe aktarıldı',
   'inventory.import': 'Envanter Excel dosyası kontrol edildi',
   'inventory.exported': 'Envanter Excel’e aktarıldı',

@@ -203,7 +203,7 @@ describe('Kişisel Veri Envanteri', () => {
     expect(logs.body.items.some((l: any) => l.action === 'inventory.created')).toBe(true);
   });
 
-  it('listeyi filtreler, özet verir, kopyalar ve siler', async () => {
+  it('listeyi filtreler, özet verir, aynı kategoriyi tekrar eklemez ve siler', async () => {
     const { admin, as } = await setupOrg();
     const full = await request(server).post('/api/v1/inventory').set(as(admin.accessToken)).send(ENTRY).expect(201);
     expect(full.body.complete).toBe(true);
@@ -217,9 +217,12 @@ describe('Kişisel Veri Envanteri', () => {
         specialCategoryData: 'Sağlık raporu',
       })
       .expect(201);
+    // Aynı departman + faaliyet + kategori ikinci kez eklenemez; kopya farklı bir faaliyetle açılır.
+    await request(server).post('/api/v1/inventory').set(as(admin.accessToken)).send(ENTRY).expect(409);
     const copy = await request(server)
-      .post(`/api/v1/inventory/${full.body.id}/duplicate`)
+      .post('/api/v1/inventory')
       .set(as(admin.accessToken))
+      .send({ ...ENTRY, activity: 'Kopya Faaliyet' })
       .expect(201);
     expect(copy.body.id).not.toBe(full.body.id);
     expect(copy.body.technicalMeasures).toEqual(ENTRY.technicalMeasures);
@@ -299,7 +302,7 @@ describe('Kişisel Veri Envanteri', () => {
       .expect(403);
     const officer = await addMember(app, a.orgId, 'kvkk_officer');
     await request(server).get('/api/v1/inventory/export').set(a.as(officer.accessToken)).expect(200);
-    await request(server).post('/api/v1/inventory').set(a.as(officer.accessToken)).send(ENTRY).expect(201);
+    await request(server).post('/api/v1/inventory').set(a.as(officer.accessToken)).send({ ...ENTRY, activity: 'Bordro' }).expect(201);
     await request(server).post('/api/v1/inventory').set(a.as(approver.accessToken)).send(ENTRY).expect(403);
     await request(server).delete(`/api/v1/inventory/${entry.body.id}`).set(a.as(approver.accessToken)).expect(403);
   });
@@ -470,23 +473,25 @@ describe('Kişisel Veri Envanteri', () => {
         .parse(binary)
         .expect(200);
 
-      const appended = await upload(as(admin.accessToken), exported.body).expect(200);
-      expect(appended.body).toMatchObject({ mode: 'append', count: 1, removed: 0 });
+      // Aynı satırlar ekleme modunda tekrar eklenemez (mükerrer veri kategorisi oluşmaz).
+      const appended = await upload(as(admin.accessToken), exported.body).expect(400);
+      expect(appended.body.errors).toEqual([{ row: 3, message: expect.stringContaining('envanterde zaten var') }]);
       let list = await request(server).get('/api/v1/inventory').set(as(admin.accessToken)).expect(200);
-      expect(list.body.items).toHaveLength(2);
-      const { id, createdAt, updatedAt, createdBy, updatedBy, organizationId, ...a } = list.body.items[0];
-      const { id: _i, createdAt: _c, updatedAt: _u, createdBy: _cb, updatedBy: _ub, organizationId: _o, ...b } =
-        list.body.items[1];
-      expect(b).toEqual(a);
+      expect(list.body.items).toHaveLength(1);
+      const before = list.body.items[0];
 
       const replaced = await upload(as(admin.accessToken), exported.body, '?mode=replace').expect(200);
-      expect(replaced.body).toMatchObject({ mode: 'replace', count: 1, removed: 2 });
+      expect(replaced.body).toMatchObject({ mode: 'replace', count: 1, removed: 1 });
       list = await request(server).get('/api/v1/inventory').set(as(admin.accessToken)).expect(200);
       expect(list.body.items).toHaveLength(1);
+      const { id, createdAt, updatedAt, createdBy, updatedBy, organizationId, ...a } = before;
+      const { id: _i, createdAt: _c, updatedAt: _u, createdBy: _cb, updatedBy: _ub, organizationId: _o, ...b } =
+        list.body.items[0];
+      expect(b).toEqual(a);
 
       const logs = await request(server).get('/api/v1/audit-logs').set(as(admin.accessToken)).expect(200);
       const imported = logs.body.items.filter((l: any) => l.action === 'inventory.imported');
-      expect(imported.map((l: any) => l.metadata.mode).sort()).toEqual(['append', 'replace']);
+      expect(imported.map((l: any) => l.metadata.mode)).toEqual(['replace']);
     });
 
     it('hatalı satırları numarasıyla bildirir ve hiçbir satırı kaydetmez', async () => {

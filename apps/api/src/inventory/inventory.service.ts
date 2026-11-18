@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   INVENTORY_COLUMNS,
   INVENTORY_REQUIRED_FIELDS,
@@ -6,15 +6,17 @@ import {
   InventoryField,
   STORAGE_MEDIA,
   hasForeignTransfer,
+  inventoryNameKey,
+  inventoryRowKey,
 } from '@kvkk/shared';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, ne, sql } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import path from 'node:path';
 import { AuditService } from '../audit/audit.service';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { inventoryEntries } from '../db/schema';
-import { ImportFileError, parseInventoryXlsx } from './inventory-import';
+import { ImportFileError, ImportedRow, parseInventoryXlsx } from './inventory-import';
 import { InventoryTemplateService } from './inventory-template.service';
 
 type EntryRow = typeof inventoryEntries.$inferSelect;
@@ -51,6 +53,26 @@ export function missingFields(entry: EntryRow): InventoryField[] {
 }
 
 const byTurkish = (a: string, b: string) => a.localeCompare(b, 'tr', { numeric: true });
+
+type ProcessCategory = Pick<EntryRow, 'department' | 'activity' | 'dataCategory'>;
+const rowLabel = (r: ProcessCategory) => `${r.department} / ${r.activity} / ${r.dataCategory}`;
+
+/** Aynı departman + faaliyet + veri kategorisi için ikinci satır açılmak istendiğinde dönen hata. */
+export class DuplicateEntryException extends ConflictException {
+  constructor(existing: ProcessCategory & { id: string }) {
+    super({
+      message: `"${rowLabel(existing)}" satırı envanterde zaten var. Bir departmanın aynı faaliyetinde bir veri kategorisi yalnızca bir kez yer alır; yeni kişisel verileri mevcut satıra ekleyin.`,
+      existingId: existing.id,
+    });
+  }
+}
+
+/** Veritabanındaki tekil indeksle aynı ad anahtarı (bkz. inventoryNameKey). */
+const nameKey = (value: unknown) => sql`lower(translate(${value}, 'İIı', 'iii'))`;
+
+const isUniqueViolation = (err: unknown) =>
+  (err as { code?: string; cause?: { code?: string } })?.code === '23505' ||
+  (err as { cause?: { code?: string } })?.cause?.code === '23505';
 
 const withStatus = (entry: EntryRow) => {
   const missing = missingFields(entry);
@@ -135,10 +157,15 @@ export class InventoryService {
   }
 
   async create(orgId: string, userId: string, input: NewEntryInput) {
-    const [entry] = await this.db
-      .insert(inventoryEntries)
-      .values({ ...input, organizationId: orgId, createdBy: userId, updatedBy: userId })
-      .returning();
+    const names = await this.checkProcessCategory(orgId, input);
+    const entry = await this.unique(
+      this.db
+        .insert(inventoryEntries)
+        .values({ ...input, ...names, organizationId: orgId, createdBy: userId, updatedBy: userId })
+        .returning(),
+      orgId,
+      names,
+    );
     await this.audit.record({
       action: 'inventory.created',
       organizationId: orgId,
@@ -156,11 +183,16 @@ export class InventoryService {
       (k) => JSON.stringify(before[k]) !== JSON.stringify(input[k]),
     );
     if (changed.length === 0) return withStatus(before);
-    const [entry] = await this.db
-      .update(inventoryEntries)
-      .set({ ...input, updatedBy: userId, updatedAt: new Date() })
-      .where(and(eq(inventoryEntries.id, id), eq(inventoryEntries.organizationId, orgId)))
-      .returning();
+    const names = await this.checkProcessCategory(orgId, { ...before, ...input }, id);
+    const entry = await this.unique(
+      this.db
+        .update(inventoryEntries)
+        .set({ ...input, ...names, updatedBy: userId, updatedAt: new Date() })
+        .where(and(eq(inventoryEntries.id, id), eq(inventoryEntries.organizationId, orgId)))
+        .returning(),
+      orgId,
+      names,
+    );
     // Değerler değil yalnızca alan adları loglanır; geçmiş değerler gerekirse ayrı bir sürüm tablosuna alınır.
     await this.audit.record({
       action: 'inventory.updated',
@@ -171,22 +203,6 @@ export class InventoryService {
       metadata: { fields: changed },
     });
     return withStatus(entry);
-  }
-
-  /** Benzer bir faaliyet için satırı kopyalar (VERBİS'teki gibi ortak tedbirleri tekrar girmemek için). */
-  async duplicate(orgId: string, userId: string, id: string) {
-    const { id: _id, organizationId: _org, createdAt: _c, updatedAt: _u, createdBy: _cb, updatedBy: _ub, ...copy } =
-      await this.find(orgId, id);
-    const created = await this.create(orgId, userId, copy);
-    await this.audit.record({
-      action: 'inventory.duplicated',
-      organizationId: orgId,
-      userId,
-      entityType: 'inventory_entry',
-      entityId: created.id,
-      metadata: { sourceId: id },
-    });
-    return created;
   }
 
   async remove(orgId: string, userId: string, id: string) {
@@ -223,6 +239,13 @@ export class InventoryService {
     if (rows.length === 0 && errors.length === 0) throw new BadRequestException('Dosyada envanter satırı yok');
     if (errors.length > 0) {
       throw new BadRequestException({ message: 'Dosyada hatalı satırlar var; hiçbir satır kaydedilmedi', errors });
+    }
+    const duplicates = await this.importDuplicates(orgId, rows, options.mode);
+    if (duplicates.length > 0) {
+      throw new BadRequestException({
+        message: 'Dosyada aynı departman, faaliyet ve veri kategorisi birden çok kez geçiyor; hiçbir satır kaydedilmedi',
+        errors: duplicates,
+      });
     }
     const preview = rows.map((r) => ({ row: r.row, ...r.data }));
     if (options.dryRun) return { dryRun: true, mode: options.mode, count: rows.length, rows: preview };
@@ -309,6 +332,93 @@ export class InventoryService {
     if (value.length === 0) return null;
     // TBL-010'da amaç, hukuki sebep ve tedbirler alt alta; kişi grupları ve alıcılar yan yana yazılır.
     return field === 'dataSubjectGroups' || field === 'recipients' ? value.join(', ') : value.join('\n');
+  }
+
+  /**
+   * Hiyerarşiyi korur (Erdal, 17.11.2026): aynı departman + faaliyet + veri kategorisinde başka satır varsa hata verir.
+   * Departman, faaliyet ve kategori adı yalnızca büyük/küçük harfle farklı yazılmışsa envanterdeki mevcut yazılış kullanılır;
+   * böylece "İnsan Kaynakları" ile "insan kaynakları" iki ayrı departman gibi görünmez.
+   */
+  private async checkProcessCategory(orgId: string, row: ProcessCategory, selfId?: string): Promise<ProcessCategory> {
+    const rows = await this.db
+      .select({
+        id: inventoryEntries.id,
+        department: inventoryEntries.department,
+        activity: inventoryEntries.activity,
+        dataCategory: inventoryEntries.dataCategory,
+      })
+      .from(inventoryEntries)
+      .where(
+        and(
+          eq(inventoryEntries.organizationId, orgId),
+          sql`${nameKey(inventoryEntries.department)} = ${nameKey(row.department)}`,
+          ...(selfId ? [ne(inventoryEntries.id, selfId)] : []),
+        ),
+      )
+      .orderBy(asc(inventoryEntries.createdAt));
+    const key = inventoryNameKey;
+    const department = rows[0]?.department ?? row.department;
+    const sameActivity = rows.filter((r) => key(r.activity) === key(row.activity));
+    const activity = sameActivity[0]?.activity ?? row.activity;
+    const existing = sameActivity.find((r) => key(r.dataCategory) === key(row.dataCategory));
+    if (existing) throw new DuplicateEntryException(existing);
+    return { department, activity, dataCategory: row.dataCategory };
+  }
+
+  /** Eşzamanlı iki kayıtta tekil indeks ihlali de aynı anlaşılır hatayı verir. */
+  private async unique(query: Promise<EntryRow[]>, orgId: string, names: ProcessCategory): Promise<EntryRow> {
+    try {
+      const [entry] = await query;
+      return entry;
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      const [existing] = await this.db
+        .select()
+        .from(inventoryEntries)
+        .where(
+          and(
+            eq(inventoryEntries.organizationId, orgId),
+            sql`${nameKey(inventoryEntries.department)} = ${nameKey(names.department)}`,
+            sql`${nameKey(inventoryEntries.activity)} = ${nameKey(names.activity)}`,
+            sql`${nameKey(inventoryEntries.dataCategory)} = ${nameKey(names.dataCategory)}`,
+          ),
+        );
+      if (existing) throw new DuplicateEntryException(existing);
+      throw err;
+    }
+  }
+
+  /** İçe aktarımda tekrar eden satırlar: dosyanın kendi içinde ve (ekleme modunda) envanterde zaten olanlar. */
+  private async importDuplicates(orgId: string, rows: ImportedRow[], mode: 'append' | 'replace') {
+    const errors: { row: number; message: string }[] = [];
+    const seen = new Map<string, number>();
+    if (mode === 'append') {
+      const existing = await this.db
+        .select({
+          department: inventoryEntries.department,
+          activity: inventoryEntries.activity,
+          dataCategory: inventoryEntries.dataCategory,
+        })
+        .from(inventoryEntries)
+        .where(eq(inventoryEntries.organizationId, orgId));
+      for (const e of existing) seen.set(inventoryRowKey(e), 0);
+    }
+    for (const r of rows) {
+      const k = inventoryRowKey(r.data);
+      const first = seen.get(k);
+      if (first === undefined) {
+        seen.set(k, r.row);
+        continue;
+      }
+      errors.push({
+        row: r.row,
+        message:
+          first === 0
+            ? `"${rowLabel(r.data)}" envanterde zaten var; satırı dosyadan çıkarın veya mevcut envanteri değiştirerek aktarın`
+            : `"${rowLabel(r.data)}" ${first}. satırda da var; aynı kategorinin kişisel verilerini tek satırda yazın`,
+      });
+    }
+    return errors;
   }
 
   private async find(orgId: string, id: string) {

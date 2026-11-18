@@ -3,6 +3,7 @@
 import {
   FOREIGN_TRANSFER,
   NO_FOREIGN_TRANSFER,
+  inventoryNameKey,
   NO_RECIPIENTS,
   RETENTION_UNITS,
   formatRetention,
@@ -12,7 +13,8 @@ import {
   type InventoryTextField,
   type RetentionParts,
 } from '@kvkk/shared';
-import { FormEvent, useId, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { FormEvent, useEffect, useId, useMemo, useState } from 'react';
 import { fieldLabel } from '@/lib/labels';
 import type { InventoryEntry, InventoryOptions } from '@/lib/types';
 import { MultiSelect } from './multi-select';
@@ -95,9 +97,18 @@ export function InventoryForm({
   initial,
   submitLabel,
   readOnly,
+  existing = [],
+  entryId,
+  onProcessChange,
   onSubmit,
 }: {
   options: InventoryOptions;
+  /** Envanterdeki satırlar: aynı departman + faaliyette zaten olan kategoriler seçilemez. */
+  existing?: InventoryEntry[];
+  /** Düzenlenen satırın kimliği (kendisi "zaten var" sayılmaz). */
+  entryId?: string;
+  /** Departman veya faaliyet değişince (yandaki özeti vurgulamak için). */
+  onProcessChange?: (department: string, activity: string) => void;
   initial?: Partial<InventoryValues>;
   submitLabel: string;
   readOnly?: boolean;
@@ -122,6 +133,24 @@ export function InventoryForm({
     () => new Map(options.dataCategories.map((c) => [c.name, c])),
     [options.dataCategories],
   );
+  /** Formdaki departman + faaliyette başka satırda zaten olan kategoriler (anahtar → satır). */
+  const taken = useMemo(() => {
+    const d = inventoryNameKey(values.department);
+    const a = inventoryNameKey(values.activity);
+    const map = new Map<string, InventoryEntry>();
+    if (!d || !a) return map;
+    for (const e of existing) {
+      if (e.id !== entryId && inventoryNameKey(e.department) === d && inventoryNameKey(e.activity) === a) {
+        map.set(inventoryNameKey(e.dataCategory), e);
+      }
+    }
+    return map;
+  }, [existing, entryId, values.department, values.activity]);
+  const takenBy = (name: string) => taken.get(inventoryNameKey(name));
+  useEffect(() => {
+    onProcessChange?.(values.department, values.activity);
+  }, [onProcessChange, values.department, values.activity]);
+
   const legislationOptions = useMemo(
     () => {
       // Aynı kanunun büyük/küçük harf farkıyla yazılmış eski hali ayrıca gösterilmez.
@@ -179,6 +208,14 @@ export function InventoryForm({
       setError('En az bir veri kategorisi seçilmeli');
       return;
     }
+    const clash = categories.filter((c) => takenBy(c.name)).map((c) => c.name);
+    if (clash.length > 0) {
+      setStep(1);
+      setError(
+        `${clash.join(', ')} bu departman ve faaliyette zaten var. Bir faaliyette her veri kategorisi bir kez yer alır; seçimi kaldırıp mevcut satırı düzenleyin.`,
+      );
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -227,12 +264,31 @@ export function InventoryForm({
       const main = special ? 'specialCategoryData' : 'personalData';
       const other = special ? 'personalData' : 'specialCategoryData';
       const inputId = `${listId}-cat-${name}`;
+      const existingRow = takenBy(name);
+      if (existingRow && !selected) {
+        return (
+          <div key={name}>
+            <label className="checkbox">
+              <input type="checkbox" checked={false} disabled />
+              <span className="muted">
+                {name} · bu süreçte zaten var, <Link href={`/envanter/${existingRow.id}`}>satırı aç</Link>
+              </span>
+            </label>
+          </div>
+        );
+      }
       return (
         <div key={name}>
           <label className="checkbox">
             <input type="checkbox" checked={!!selected} onChange={() => toggleCategory(name)} />
             <span>{name}</span>
           </label>
+          {selected && existingRow && (
+            <div className="alert alert-warning small cat-taken">
+              Bu departman ve faaliyette &quot;{existingRow.dataCategory}&quot; satırı zaten var; seçimi kaldırın ve verileri{' '}
+              <Link href={`/envanter/${existingRow.id}`}>mevcut satıra</Link> ekleyin.
+            </div>
+          )}
           {selected && (
             <div className="cat-data">
               <input
@@ -260,7 +316,8 @@ export function InventoryForm({
         <span className="field-label required">Veri kategorisi</span>
         <span className="hint" style={{ marginTop: 0 }}>
           Birden çok kategori seçebilirsiniz; seçtiğiniz her kategori envantere ayrı bir satır olarak kaydedilir. Kategoriyi
-          seçince altındaki alana o kategoride işlenen verileri yazın (örnekler alanın içinde görünür).
+          seçince altındaki alana o kategoride işlenen verileri virgülle ayırarak yazın (örnekler alanın içinde görünür). Bu
+          departman ve faaliyette zaten olan kategoriler tekrar seçilemez; onların verileri mevcut satırda düzenlenir.
         </span>
         <div className="multi">
           <div className="multi-chips">

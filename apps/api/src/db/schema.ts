@@ -375,7 +375,16 @@ export const inventoryEntries = pgTable(
     createdAt: createdAt(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('inventory_entries_org_department_idx').on(t.organizationId, t.department)],
+  (t) => [
+    index('inventory_entries_org_department_idx').on(t.organizationId, t.department),
+    // Aynı departman + faaliyet + veri kategorisi yalnızca bir satır (Erdal, 17.11.2026); büyük/küçük harf farkı (Türkçe I/ı, İ/i dahil) yok sayılır.
+    uniqueIndex('inventory_entries_org_process_category_unique').on(
+      t.organizationId,
+      sql`lower(translate(${t.department}, 'İIı', 'iii'))`,
+      sql`lower(translate(${t.activity}, 'İIı', 'iii'))`,
+      sql`lower(translate(${t.dataCategory}, 'İIı', 'iii'))`,
+    ),
+  ],
 );
 
 /**
