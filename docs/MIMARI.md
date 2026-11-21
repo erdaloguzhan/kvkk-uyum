@@ -1,7 +1,9 @@
 # KVK Uyum Yönetim Sistemi — Mimari
 
-Sürüm 0.2 · 2026-11-04 · İlk sürüm 0.1 (2026-10-05) *KVKK - İş Gereksinimleri Version 0.2* belgesine dayanıyordu; bu sürüm sistemin
-bugünkü hâlini (main, PR #51 dahil) anlatır.
+Sürüm 0.3 · 2026-11-19 · İlk sürüm 0.1 (2026-10-05) *KVKK - İş Gereksinimleri Version 0.2* belgesine dayanıyordu; bu sürüm sistemin
+bugünkü hâlini (main, PR #66 dahil) anlatır. 0.2'den (2026-11-04) bu yana değişenler en sondaki [Sürüm geçmişi](#9-sürüm-geçmişi) bölümündedir.
+
+Durum: 2026-11-14'ten beri ilk müşteriyle (Mes İş Sağlığı Güvenliği) pilot kullanım sürüyor.
 
 Canlı ortam: **https://kvkuyum.com.tr** (Türkiye'de bir VPS, Ubuntu 24.04, Docker Compose). Kurulum: [CANLI-KURULUM.md](CANLI-KURULUM.md).
 
@@ -11,11 +13,11 @@ Canlı ortam: **https://kvkuyum.com.tr** (Türkiye'de bir VPS, Ubuntu 24.04, Doc
 |---|---|---|
 | Dil | **TypeScript** (her katmanda) | Yetki anahtarları, kataloglar ve form metinleri `packages/shared` içinde; web ve API aynı listeyi kullanır. |
 | API | **NestJS 11** (Node 22) | Guard'larla yetki, kuruluş ve lisans kontrolü; global interceptor ile işlem kaydı. |
-| Veritabanı | **PostgreSQL 16**, **Drizzle ORM** | 43 tablo; şema değişiklikleri numaralı migration dosyalarıyla (`apps/api/drizzle`, şu an 0000–0025), API her açılışta eksikleri uygular. |
+| Veritabanı | **PostgreSQL 16**, **Drizzle ORM** | 43 tablo; şema değişiklikleri numaralı migration dosyalarıyla (`apps/api/drizzle`, şu an 0000–0031), API her açılışta eksikleri uygular. |
 | Web | **Next.js 16** (React, App Router) | Tüm ekranlar; mobil tarayıcıya uyumlu. Next.js sunucusu tarayıcı ile API arasında aracıdır (BFF). |
 | Dosyalar | PostgreSQL `bytea` sütunları | Doküman sürümleri, şablonlar, eğitim görselleri, imzalar, logolar, destek ve başvuru ekleri. S3'e taşıma gerekirse sonra. |
 | Zamanlanmış işler | API içinde zamanlayıcı (`ALARM_INTERVAL_MINUTES`, varsayılan 60) | Görev, sözleşme, ihlal, başvuru ve imha alarmları; tekil anahtar sayesinde birden çok kopya aynı bildirimi iki kez yazmaz. |
-| E-posta | SMTP (canlıda `info@kvkuyum.com.tr`, yerelde Mailpit) | Tüm e-postalar düz metin + HTML; "Sayın Ad Soyad," hitabıyla başlar. |
+| E-posta | SMTP (canlıda gönderen "KVK Uyum Yönetim Sistemi" `info@kvkuyum.com.tr`, yerelde Mailpit) | Tüm e-postalar düz metin + HTML; "Sayın Ad Soyad," hitabıyla başlar. Alan adında SPF, DKIM ve DMARC kayıtları var. |
 | SMS | **Verimor** (başlık `SMS_HEADER`, canlıda `Bi ARTI`) | Panel giriş kodu, şifre sıfırlama kodu, Eğitim Portalı giriş kodu, eğitim/doküman bildirimleri. |
 | CAPTCHA | Sunucunun kendi iş kanıtı (proof-of-work, ALTCHA biçimi) | Dış servise veri gitmez (Cloudflare Turnstile IP'yi yurt dışına gönderdiği için kullanılmaz, karar 2026-11-01). |
 | Altyapı | Docker Compose: caddy (HTTPS), web, api, postgres, backup, offsite | Tek sunucu; ayrıntı [CANLI-KURULUM.md](CANLI-KURULUM.md), yedek [FELAKET-KURTARMA.md](FELAKET-KURTARMA.md). |
@@ -50,10 +52,10 @@ kvkk-uyum/
 | Modül | API klasörü | Ekran | Durum |
 |---|---|---|---|
 | Kimlik doğrulama: şifre + SMS kodu (telefon yoksa veya SMS gitmezse e-posta kodu), CAPTCHA, kilit, davet, şifre sıfırlama (e-posta bağlantısı + SMS kodu), oturum iptali | `auth` | `/giris`, `/sifre-belirle`, `/sifremi-unuttum`, `/profil` | Canlıda |
-| Kuruluşlar, üyelikler, sabit roller, logo | `organizations`, `members`, `roles` | `/kurulus` | Canlıda |
+| Kuruluşlar (Veri Sorumlusu Adı, VKN/TCKN, vergi dairesi, adres numarası, VERBİS bildirim tarihi), üyelikler, sabit roller, logo | `organizations`, `members`, `roles` | `/kurulus` | Canlıda |
 | Yönetim paneli: kuruluş açma, kullanıcılar, lisans, veri dışa aktarma ve silme | `admin` | `/admin`, `/admin/kuruluslar/[id]` | Canlıda |
 | Şablon sürümleri (KVK dokümanları ve envanter seçenek listeleri) | `templates`, `inventory` | `/admin/sablonlar`, `/admin/envanter-sablonu` | Canlıda |
-| Doküman yönetimi | `documents` | `/dokumanlar` | Canlıda |
+| Doküman yönetimi: şablondan oluşturma, kendi dokümanını ekleme, onaylı yayın ve onaylı çıkarma | `documents` | `/dokumanlar` | Canlıda |
 | Kişisel veri envanteri (TBL-010) ve envanter onayı | `inventory` | `/envanter` | Canlıda |
 | KVK sözleşmeleri | `contracts` | `/sozlesmeler` | Canlıda |
 | Kişisel veri imha yönetimi | `destruction` | `/imha`, `/imha/sorumlular`, `/imha/kayitlar` | Canlıda |
@@ -74,9 +76,34 @@ kvkk-uyum/
 - **Dokümanlar:** Şablon kuruluş bilgileriyle (`{{kurum.unvan}}` vb.) doldurulur, sürüm 1 taslak olarak kaydedilir; Word'de düzenlenip yeni
   sürüm olarak yüklenebilir. Sorumlu sürümü Yöneticinin onayına gönderir, onaylanan sürüm yayına girer. Yayın tarihi ve revizyon no
   sistem tarafından doldurulmaz. "Çalışanlar görebilsin" işaretli yayındaki dokümanlar Eğitim Portalında görünür.
+  - "Hepsini oluştur" kartı yalnızca kuruluşun hiç dokümanı yokken (ilk kurulum) çıkar ve opsiyonel AYM-030/040 dahil bütün şablonları
+    oluşturur. Ayrı bir "Eksik dokümanlar" listesi yoktur (Erdal, 2026-11-17).
+  - **Yeni doküman ekle (2026-11-17):** Sorumlu kendi Word dosyasını ad, tür ve isteğe bağlı kodla ekler (kod boşsa KD-001, KD-002…).
+    Sürüm 1 taslak olarak kaydedilir ve seçilen Yöneticinin onayına gider; onaylanınca yayına girer.
+  - **Çıkar (2026-11-17):** "<kod ad> dokümanını çıkarmak istediğinizden emin misiniz?" sorusuna Evet denirse çıkarma talebi Yöneticiye
+    gider (`approval_requests.kind = 'remove'`); Yönetici "Onayla ve çıkar" der. Onay yetkisi de olan kullanıcı doğrudan çıkarır.
+    Çıkarma yumuşak silmedir (`documents.removed_at`): doküman listeden ve Eğitim Portalından kalkar, sürümleri ve okuma kayıtları
+    saklanır, bekleyen talepler ve açık görevler iptal edilir, işlem kaydı yazılır. Çıkarılan dokümanın kodu yeniden kullanılabilir.
+  - FRM-020 şablonu 2026-11-08'de yeni Kurul formuna güncellendi; canlıda açılışta v2 olarak kendiliğinden yayınlandı.
 - **Envanter:** TBL-010'un 16 sütunu; seçenek listeleri yönetim panelindeki şablondan gelir (değişiklik yalnızca sonradan açılan satırlara
   yansır). Değişiklikler hemen yazılır; Sorumlu son onaydan bu yana eklenen, değişen, silinen satırları Yöneticiye gönderir
   (`inventory_approvals`).
+  - **Giriş formu (2026-11-14, Erdal'ın "veri envanteri seçenekleri" Word dosyası):** 11 sekme: 1. Süreç (departman + faaliyet),
+    2. Veri kategorisi, 3. İşleme amacı, 4. Kişi grupları, 5. Alıcı grupları, 6. Hukuki sebep, 7. Saklama süresi, 8. Yurt dışı aktarım,
+    9. İlgili mevzuat, 10. İdari tedbirler, 11. Teknik tedbirler. Seçim listeleri sayfa içinde kaydırmasız, tam boy görünür.
+  - Veri kategorisi çoklu seçilir; **seçilen her kategori ayrı satır** olarak kaydedilir, kategorinin örnekleri kişisel veri alanında
+    yer tutucu olarak görünür. Listelerin sonunda "Diğer" ile serbest yazım vardır.
+  - Alıcı gruplarında "… veri aktarılmamaktadır" tek başına seçilir; yurt dışı aktarımda "aktarılmamaktadır / aktarılmaktadır"
+    seçeneği vardır (ikincisi seçilen kategori adlarıyla yazılır). Saklama süresi rakam + yıl/ay/gün + açıklama; ilgili mevzuat hazır
+    5 kanundan çoklu seçim. Hukuki sebeplerdeki a)–f) harfleri kaldırıldı.
+  - "Fiziksel/Dijital" ve "Bulunduğu yer" girişten ve zorunlu alanlardan çıkarıldı; sütunlar ve eski değerler Excel çıktısında kalır.
+  - **Tekillik (2026-11-17, pilot bulgusu):** Departman 1→N Faaliyet, (Departman, Faaliyet) 1→N Veri kategorisi, kategori 1→N kişisel
+    veri; diğer alanlar bu üçlünün tek satırında. Kuruluş + departman + faaliyet + kategori tekil indekslidir (büyük/küçük harf ve
+    Türkçe I/ı, İ/i farkı yok sayılır); aynısı girilirse API 409 döner, süreçte zaten olan kategori formda seçilemez ("satırı aç"
+    bağlantısı). Departman/faaliyet yalnızca harf büyüklüğüyle farklıysa mevcut yazılış kullanılır; satırdaki tekrar eden kişisel
+    veriler bir kez saklanır. 0031 geçişi eski mükerrer satırları en eski satırda birleştirdi. "Kopyala" yeni satır formunu doldurur.
+    Excel içe aktarmada tekrar eden üçlüler satır numarasıyla hata verir.
+  - Yeni ve düzenleme sayfalarında yanda "Girilmiş satırlar" özeti (Departman → Faaliyet → Kategori) görünür.
 - **İmha:** Periyot kuruluş ayarıdır (`organizations.destruction_period_months`, POL-020'ye göre varsayılan 6 ay). İmha sorumlusu tablosu
   dönem geçmişini tutar (yeni sorumlu atanınca eskisi kapanır, silinmez). İmha planı kalemleri envanter satırlarından üretilir
   (saklama süresi ve ortam kopyalanır; işlem türü silme / yok etme / anonimleştirme). Plan Yöneticinin onayına gider; kalem
@@ -86,8 +113,12 @@ kvkk-uyum/
   taslakta. 72 saatlik süre olayın öğrenildiği andan sayılır; oluşturulunca, 24 saatten az kalınca ve süre geçince her gün (30 gün)
   alarm gider. Form Word (FRM-020 düzeninde) olarak indirilir; takip bildirimi formu kopyalayarak açılır.
 - **İlgili kişi başvuruları:** Ayrıntı [BASVURU.md](BASVURU.md). Kurum içi hedef 20 gün (görev son tarihi), yasal süre 30 gün (md. 13).
+- **Eğitim:** Çalışan kuruluş içinde cep telefonuyla tekildir (telefon başka kuruluşta yalnızca aynı ad soyadla kullanılabilir);
+  Excel içe aktarma önce telefonla, yoksa e-postayla eşleştirir. Çalışan ve eğitimcide T.C. kimlik no tutulmaz, sertifikada da yoktur
+  (2026-11-14). Hazır "KVKK Farkındalık Eğitimi" içeriği (17 alt konu, 10'ar soruluk ön ve son test) bir betikle yüklenir
+  ([EGITIM.md](EGITIM.md)).
 - **İş akışı:** Görevler (tür, atanan, son tarih, hatırlatma günleri, tekrar 1/3/6/12 ay), bildirimler (uygulama içi + e-posta),
-  onay talepleri. Yönetim paneli de eğitimcilere görev atar (`organization_id` boş görev ve bildirimler).
+  onay talepleri (`approval_requests.kind`: yayın veya çıkarma). Yönetim paneli de eğitimcilere görev atar (`organization_id` boş görev ve bildirimler).
 - **Lisans:** Kuruluş açılınca `TRIAL_DAYS` (varsayılan 30) gün deneme başlar; lisans bitişi yönetim panelinden girilir. Süresi dolan
   kuruluş **salt okunur** olur (Erdal, 2026-10-29): giriş, görüntüleme ve indirme serbest; ekleme ve değiştirme kapalı (bildirimi okundu
   yapmak ve destek talebi açmak serbest). Eğitim Portalı ve başvuru formu etkilenmez.
@@ -129,12 +160,12 @@ panelinden açılır, kişiye şifre oluşturma bağlantısı gider. Kuruluşta 
 | Grup | Tablolar |
 |---|---|
 | Hesap ve oturum | `users` (telefon, `sessions_revoked_at`), `login_challenges`, `refresh_tokens`, `password_reset_tokens`, `password_reset_codes`, `portal_login_codes` |
-| Kuruluş ve yetki | `organizations` (profil, logo, lisans, başvuru formu anahtarı, imha periyodu), `memberships`, `roles` |
-| Dokümanlar | `document_templates`, `template_versions`, `documents`, `document_versions`, `document_reads` |
-| Envanter | `inventory_entries`, `inventory_approvals`, `inventory_template_options` |
+| Kuruluş ve yetki | `organizations` (profil, vergi dairesi, adres numarası, VERBİS bildirim tarihi, logo, lisans, başvuru formu anahtarı, imha periyodu), `memberships`, `roles` |
+| Dokümanlar | `document_templates`, `template_versions`, `documents` (`removed_at`, `removed_by`), `document_versions`, `document_reads` |
+| Envanter | `inventory_entries` (departman + faaliyet + kategori tekil), `inventory_approvals`, `inventory_template_options` |
 | Süreçler | `contracts`, `incidents`, `data_subject_requests`, `data_subject_request_events`, `data_subject_request_files`, `destruction_officers`, `destruction_plans`, `destruction_items`, `destruction_records` |
 | İş akışı | `tasks`, `approval_requests`, `notifications` |
-| Eğitim | `employees`, `trainers` (unvan, imza), `trainings`, `training_topics`, `training_media`, `training_questions`, `training_groups` (eğitimci), `training_participants`, `training_exam_attempts`, `training_exam_answers` |
+| Eğitim | `employees` (kuruluşta telefon tekil), `trainers` (unvan, imza), `trainings`, `training_topics`, `training_media`, `training_questions`, `training_groups` (eğitimci), `training_participants`, `training_exam_attempts`, `training_exam_answers` |
 | Destek | `support_tickets`, `support_messages`, `support_attachments` |
 | Kayıt | `audit_logs` |
 
@@ -155,13 +186,17 @@ panelinden açılır, kişiye şifre oluşturma bağlantısı gider. Kuruluşta 
   istek gövdesi yazılmaz.
 - **Dosyalar:** tür ilk baytlardan kontrol edilir; `.xlsx`/`.docx` yüklemelerinde ZIP bombası denetimi (100 MB).
 - **HTTP:** her yerde TLS + HSTS (Caddy), CSP ve güvenlik başlıkları; yalnızca `/basvuru/*` başka sitelerde çerçevede açılabilir.
-- **Barındırma:** sunucu Türkiye'de. Yedekler GPG ile şifrelenip yöneticinin bilgisayarına çekilir; tüm yedekler en fazla 14 gün.
+- **Barındırma:** sunucu Türkiye'de; dışarıya yalnızca 80/443 ve SSH portu açık. SSH yalnızca anahtarla girilir, şifreyle giriş kapalı
+  (2026-11-08). Erişilebilirlik UptimeRobot ile izlenir.
+- **Yedek:** her gece veritabanı yedeği alınır; sunucu dışı yedek (2026-11-09'dan beri çalışıyor) GPG ile şifrelenip her sabah 09:00'da
+  yöneticinin bilgisayarına çekilir. Tüm yedekler en fazla 14 gün tutulur. Anahtar ve `.env` dosyalarının şifreli kopyası sunucu dışında saklanır.
 
 ## 7. Doküman içerikleri
 
 Erdal'ın sağladığı Word dosyaları `content/` klasöründedir; ilk açılışta v1 şablon olarak veritabanına alınır, sonraki sürümler yönetim
 panelinden yüklenir. Yer tutucular: `{{kurum.unvan}}`, `{{kurum.adresi}}`, `{{kurum.vergi_no}}`, `{{kurum.web_sitesi_adresi}}`,
-`{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep}}`, `{{kurum.yetkili}}`. KEP ve web sitesi isteğe bağlıdır
+`{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep}}`, `{{kurum.yetkili}}`, `{{kurum.vergi_dairesi}}`, `{{kurum.adres_no}}`
+(UAVT adres kodu, 10 hane), `{{kurum.verbis_tarihi}}` (GG.AA.YYYY). KEP, web sitesi, vergi dairesi, adres numarası ve VERBİS tarihi isteğe bağlıdır
 (boş kalır); `{{kurum.logo}}` henüz desteklenmez ve boş bırakılır (panelde yüklenen logo yalnızca arayüzde görünür). Hukuki metin uydurulmaz; sistem yalnızca sağlanan içeriği kullanır.
 
 ## 8. Açık konular
@@ -170,7 +205,16 @@ panelinden yüklenir. Yer tutucular: `{{kurum.unvan}}`, `{{kurum.adresi}}`, `{{k
 |---|---|
 | Doğrulama kodu kanalı | Kapandı: SMS (Verimor), yedek e-posta. |
 | Barındırma yeri | Kapandı: Türkiye'de VPS. |
+| Alan adı | Kapandı: yalnızca kvkuyum.com.tr. kvkk.com.tr alınamadığı için yönlendirme yapılmayacak (2026-11-09). |
 | Internet Explorer | Desteklenmiyor. |
 | VERBİS entegrasyonu | Açık: resmi API yok; VERBİS'e uygun dışa aktarım olarak düşünülebilir. |
 | Online ödeme | Açık: şimdilik web sitesinden satın alma + elle lisans. |
 | Saklama süreleri ile 1 aylık silme | Açık: Bi Artı'nın kendi işlem kayıtlarının (5 yıl) ve hesap bilgilerinin (10 yıl) müşteri silindikten sonra ayrıca saklanıp saklanmayacağı kararı bekleniyor; bugün silme her şeyi siler. |
+
+## 9. Sürüm geçmişi
+
+| Sürüm | Tarih | Değişiklikler |
+|---|---|---|
+| 0.3 | 2026-11-19 | Kuruluş formu yeni alanları (PR #59); FRM-020 şablonu v2 (PR #58); envanter giriş formu Word dosyasına göre, 11 sekme, alıcı ve yurt dışı seçenekleri (PR #60–62); çalışan ve eğitimciden T.C. kimlik no kaldırıldı (PR #63); kendi dokümanını ekleme ve onaylı çıkarma, "Eksik dokümanlar" listesi kaldırıldı (PR #64–65); envanterde departman + faaliyet + kategori tekilliği ve "Girilmiş satırlar" özeti (PR #66); hazır eğitim içeriği (PR #55–57); SSH yalnızca anahtar, sunucu dışı yedek canlıda, gönderen adı, kvkk.com.tr kararı. |
+| 0.2 | 2026-11-04 | Sistemin PR #51'e kadarki hâli: SMS ile giriş, rol seçimi, rol menüleri, imha, veri ihlali, başvurular, lisans, CAPTCHA, canlı ortam. |
+| 0.1 | 2026-10-05 | İlk mimari, *KVKK - İş Gereksinimleri Version 0.2* belgesine dayanır. |
