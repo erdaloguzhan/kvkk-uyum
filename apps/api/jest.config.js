@@ -6,4 +6,6 @@ module.exports = {
   transform: { '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json' }] },
   moduleNameMapper: { '^@kvkk/shared$': '<rootDir>/../../packages/shared/src' },
   globalSetup: '<rootDir>/test/global-setup.ts',
+  // Testler gerçek veritabanıyla uçtan uca çalışır; yavaş CI makinesinde varsayılan 5 sn yetmeyebiliyor (26.11.2026).
+  testTimeout: 30000,
 };
