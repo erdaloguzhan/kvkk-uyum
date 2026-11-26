@@ -182,13 +182,13 @@ export class TrainersService {
   /** Eğitimcinin şifre oluşturma bağlantısını yeniden gönderir (eskisi geçersiz olur). */
   async resendInvite(adminId: string, id: string) {
     const t = await this.get(id);
-    await this.passwordReset.revokePending(t.userId);
     await this.passwordReset.sendInvite(
       { id: t.userId, email: t.email, fullName: `${t.firstName} ${t.lastName}` },
       null,
       {
         subject: 'KVK Uyum Yönetim Sistemi - eğitimci hesabınız',
         intro: 'KVK Uyum Yönetim Sistemi eğitim yönetimi için eğitimci hesabınız oluşturuldu.',
+        replacePending: true,
       },
     );
     await this.audit.record({ action: 'training.trainer_invite_resent', userId: adminId, entityType: 'trainer', entityId: id });
