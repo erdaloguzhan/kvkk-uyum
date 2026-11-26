@@ -8,7 +8,7 @@ import ExcelJS from 'exceljs';
 import PizZip from 'pizzip';
 import request from 'supertest';
 import { templateTags, UNSUPPORTED_PLACEHOLDERS } from '../src/documents/template-renderer';
-import { textToHtml } from '../src/auth/mailer.service';
+import { MailDeliveryError, MailerService, mailFailureReason, textToHtml } from '../src/auth/mailer.service';
 import { and, eq } from 'drizzle-orm';
 import { Database, DB } from '../src/db/db.module';
 import { auditLogs, employees, organizations, portalLoginCodes, users } from '../src/db/schema';
@@ -213,6 +213,19 @@ describe('Yönetim paneli', () => {
       const second = extractCode(lastMailTo(app, email).text);
       expect(second).not.toBe(first);
       await request(server).post('/api/v1/auth/password-reset/confirm').send({ token: first, password: PASSWORD }).expect(400);
+
+      // E-posta sunucusu şifreyi reddederse Türkçe neden döner ve son bağlantı geçerli kalır.
+      const smtp = jest
+        .spyOn(app.get(MailerService), 'send')
+        .mockRejectedValueOnce(new MailDeliveryError(mailFailureReason({ code: 'EAUTH' }), new Error('535 Authentication failed')));
+      const failed = await request(server)
+        .post(`/api/v1/admin/organizations/${res.body.organization.id}/resend-invite`)
+        .set(auth(admin.accessToken))
+        .expect(503);
+      expect(failed.body.message).toContain('kullanıcı adını veya şifreyi kabul etmedi');
+      expect(failed.body.message).toContain('önceki bağlantı geçerliliğini koruyor');
+      smtp.mockRestore();
+      await request(server).post('/api/v1/auth/password-reset/info').send({ token: second }).expect(200);
 
       // Ayrı bir Yönetici sonradan eklenir; kullanıcı bazında bağlantı yeniden gönderilir.
       const viewer = person('yonetici', 'Can Er');

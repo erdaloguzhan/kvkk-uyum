@@ -110,8 +110,7 @@ export class AdminOrganizationsService {
     if (!owner) {
       throw new BadRequestException('Kuruluş e-postasıyla kayıtlı bir kullanıcı yok');
     }
-    await this.passwordReset.revokePending(owner.id);
-    await this.passwordReset.sendInvite(owner, org.name);
+    await this.passwordReset.sendInvite(owner, org.name, { replacePending: true });
     await this.audit.record({
       action: 'admin.invite_resent',
       organizationId: orgId,

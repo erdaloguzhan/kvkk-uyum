@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { createTransport, Transporter } from 'nodemailer';
 import { AppConfig, CONFIG } from '../config';
 
@@ -37,6 +37,39 @@ export function textToHtml(text: string) {
   );
 }
 
+/**
+ * E-posta sunucusu iletiyi almadığında atılır. 503 olduğu için sistem uyarısı yine gider; kullanıcı Nest'in
+ * İngilizce "Internal server error" yanıtı yerine nedeni Türkçe görür (26.11.2026: SMTP şifresi hatalıyken
+ * "Daveti yeniden gönder" anlaşılır bir hata göstermiyordu).
+ */
+export class MailDeliveryError extends ServiceUnavailableException {
+  constructor(
+    readonly reason: string,
+    cause: unknown,
+  ) {
+    super(`E-posta gönderilemedi: ${reason}. Lütfen sistem yöneticisine bildirin.`, { cause });
+  }
+}
+
+/** nodemailer hata kodundan kullanıcıya gösterilecek neden. */
+export function mailFailureReason(err: unknown) {
+  const code = (err as { code?: string } | null)?.code;
+  switch (code) {
+    case 'EAUTH':
+      return 'e-posta sunucusu kullanıcı adını veya şifreyi kabul etmedi';
+    case 'ECONNECTION':
+    case 'ETIMEDOUT':
+    case 'ESOCKET':
+    case 'EDNS':
+    case 'ETLS':
+      return 'e-posta sunucusuna bağlanılamadı';
+    case 'EENVELOPE':
+      return 'e-posta sunucusu alıcı adresini kabul etmedi';
+    default:
+      return 'e-posta sunucusu iletiyi kabul etmedi';
+  }
+}
+
 /** Loglar için: "erdal@hotmail.com" -> "er***@hotmail.com". */
 export function maskEmail(email: string) {
   const at = email.lastIndexOf('@');
@@ -68,7 +101,7 @@ export class MailerService {
         this.logger.log(`E-posta gönderildi -> ${maskEmail(mail.to)} "${mail.subject}" id=${info.messageId} yanıt=${info.response}`);
       } catch (err) {
         this.logger.error(`E-posta gönderilemedi -> ${maskEmail(mail.to)} "${mail.subject}": ${err}`);
-        throw err;
+        throw new MailDeliveryError(mailFailureReason(err), err);
       }
     } else if (process.env.NODE_ENV !== 'test') {
       this.logger.log(`E-posta -> ${mail.to}: ${mail.subject}\n${mail.text}`);

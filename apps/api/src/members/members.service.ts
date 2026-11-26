@@ -188,8 +188,7 @@ export class MembersService {
       .select({ id: users.id, email: users.email, fullName: users.fullName })
       .from(users)
       .where(eq(users.id, current.userId));
-    await this.passwordReset.revokePending(user.id);
-    await this.passwordReset.sendInvite(user, await this.orgName(orgId));
+    await this.passwordReset.sendInvite(user, await this.orgName(orgId), { replacePending: true });
     await this.audit.record({
       action: 'admin.invite_resent',
       organizationId: orgId,

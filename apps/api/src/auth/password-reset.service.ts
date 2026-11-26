@@ -1,12 +1,12 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
-import { and, count, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, gt, isNull, ne, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service';
 import { generateNumericCode, generateToken, hashPassword, safeEqualHex, sha256 } from '../common/crypto';
 import { AppConfig, CONFIG } from '../config';
 import { Database, InjectDb } from '../db/db.module';
 import { passwordResetCodes, passwordResetTokens, refreshTokens, users } from '../db/schema';
 import { accountRoleLabel, salutation, SYSTEM_NAME } from './account-label';
-import { MailerService } from './mailer.service';
+import { MailDeliveryError, MailerService } from './mailer.service';
 import { SmsService } from './sms.service';
 
 const RESET_TTL_MS = 60 * 60 * 1000;
@@ -129,27 +129,47 @@ export class PasswordResetService {
    * Yeni hesaba şifre oluşturma bağlantısı gönderir (kuruluşa davet, platform yöneticisi tarafından
    * kuruluş açılması veya ilk platform yöneticisi). Şifre e-postayla gönderilmez; kullanıcı bağlantıyla
    * kendi şifresini oluşturur.
+   *
+   * `replacePending` (yeniden gönderme): e-posta gittikten sonra önceki bağlantılar geçersiz olur. E-posta
+   * gönderilemezse yeni bağlantı silinir ve öncekiler geçerli kalır.
    */
   async sendInvite(
     user: { id: string; email: string; fullName?: string | null },
     organizationName: string | null,
-    opts: { subject?: string; intro?: string } = {},
+    opts: { subject?: string; intro?: string; replacePending?: boolean } = {},
   ) {
     const token = await this.createToken(user.id, INVITE_TTL_MS);
+    const tokenHash = sha256(token);
     const greeting = `${salutation(user.fullName)}\n\n`;
     const intro =
       opts.intro ??
       (organizationName
         ? `${organizationName} için KVK Uyum Yönetim Sistemi hesabınız oluşturuldu.`
         : 'KVK Uyum Yönetim Sistemi hesabınız oluşturuldu.');
-    await this.mailer.send({
-      to: user.email,
-      subject: opts.subject ?? `${SYSTEM_NAME} hesabınız oluşturuldu`,
-      text:
-        `${greeting}${intro}\n\n` +
-        `Şifrenizi oluşturmak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
-        `Bağlantı 7 gün geçerlidir. Kullanıcı adınız bu e-posta adresidir: ${user.email}\n`,
-    });
+    try {
+      await this.mailer.send({
+        to: user.email,
+        subject: opts.subject ?? `${SYSTEM_NAME} hesabınız oluşturuldu`,
+        text:
+          `${greeting}${intro}\n\n` +
+          `Şifrenizi oluşturmak için aşağıdaki bağlantıyı açın:\n${this.link(token)}\n\n` +
+          `Bağlantı 7 gün geçerlidir. Kullanıcı adınız bu e-posta adresidir: ${user.email}\n`,
+      });
+    } catch (err) {
+      await this.db.delete(passwordResetTokens).where(eq(passwordResetTokens.tokenHash, tokenHash));
+      if (opts.replacePending && err instanceof MailDeliveryError) {
+        throw new MailDeliveryError(`${err.reason} (önceki bağlantı geçerliliğini koruyor)`, err.cause);
+      }
+      throw err;
+    }
+    if (opts.replacePending) {
+      await this.db
+        .update(passwordResetTokens)
+        .set({ usedAt: new Date() })
+        .where(
+          and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt), ne(passwordResetTokens.tokenHash, tokenHash)),
+        );
+    }
     await this.smsInviteNotice(user.id);
   }
 
