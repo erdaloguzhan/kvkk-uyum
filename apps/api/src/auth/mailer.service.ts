@@ -37,6 +37,13 @@ export function textToHtml(text: string) {
   );
 }
 
+/** Loglar için: "erdal@hotmail.com" -> "er***@hotmail.com". */
+export function maskEmail(email: string) {
+  const at = email.lastIndexOf('@');
+  if (at < 0) return '***';
+  return `${email.slice(0, Math.min(2, at))}***${email.slice(at)}`;
+}
+
 /**
  * E-posta gönderimi. `SMTP_URL` tanımlıysa SMTP ile gönderir; değilse (geliştirme) iletiyi loglar.
  * Gönderilen iletiler testler için bellekte de tutulur.
@@ -54,7 +61,15 @@ export class MailerService {
   async send(mail: OutgoingMail): Promise<void> {
     this.outbox.push(mail);
     if (this.transport) {
-      await this.transport.sendMail({ from: this.config.mailFrom, ...mail, html: textToHtml(mail.text) });
+      // Gönderilen iletiler info@ kutusunun "Gönderilmiş" klasörüne düşmez; ne gittiği yalnızca bu loglardan
+      // anlaşılır (26.11.2026). Alıcının adresi loga maskeli yazılır.
+      try {
+        const info = await this.transport.sendMail({ from: this.config.mailFrom, ...mail, html: textToHtml(mail.text) });
+        this.logger.log(`E-posta gönderildi -> ${maskEmail(mail.to)} "${mail.subject}" id=${info.messageId} yanıt=${info.response}`);
+      } catch (err) {
+        this.logger.error(`E-posta gönderilemedi -> ${maskEmail(mail.to)} "${mail.subject}": ${err}`);
+        throw err;
+      }
     } else if (process.env.NODE_ENV !== 'test') {
       this.logger.log(`E-posta -> ${mail.to}: ${mail.subject}\n${mail.text}`);
     }
