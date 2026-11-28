@@ -1,6 +1,6 @@
 # KVKK doküman içerikleri
 
-Erdal'ın 2026-10-06'da sağladığı dokümanlar. Bunlar sistemin **şablonlarıdır**: Doküman Yönetimi modülü
+Erdal'ın 2026-10-06'da sağladığı dokümanlar. 2026-11-28: 15 şablon KVKK mevzuat incelemesine göre güncellendi (2024 değişiklikleri dahil), 9 yeni şablon eklendi. Bunlar sistemin **şablonlarıdır**: Doküman Yönetimi modülü
 her kuruluş için bunları kuruluş profilindeki bilgilerle doldurup yayınlayacak. Hukuki metin sistem
 tarafından üretilmez; yalnızca buradaki içerik kullanılır.
 
@@ -15,12 +15,15 @@ tarafından üretilmez; yalnızca buradaki içerik kullanılır.
 | Yer tutucu | Kuruluş profil alanı | Kullanıldığı dokümanlar |
 |---|---|---|
 | `{{kurum.unvan}}` | Firma ünvanı | FRM-020 hariç hepsi |
-| `{{kurum.adresi}}` | Adres | AYM-010/020/030/040/050, SZL-010, SZL-020 |
+| `{{kurum.adresi}}` | Adres | AYM-010/020/030/040/050/070, FRM-010/030/060, SZL-010, SZL-020 |
 | `{{kurum.vergi_no}}` | Vergi numarası | AYM-010/020/030/040/050, SZL-020 |
-| `{{kurum.web_sitesi_adresi}}` | Web sitesi | AYM-010/020/030/040/041/050 |
+| `{{kurum.web_sitesi_adresi}}` | Web sitesi (boş olabilir) | AYM-010/020/030/040/041/050/070, FRM-050 |
+| `{{kurum.eposta}}` | E-posta | AYM-010/020/030/040/050/060/070, FRM-010/030/050 |
+| `{{kurum.telefon}}` | Telefon | AYM-041, AYM-070, FRM-050 |
 | `{{kurum.logo}}` | Firma logosu (görsel) | AYM-041 — henüz desteklenmiyor; doküman oluşur, logo alanı boş kalır ve sürümde not edilir |
 
-Ek olarak kullanılabilir: `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep}}`, `{{kurum.yetkili}}`.
+Ek olarak kullanılabilir: `{{kurum.kep}}`, `{{kurum.yetkili}}`. E-posta ve telefon 2026-11-28'den itibaren
+zorunlu alanlardır: profilde boşsa bu alanları kullanan dokümanlar oluşturulmaz ve eksik alan olarak bildirilir.
 `{{ kurum.unvan }}` gibi boşluklu yazım da geçerlidir.
 
 ## Katalog
@@ -43,6 +46,15 @@ Ek olarak kullanılabilir: `{{kurum.eposta}}`, `{{kurum.telefon}}`, `{{kurum.kep
 | SZL-010 | Çalışan Kişisel Verileri Koruma Gizlilik Protokolü | Sözleşme | Kullanımda |
 | SZL-020 | Dış Kaynaklı Veri İşleyen Bilgi Güvenliği Sözleşmesi | Sözleşme | Kullanımda |
 | TBL-010 | Kişisel Veri Envanteri Tablosu | Tablo (Excel) | Envanter modülünün veri yapısı için örnek |
+| POL-030 | Özel Nitelikli Kişisel Veri Politikası | Politika | Kullanımda |
+| PRS-040 | Yurt Dışına Kişisel Veri Aktarımı Prosedürü | Prosedür | Kullanımda |
+| FRM-030 | İlgili Kişi Başvurusu Cevap Yazıları | Form | Kullanımda |
+| FRM-040 | Kişisel Veri İmha Tutanağı | Form | Kullanımda |
+| FRM-050 | Veri İhlali İlgili Kişi Bildirim Metinleri | Form | Kullanımda |
+| FRM-060 | VERBİS İrtibat Kişisi Atama Yazısı | Form | Opsiyonel |
+| AYM-060 | Açık Rıza Metinleri | Aydınlatma metni | Opsiyonel |
+| AYM-070 | İnternet Sitesi Gizlilik ve Çerez Paneli Metni | Aydınlatma metni | Opsiyonel |
+| TBL-020 | Teknik ve İdari Tedbirler Listesi | Form (Word tablo) | Kullanımda |
 
 ## Notlar
 

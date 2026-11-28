@@ -40,9 +40,79 @@ export type TemplateVersionState = 'draft' | 'current' | 'scheduled' | 'past';
  */
 export const TEMPLATE_CONTENT_UPDATES: { code: string; previousSha256: string; note: string }[] = [
   {
+    code: 'AYM-010',
+    previousSha256: 'ecf773c07ce00874001bcce4a5fb7918184f72e3bf022091abdb53ab0034738b',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'AYM-020',
+    previousSha256: 'c01e70fe7ad2084d1b3518f9b453f17283fbd950f7afa3b5ca5cd1cb941414ac',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'AYM-030',
+    previousSha256: 'fcf8b3a3db350bb1080b702aa936cd021c06d0861d72697f97cac648a95d6f51',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'AYM-040',
+    previousSha256: '2650f70950c699a1562924fe6ab6ba3936cd7036b69a5b418c8cddc15d7235ab',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'AYM-041',
+    previousSha256: '8c811bb66804dd64701e027c046ef893dbb8416d47228992f1df687b17921a55',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'AYM-050',
+    previousSha256: '791f9b5dcefdb5b823fc6a80ffaa96173994aebe7c5819b7910a89cf1cd3c16f',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'FRM-010',
+    previousSha256: 'b611cf9248b5d408ebe2106f44c9a524fb667c1a3b0072a3beb1899b7ce569a1',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
     code: 'FRM-020',
-    previousSha256: '877611f130ca037105a0ab64ed1acd7ec318db53dadfb1794a883836950420a5',
-    note: 'FRM-020 yeni hali: A–D bölümleri, 31 soru ve EK-1 (2026-11)',
+    previousSha256: 'a5e7fa4ffaf62706a98a341e144efa2c3e4fd87ce93796e8ef906e2df4aec387',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'POL-010',
+    previousSha256: '59d6c8ddc4454e9957e618b80a1515fefe0555e47beec68f61aeea5a5a904349',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'POL-020',
+    previousSha256: 'cb53768bb3c23f3e9919296186a0367419afae253fb1238f2e9a11ebcfb77eeb',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'PRS-010',
+    previousSha256: '0f8d5aaf01ebd6536df4ef71167796df83625c665e28c9b437b661079ccce837',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'PRS-020',
+    previousSha256: 'ed5f9e1d500d1c7d0338322c8c3f2a0978199c3c562cf8e4850ac350cd88d1a4',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'PRS-030',
+    previousSha256: '3e08d2ff71c14e4a48d19212e47ec3aeae249b5b8a7bd01c6d0f5411da7cd514',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'SZL-010',
+    previousSha256: '5dfe55d9fac3a3b51a033d825c4612c619349d784e18c243a5cfa4f837381d1e',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
+  },
+  {
+    code: 'SZL-020',
+    previousSha256: '8b46e4f8832bb3d5c34fdbff095eef71dc0040b211d3eac704b8681c42c3dc34',
+    note: 'KVKK mevzuat incelemesi sonrası güncel metin (2026-11-28)',
   },
 ];
 

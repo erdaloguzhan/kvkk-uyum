@@ -1,7 +1,7 @@
 /**
  * Erdal'ın sağladığı KVKK doküman şablonlarının kataloğu (content/ klasörü).
  * Doküman Yönetimi modülü bu şablonları kuruluş profiliyle doldurup kuruluşa özel doküman oluşturur.
- * TBL-010 (Excel) burada yok; Kişisel Veri Envanteri modülünün veri yapısına esas alınır (inventory.ts).
+ * TBL-010 (Excel) burada yok (TBL-020 Word olduğu için form olarak listelenir); Kişisel Veri Envanteri modülünün veri yapısına esas alınır (inventory.ts).
  */
 export const DOCUMENT_CATEGORIES = {
   policy: 'Politika',
@@ -127,6 +127,70 @@ export const DOCUMENT_TEMPLATES: DocumentTemplateDefinition[] = [
     title: 'Dış Kaynaklı Veri İşleyen Bilgi Güvenliği Sözleşmesi',
     category: 'contract',
     file: 'sozlesmeler/SZL-020 Dış Kaynaklı Veri İşleyen Bilgi Güvenliği Sözleşmesi.docx',
+    optional: false,
+  },
+  // Erdal'ın onayıyla eklenen şablonlar (2026-11-28).
+  {
+    code: 'POL-030',
+    title: 'Özel Nitelikli Kişisel Veri Politikası',
+    category: 'policy',
+    file: 'politikalar/POL-030 Özel Nitelikli Kişisel Veri Politikası.docx',
+    optional: false,
+  },
+  {
+    code: 'PRS-040',
+    title: 'Yurt Dışına Kişisel Veri Aktarımı Prosedürü',
+    category: 'procedure',
+    file: 'prosedurler/PRS-040 Yurt Dışına Kişisel Veri Aktarımı Prosedürü.docx',
+    optional: false,
+  },
+  {
+    code: 'FRM-030',
+    title: 'İlgili Kişi Başvurusu Cevap Yazıları',
+    category: 'form',
+    file: 'formlar/FRM-030 İlgili Kişi Başvurusu Cevap Yazıları.docx',
+    optional: false,
+  },
+  {
+    code: 'FRM-040',
+    title: 'Kişisel Veri İmha Tutanağı',
+    category: 'form',
+    file: 'formlar/FRM-040 Kişisel Veri İmha Tutanağı.docx',
+    optional: false,
+  },
+  {
+    code: 'FRM-050',
+    title: 'Veri İhlali İlgili Kişi Bildirim Metinleri',
+    category: 'form',
+    file: 'formlar/FRM-050 Veri İhlali İlgili Kişi Bildirim Metinleri.docx',
+    optional: false,
+  },
+  {
+    code: 'FRM-060',
+    title: 'VERBİS İrtibat Kişisi Atama Yazısı',
+    category: 'form',
+    file: 'formlar/FRM-060 VERBİS İrtibat Kişisi Atama Yazısı.docx',
+    optional: true,
+  },
+  {
+    code: 'AYM-060',
+    title: 'Açık Rıza Metinleri',
+    category: 'notice',
+    file: 'aydinlatma-metinleri/AYM-060 Açık Rıza Metinleri.docx',
+    optional: true,
+  },
+  {
+    code: 'AYM-070',
+    title: 'İnternet Sitesi Gizlilik ve Çerez Paneli Metni',
+    category: 'notice',
+    file: 'aydinlatma-metinleri/AYM-070 İnternet Sitesi Gizlilik ve Çerez Paneli Metni.docx',
+    optional: true,
+  },
+  {
+    code: 'TBL-020',
+    title: 'Teknik ve İdari Tedbirler Listesi',
+    category: 'form',
+    file: 'tablolar/TBL-020 Teknik ve İdari Tedbirler Listesi.docx',
     optional: false,
   },
 ];

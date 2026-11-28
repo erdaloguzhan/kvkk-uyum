@@ -98,7 +98,7 @@ export const DSR_REQUEST_ITEMS: DsrRequestItemDefinition[] = [
   },
   {
     no: 3,
-    text: 'Eğer İşyeriniz hakkımda kişisel veri işliyorsa bunların işlenme amacını ve işlenme amacına uygun kullanılıp kullanmadığını öğrenmek istiyorum.',
+    text: 'Eğer İşyeriniz hakkımda kişisel veri işliyorsa bunların işlenme amacını ve işlenme amacına uygun kullanılıp kullanılmadığını öğrenmek istiyorum.',
     article: 'Kişisel Verilerin Korunması Kanunu Mad 11/1 (c)',
     short: 'İşlenme amacını öğrenme',
   },
@@ -110,11 +110,11 @@ export const DSR_REQUEST_ITEMS: DsrRequestItemDefinition[] = [
   },
   {
     no: 5,
-    text: 'Kişisel verilerimin eksik veya yanlış işlendiği düşünüyorum ve bunların düzeltilmesini istiyorum.',
+    text: 'Kişisel verilerimin eksik veya yanlış işlendiğini düşünüyorum ve bunların düzeltilmesini istiyorum.',
     article: 'Kişisel Verilerin Korunması Kanunu Mad 11/1 (d)',
     detailLabel: 'Düzeltilecek veri',
     detailHint:
-      'Düzeltilmesini istediğiniz kişisel verinizi yazınız ve doğru ve tamamlayıcı bilgilerini gösteren belgeleri ek olarak gönderiniz (Nüfus cüzdanı fotokopisi, ikametgâh gibi).',
+      'Düzeltilmesini istediğiniz kişisel verinizi yazınız ve doğru ve tamamlayıcı bilgilerini gösteren belgeleri ek olarak gönderiniz (Kimlik kartı fotokopisi, yerleşim yeri belgesi gibi).',
     short: 'Düzeltme',
   },
   {
@@ -130,7 +130,7 @@ export const DSR_REQUEST_ITEMS: DsrRequestItemDefinition[] = [
     article: 'Kişisel Verilerin Korunması Kanunu Mad 11/1 (f)',
     detailLabel: 'Düzeltilecek veri',
     detailHint:
-      'Düzeltilmesini istediğiniz kişisel verinizi yazınız ve doğru ve tamamlayıcı bilgilerini gösteren belgeleri ek olarak gönderiniz (Nüfus cüzdanı fotokopisi, ikametgâh gibi).',
+      'Düzeltilmesini istediğiniz kişisel verinizi yazınız ve doğru ve tamamlayıcı bilgilerini gösteren belgeleri ek olarak gönderiniz (Kimlik kartı fotokopisi, yerleşim yeri belgesi gibi).',
     short: 'Üçüncü kişilerde düzeltme',
   },
   {
@@ -150,7 +150,7 @@ export const DSR_REQUEST_ITEMS: DsrRequestItemDefinition[] = [
   },
   {
     no: 10,
-    text: 'Kişisel verilerimin kanuna aykırı işlenmesi nedeniyle zarara uğradım. Bu zararın tazmini talep ediyorum.',
+    text: 'Kişisel verilerimin kanuna aykırı işlenmesi nedeniyle zarara uğradım. Bu zararın tazminini talep ediyorum.',
     article: 'Kişisel Verilerin Korunması Kanunu Mad 11/1 (h)',
     detailLabel: 'Kanuna aykırılığa konu olan husus',
     detailHint:

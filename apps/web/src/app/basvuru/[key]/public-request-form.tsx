@@ -89,7 +89,7 @@ export function PublicRequestForm({ formKey, embedded }: { formKey: string; embe
         <ApplicantFields value={value} onChange={setValue} phoneRequired />
         <RequestFilesField
           state={files}
-          hint="Talebinizi destekleyen belgeler (nüfus cüzdanı fotokopisi, ikametgâh, mahkeme kararı gibi): PDF, JPEG veya PNG; en fazla 5 dosya, her biri 5 MB."
+          hint="Talebinizi destekleyen belgeler (kimlik kartı fotokopisi, yerleşim yeri belgesi, mahkeme kararı gibi): PDF, JPEG veya PNG; en fazla 5 dosya, her biri 5 MB."
         />
         <div className="form-text">
           {DSR_FORM_VERIFICATION.map((p) => (

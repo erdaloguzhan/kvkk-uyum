@@ -447,8 +447,8 @@ describe('Kişisel Veri Envanteri', () => {
         dataCategory: 'Kimlik',
         storageMedium: 'both',
         dataSubjectGroups: ['Çalışanlar', 'Stajyerler'],
-        recipients: ['SGK Ve Diğer Yetkili Kurum ve Kuruluşlar', 'Mali Müşavir', 'Bankalar'],
-        retentionPeriod: '15 yıl',
+        recipients: ['SGK ve Diğer Yetkili Kurum ve Kuruluşlar', 'Mali Müşavir', 'Bankalar'],
+        retentionPeriod: '15 yıl iş ilişkisinin bitiminden itibaren',
       });
       expect(first.purposes).toEqual([
         'Çalışanlar İçin İş Akdi ve Mevzuat Kaynaklı Yükümlülüklerin Yerine Getirilmesi',
