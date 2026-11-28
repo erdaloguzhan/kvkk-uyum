@@ -70,6 +70,26 @@ describe('Doküman Yönetimi', () => {
     expect(res.body.items.every((t: any) => t.documentId === null)).toBe(true);
   });
 
+  it('katalogda çıkarılan dokümanların şablonunu işaretler (yeni şablonlar kartında önerilmez)', async () => {
+    const { admin, as } = await setupOrg();
+    const create = (templateCode: string) =>
+      request(server).post('/api/v1/documents').set(as(admin.accessToken)).send({ templateCode }).expect(201);
+    const pol = await create('POL-010');
+    const aym = await create('AYM-010');
+    await request(server).post(`/api/v1/documents/${aym.body.id}/remove`).set(as(admin.accessToken)).send({}).expect(200);
+
+    const res = await request(server).get('/api/v1/document-templates').set(as(admin.accessToken)).expect(200);
+    const byCode = (code: string) => res.body.items.find((t: any) => t.code === code);
+    expect(byCode('POL-010')).toMatchObject({ documentId: pol.body.id, removed: false });
+    expect(byCode('AYM-010')).toMatchObject({ documentId: null, removed: true });
+    expect(byCode('POL-030')).toMatchObject({ documentId: null, removed: false });
+
+    // Çıkarılan şablondan yeniden oluşturulursa tekrar listede sayılır.
+    const again = await create('AYM-010');
+    const after = await request(server).get('/api/v1/document-templates').set(as(admin.accessToken)).expect(200);
+    expect(after.body.items.find((t: any) => t.code === 'AYM-010')).toMatchObject({ documentId: again.body.id, removed: false });
+  });
+
   it('şablonu kuruluş bilgileriyle doldurur; başlık alanlarına dokunmaz', async () => {
     const { admin, as } = await setupOrg();
     const created = await request(server)
