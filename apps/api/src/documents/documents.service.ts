@@ -53,16 +53,20 @@ export class DocumentsService {
     private readonly templates: TemplatesService,
   ) {}
 
-  /** Yayındaki ana şablonlar ve kuruluşun hangi şablonlardan doküman oluşturduğu. */
+  /**
+   * Yayındaki ana şablonlar ve kuruluşun hangi şablonlardan doküman oluşturduğu. `removed`: kuruluş bu şablondan
+   * oluşturduğu dokümanı listeden çıkarmış (yeni şablonlar kartında tekrar önerilmez).
+   */
   async catalog(orgId: string) {
     const [existing, templates] = await Promise.all([
       this.db
-        .select({ id: documents.id, templateCode: documents.templateCode })
+        .select({ id: documents.id, templateCode: documents.templateCode, removedAt: documents.removedAt })
         .from(documents)
-        .where(and(eq(documents.organizationId, orgId), listed)),
+        .where(eq(documents.organizationId, orgId)),
       this.templates.catalog(),
     ]);
-    const byCode = new Map(existing.map((d) => [d.templateCode, d.id]));
+    const byCode = new Map(existing.filter((d) => d.removedAt == null).map((d) => [d.templateCode, d.id]));
+    const removed = new Set(existing.filter((d) => d.removedAt != null).map((d) => d.templateCode));
     return templates.map((t) => ({
       code: t.code,
       title: t.title,
@@ -71,6 +75,7 @@ export class DocumentsService {
       versionNo: t.effectiveVersion.versionNo,
       effectiveFrom: t.effectiveVersion.effectiveFrom,
       documentId: byCode.get(t.code) ?? null,
+      removed: !byCode.has(t.code) && removed.has(t.code),
     }));
   }
 

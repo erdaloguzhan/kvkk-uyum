@@ -9,7 +9,7 @@ import { Alert, Badge, Empty, ErrorAlert, Loading, PageHeader } from '@/componen
 import { api, ApiError, errorText } from '@/lib/api';
 import { formatDate } from '@/lib/labels';
 import { useSession } from '@/lib/session';
-import type { DocumentItem } from '@/lib/types';
+import type { DocumentItem, DocumentTemplateItem } from '@/lib/types';
 import { useApi } from '@/lib/use-api';
 
 export default function DocumentsPage() {
@@ -17,6 +17,7 @@ export default function DocumentsPage() {
   const canWrite = can(PERMISSIONS.DOCUMENTS_WRITE);
   const canApprove = can(PERMISSIONS.DOCUMENTS_APPROVE);
   const docs = useApi<{ items: DocumentItem[] }>('documents');
+  const templates = useApi<{ items: DocumentTemplateItem[] }>('document-templates');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<{ text: string; missingProfile: boolean } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -33,7 +34,7 @@ export default function DocumentsPage() {
     try {
       setMessage(await fn());
       setDialog(null);
-      await docs.reload();
+      await Promise.all([docs.reload(), templates.reload()]);
     } catch (err) {
       setError({ text: errorText(err), missingProfile: err instanceof ApiError && !!err.body.missing?.length });
     } finally {
@@ -45,6 +46,11 @@ export default function DocumentsPage() {
     run('setup', async () => {
       const r = await api<{ created: unknown[] }>('documents/setup', { method: 'POST' });
       return `${r.created.length} doküman taslak olarak oluşturuldu. Gözden geçirip yayınlayabilirsiniz.`;
+    });
+  const createFromTemplate = (t: DocumentTemplateItem) =>
+    run(`template:${t.code}`, async () => {
+      await api('documents', { method: 'POST', body: { templateCode: t.code } });
+      return `${t.code} ${t.title} taslak olarak oluşturuldu. Gözden geçirip yayınlayabilirsiniz.`;
     });
   const addOwn = (input: NewDocumentInput) =>
     run('new', async () => {
@@ -83,6 +89,9 @@ export default function DocumentsPage() {
       window.dispatchEvent(new Event('kvkk:notifications'));
       return `${label} için çıkarma talebi Yönetici onayına gönderildi. Onaylanınca listeden çıkarılır.`;
     });
+
+  // Kuruluşun hiç oluşturmadığı şablonlar; çıkardığı dokümanlar tekrar önerilmez (Erdal, 17.11 ve 28.11.2026).
+  const newTemplates = (templates.data?.items ?? []).filter((t) => t.documentId === null && !t.removed);
 
   const byCategory = Object.entries(DOCUMENT_CATEGORIES)
     .map(([key, label]) => ({ key, label, docs: items.filter((d) => d.category === key) }))
@@ -128,6 +137,44 @@ export default function DocumentsPage() {
             <button className="btn btn-primary" onClick={setup} disabled={busy !== null}>
               {busy === 'setup' ? 'Oluşturuluyor…' : 'Hepsini oluştur'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {canWrite && items.length > 0 && newTemplates.length > 0 && (
+        <div className="card">
+          <h2>Yeni şablonlar</h2>
+          <p className="muted small" style={{ margin: '4px 0 12px' }}>
+            Kuruluşunuz için henüz oluşturulmamış şablonlar. Oluşturulan doküman taslak olarak eklenir; gözden geçirip yayınlayabilirsiniz.
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kod</th>
+                  <th>Şablon</th>
+                  <th>Tür</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {newTemplates.map((t) => (
+                  <tr key={t.code}>
+                    <td className="nowrap">{t.code}</td>
+                    <td>
+                      {t.title}
+                      {t.optional && <span className="small muted"> (opsiyonel)</span>}
+                    </td>
+                    <td className="nowrap">{DOCUMENT_CATEGORIES[t.category as keyof typeof DOCUMENT_CATEGORIES] ?? t.category}</td>
+                    <td className="nowrap">
+                      <button className="btn btn-small" onClick={() => createFromTemplate(t)} disabled={busy !== null}>
+                        {busy === `template:${t.code}` ? 'Oluşturuluyor…' : 'Oluştur'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

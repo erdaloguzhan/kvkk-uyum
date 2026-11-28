@@ -87,6 +87,19 @@ export interface DocumentVersion {
   publishedAt: string | null;
 }
 
+/** Kuruluşun kullanabileceği ana şablon (GET document-templates). */
+export interface DocumentTemplateItem {
+  code: string;
+  title: string;
+  category: string;
+  optional: boolean;
+  versionNo: number;
+  effectiveFrom: string;
+  documentId: string | null;
+  /** Kuruluş bu şablondan oluşturduğu dokümanı listeden çıkarmış. */
+  removed: boolean;
+}
+
 export interface DocumentItem {
   id: string;
   templateCode: string | null;
