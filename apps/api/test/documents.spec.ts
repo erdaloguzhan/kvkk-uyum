@@ -64,9 +64,9 @@ describe('Doküman Yönetimi', () => {
     const res = await request(server).get('/api/v1/document-templates').set(as(admin.accessToken)).expect(200);
     // Diğer testlerde platform yöneticisinin eklediği şablonlar hariç.
     res.body.items = res.body.items.filter((t: any) => CATALOG_CODES.includes(t.code));
-    expect(res.body.items).toHaveLength(15);
+    expect(res.body.items).toHaveLength(24);
     const optional = res.body.items.filter((t: any) => t.optional).map((t: any) => t.code);
-    expect(optional).toEqual(['AYM-030', 'AYM-040']);
+    expect(optional).toEqual(['AYM-030', 'AYM-040', 'AYM-060', 'AYM-070', 'FRM-060']);
     expect(res.body.items.every((t: any) => t.documentId === null)).toBe(true);
   });
 
@@ -97,7 +97,11 @@ describe('Doküman Yönetimi', () => {
       .send({ templateCode: 'POL-010' })
       .expect(201);
     const polFile = await download(as(admin.accessToken), pol.body.id, pol.body.versions[0].id);
-    const header = docxText(polFile, 'word/header1.xml');
+    // Başlık, Word'ün kaydettiği biçime göre header1/2/3 dosyalarından birinde olabilir.
+    const header = Object.keys(new PizZip(polFile).files)
+      .filter((n) => /^word\/header\d+\.xml$/.test(n))
+      .map((n) => docxText(polFile, n))
+      .join(' ');
     expect(header).toContain('Örnek Ticaret A.Ş.');
     expect(header).toContain('REVİZYON NO. 00');
     expect(header).not.toContain('{{');
@@ -136,7 +140,7 @@ describe('Doküman Yönetimi', () => {
       .set(as(admin.accessToken))
       .send({ templateCode: 'AYM-010' })
       .expect(400);
-    expect(res.body.missing).toEqual(['address', 'taxNumber']);
+    expect(res.body.missing).toEqual(['address', 'email', 'taxNumber']);
 
     // Yalnızca ünvan kullanan şablon oluşturulabilir.
     await request(server)
@@ -146,7 +150,7 @@ describe('Doküman Yönetimi', () => {
       .expect(201);
 
     const setup = await request(server).post('/api/v1/documents/setup').set(as(admin.accessToken)).expect(400);
-    expect(setup.body.missing).toEqual(['address', 'taxNumber']);
+    expect(setup.body.missing).toEqual(['address', 'email', 'phone', 'taxNumber']);
     const list = await request(server).get('/api/v1/documents').set(as(admin.accessToken)).expect(200);
     expect(list.body.items).toHaveLength(1);
   });
@@ -160,14 +164,14 @@ describe('Doküman Yönetimi', () => {
       .expect(201);
     const res = await request(server).post('/api/v1/documents/setup').set(as(admin.accessToken)).expect(201);
     const codes = res.body.created.map((d: any) => d.code);
-    expect(codes.filter((c: string) => CATALOG_CODES.includes(c))).toHaveLength(14);
+    expect(codes.filter((c: string) => CATALOG_CODES.includes(c))).toHaveLength(23);
     expect(codes).toContain('AYM-030');
     expect(codes).toContain('AYM-040');
     expect(res.body.skipped).toEqual(['POL-010']);
 
     // Logo henüz desteklenmiyor: tabela metni oluşur, logo boş kaldığı not edilir.
     const list = await request(server).get('/api/v1/documents').set(as(admin.accessToken)).expect(200);
-    expect(list.body.items.filter((d: any) => CATALOG_CODES.includes(d.code))).toHaveLength(15);
+    expect(list.body.items.filter((d: any) => CATALOG_CODES.includes(d.code))).toHaveLength(24);
     const sign = list.body.items.find((d: any) => d.code === 'AYM-041');
     expect(sign.latestVersion.unfilledPlaceholders).toEqual(['kurum.logo']);
 
